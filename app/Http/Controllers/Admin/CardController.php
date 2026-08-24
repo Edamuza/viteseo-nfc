@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\NfcMode;
+use App\Exceptions\UnreadableImageException;
 use App\Http\Controllers\Controller;
 use App\Models\Card;
 use App\Models\NfcLink;
@@ -11,6 +12,7 @@ use App\Rules\SafePhoneNumber;
 use App\Services\CardGenerationService;
 use App\Services\CardResetService;
 use App\Services\ContactPhotoStorage;
+use App\Services\ImageIngest;
 use App\Services\QrCodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -18,9 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\Response;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CardController extends Controller
@@ -30,6 +30,7 @@ class CardController extends Controller
         private readonly QrCodeService $qr,
         private readonly CardResetService $reset,
         private readonly ContactPhotoStorage $photos,
+        private readonly ImageIngest $images,
     ) {}
 
     public function show(Card $card): Response
@@ -238,7 +239,15 @@ class CardController extends Controller
 
         if ($file = $request->file('photo')) {
             $old = $profile->photo_path;
-            $profile->photo_path = $this->storeContactPhoto($file);
+
+            try {
+                $profile->photo_path = $this->images->store($file, 'contact-photos', 800);
+            } catch (UnreadableImageException $e) {
+                // A bad file reads as a normal validation error on the field it
+                // came from, rather than as a raw 422 page.
+                return back()->withErrors(['photo' => $e->getMessage()])->withInput($request->except('photo'));
+            }
+
             $this->photos->forget($old, $card);
         }
 
@@ -346,48 +355,6 @@ class CardController extends Controller
     private function stripControl(string $v): string
     {
         return trim(preg_replace('/[\x00-\x1F\x7F]/u', '', $v) ?? '');
-    }
-
-    /**
-     * Stores an uploaded contact photo safely.
-     *
-     *  - the extension comes from the DECODED image type, never the upload name
-     *  - the filename is server-generated random hex, so nothing user-supplied
-     *    reaches the filesystem
-     *  - the file is re-encoded through GD, which discards EXIF, appended
-     *    archives and any PHP smuggled inside an otherwise-valid image
-     */
-    private function storeContactPhoto(UploadedFile $file): string
-    {
-        $raw = file_get_contents($file->getRealPath());
-        abort_if($raw === false, 422, 'Could not read the uploaded image.');
-
-        $image = @imagecreatefromstring($raw);
-        abort_if($image === false, 422, 'That file is not a readable image.');
-
-        // Cap dimensions so a huge upload cannot be served back verbatim.
-        $w = imagesx($image);
-        $h = imagesy($image);
-        $max = 800;
-
-        if ($w > $max || $h > $max) {
-            $scale  = $max / max($w, $h);
-            $resized = imagescale($image, (int) round($w * $scale), (int) round($h * $scale));
-            if ($resized !== false) {
-                imagedestroy($image);
-                $image = $resized;
-            }
-        }
-
-        ob_start();
-        imagejpeg($image, null, 85);   // re-encode: output is a clean JPEG, nothing else
-        $clean = (string) ob_get_clean();
-        imagedestroy($image);
-
-        $path = 'contact-photos/'.bin2hex(random_bytes(16)).'.jpg';
-        Storage::disk('public')->put($path, $clean);
-
-        return $path;
     }
 
     // --- Whole card ----------------------------------------------------------
