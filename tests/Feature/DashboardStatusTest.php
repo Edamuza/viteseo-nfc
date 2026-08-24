@@ -80,6 +80,14 @@ class DashboardStatusTest extends TestCase
             'blank strings'     => [['first_name' => '', 'company' => ''], false],
             'job title only'    => [['job_title' => 'Director'], false],
             'phone only'        => [['mobile_phone' => '+639171234567'], false],
+            'whitespace first name only' => [['first_name' => '   '], false],
+            'whitespace in all name parts' => [[
+                'first_name' => ' ', 'middle_name' => ' ', 'last_name' => ' ', 'suffix' => ' ',
+            ], false],
+            // Inherited from hasName(): company is not trimmed, so a whitespace-only
+            // company is non-empty and isMeaningful() returns true.
+            'whitespace company only' => [['company' => ' '], true],
+            'whitespace first name with real company' => [['first_name' => '   ', 'company' => 'Acme Ltd'], true],
         ];
     }
 

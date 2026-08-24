@@ -139,15 +139,23 @@ class NfcContactProfile extends Model
      * test_meaningful_scope_agrees_with_is_meaningful is what keeps the two
      * from drifting apart.
      *
-     * A NULL column does not satisfy `!= ''` in SQL, which is exactly the
-     * wanted behaviour: unset is not meaningful.
+     * Name columns are trimmed to mirror displayName(); company is left
+     * untrimmed to mirror hasName(). That asymmetry is inherited from those
+     * methods — do not "tidy" it here or the dashboard count will change.
+     *
+     * Column names come from a hardcoded literal array below, not user input,
+     * so building the expression as raw SQL carries no injection risk.
+     *
+     * A NULL column does not satisfy the checks, which is exactly the wanted
+     * behaviour: unset is not meaningful.
      */
     public function scopeMeaningful(Builder $query): Builder
     {
         return $query->where(function (Builder $q) {
-            foreach (['first_name', 'middle_name', 'last_name', 'suffix', 'company'] as $column) {
-                $q->orWhere($column, '!=', '');
+            foreach (['first_name', 'middle_name', 'last_name', 'suffix'] as $column) {
+                $q->orWhereRaw("trim(coalesce({$column}, '')) != ''");
             }
+            $q->orWhereRaw("coalesce(company, '') != ''");
         });
     }
 }
