@@ -9,6 +9,7 @@ use App\Models\NfcLink;
 use App\Rules\SafeExternalUrl;
 use App\Rules\SafePhoneNumber;
 use App\Services\CardGenerationService;
+use App\Services\CardResetService;
 use App\Services\QrCodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +27,7 @@ class CardController extends Controller
     public function __construct(
         private readonly CardGenerationService $cards,
         private readonly QrCodeService $qr,
+        private readonly CardResetService $reset,
     ) {}
 
     public function show(Card $card): Response
@@ -146,24 +148,17 @@ class CardController extends Controller
 
     /**
      * DELETE /admin/cards/{card}/nfc
-     * Documented choice: resetting NFC also clears the landing-page title,
-     * subtitle and logo. Those belong to the partner who configured the links;
-     * leaving one partner's branding above a different partner's links would be
-     * worse than clearing it. QR is untouched.
+     *
+     * Clears the whole NFC side in every mode and returns the card to Links
+     * mode, so the confirmation message below is true regardless of what the
+     * card was serving. QR is untouched. The surgical "remove just this" case
+     * is served by the per-mode delete actions.
      */
     public function resetNfc(Card $card): RedirectResponse
     {
-        DB::transaction(function () use ($card) {
-            $card->nfcLinks()->delete();
-            $card->forceFill([
-                'nfc_configured_at' => null,
-                'nfc_page_title'    => null,
-                'nfc_page_subtitle' => null,
-                'nfc_logo_path'     => null,
-            ])->save();
-        });
+        $this->reset->resetNfcSide($card);
 
-        return back()->with('status', 'NFC reset. The next tap will show the setup page.');
+        return back()->with('status', 'NFC reset. Every mode has been cleared and the next tap will show the setup page.');
     }
 
     // --- NFC mode ------------------------------------------------------------
@@ -405,17 +400,7 @@ class CardController extends Controller
      */
     public function resetCard(Card $card): RedirectResponse
     {
-        DB::transaction(function () use ($card) {
-            $card->nfcLinks()->delete();
-            $card->forceFill([
-                'qr_destination'    => null,
-                'qr_configured_at'  => null,
-                'nfc_configured_at' => null,
-                'nfc_page_title'    => null,
-                'nfc_page_subtitle' => null,
-                'nfc_logo_path'     => null,
-            ])->save();
-        });
+        $this->reset->resetEverything($card);
 
         return back()->with('status', 'Card fully reset. Card number, public ID and both permanent URLs are unchanged.');
     }

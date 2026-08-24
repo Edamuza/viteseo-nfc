@@ -224,4 +224,42 @@ class CardResetTest extends TestCase
         $this->assertSame($nfcUrl, $card->nfcUrl());
         $this->assertSame($qrUrl, $card->qrUrl());
     }
+
+    public function test_admin_nfc_reset_endpoint_clears_every_mode(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        $this->actingAs($this->admin())
+            ->delete('/admin/cards/'.$card->public_id.'/nfc')
+            ->assertRedirect();
+
+        $this->assertNfcSideIsClear($card);
+        $this->assertSame('https://example.com/qr', $card->qr_destination, 'QR is not part of an NFC reset');
+        Storage::disk('public')->assertMissing('contact-photos/old.jpg');
+    }
+
+    public function test_admin_full_reset_endpoint_clears_the_qr_too(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        $this->actingAs($this->admin())
+            ->delete('/admin/cards/'.$card->public_id.'/reset')
+            ->assertRedirect();
+
+        $this->assertNfcSideIsClear($card);
+        $this->assertNull($card->qr_destination);
+        $this->assertNull($card->qr_configured_at);
+    }
+
+    public function test_reset_endpoints_require_authentication(): void
+    {
+        $card = $this->card();
+
+        // Guests land on /admin/login, not Laravel's default /login: there is
+        // no /login route in this app. AdminTest asserts the same target.
+        $this->delete('/admin/cards/'.$card->public_id.'/nfc')->assertRedirect('/admin/login');
+        $this->delete('/admin/cards/'.$card->public_id.'/reset')->assertRedirect('/admin/login');
+    }
 }
