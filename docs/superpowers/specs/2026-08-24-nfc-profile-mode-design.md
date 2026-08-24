@@ -223,10 +223,35 @@ counters are likewise rewritten to count against each card's current mode.
 
 ### 9. Theme
 
-Dark, matching the reference: near-black background, dark elevated card surfaces,
-light text. This is the first dark public page in the app — the others are
-light-first — so the palette lives in this view's own `:root` block rather than
-being pushed into a shared layout, keeping the existing pages untouched.
+"Dark" here means a **dark page frame with light content cards**, not a fully dark
+page. The reference design uses a near-black, slightly green-tinted background
+with white cards and dark text on them; only the background, the footer links and
+the overflow-menu trigger are light-on-dark. Reproducing this faithfully was
+confirmed against a rendered mockup.
+
+This is the first public page that is not light-first, so the palette lives in this
+view's own `:root` block rather than being pushed into a shared layout. The
+existing pages stay untouched.
+
+A rendered mockup of the approved design lives at
+`docs/superpowers/specs/mockups/2026-08-24-nfc-profile.html`, with a screenshot in
+`shots/profile-wide.png`. Its CSS is intended to transfer into the Blade view
+directly.
+
+### 10. Public-facing copy and disclosure
+
+**"Advanced details" shows the permanent URL and a last-updated date. It must not
+show `card_number`.** The card number is an internal, sequential identifier;
+publishing it tells any visitor roughly how many cards have been issued and where
+theirs falls in that sequence. `routes/web.php` already states that public routes
+expose "no card inventory, no admin surface and no internal IDs", and printing the
+card number would contradict that for no user benefit.
+
+The `...` overflow menu carries **Copy link** and **Report abuse**. Gravatar's
+menu items (Gravatar.com, Edit your profile, Developer API) are product-specific
+and have no equivalent here. "Save to contacts" is deliberately excluded: that is
+Contact mode's job, and offering a `.vcf` from a Profile-mode card would need
+contact data this mode does not have.
 
 ## Testing
 

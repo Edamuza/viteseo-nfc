@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<!--
+  DESIGN MOCKUP ONLY — not wired to the app.
+  Static preview of the proposed NFC Profile mode page, for design review.
+  The CSS here is intended to transfer directly into
+  resources/views/public/nfc-profile.blade.php.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Uriel Papa</title>
+<style>
+:root{
+  --page:#0c1411;
+  --card:#fff;
+  --text:#101418;
+  --soft:#3f4854;
+  --muted:#6b7480;
+  --line:#e6e8eb;
+  --pill:#e9edf0;
+  --onpage:#c9d3ce;
+  --onpage-dim:#8b968f;
+  --radius:16px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--page);color:var(--text);
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  padding:22px 16px calc(30px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:420px;margin:0 auto}
+
+/* ---- overflow menu ------------------------------------------------------ */
+.topbar{display:flex;justify-content:flex-end;margin-bottom:12px}
+details.menu{position:relative}
+details.menu>summary{
+  list-style:none;cursor:pointer;width:34px;height:34px;border-radius:50%;
+  display:grid;place-items:center;background:rgba(255,255,255,.09);color:var(--onpage);
+}
+details.menu>summary::-webkit-details-marker{display:none}
+.menu-panel{
+  position:absolute;right:0;top:40px;z-index:20;min-width:210px;
+  background:var(--card);border-radius:12px;padding:6px;
+  box-shadow:0 12px 34px rgba(0,0,0,.34);
+}
+.menu-panel a{
+  display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;
+  color:var(--text);text-decoration:none;font-size:.875rem;
+}
+.menu-panel a:hover{background:#f3f5f7}
+
+/* ---- profile card ------------------------------------------------------- */
+.card{background:var(--card);border-radius:var(--radius);overflow:hidden;
+ box-shadow:0 1px 3px rgba(0,0,0,.28);margin-bottom:16px}
+.cover{
+  height:104px;
+  background:
+    radial-gradient(120% 150% at 18% 8%,#8fa48c 0%,transparent 60%),
+    radial-gradient(90% 120% at 82% 22%,#b9bfae 0%,transparent 62%),
+    linear-gradient(168deg,#2f4034 0%,#556b4e 46%,#9aa892 100%);
+  filter:saturate(.92);
+}
+.idblock{padding:0 20px 20px}
+.avatar-row{margin-top:-42px;margin-bottom:14px}
+.avatar-slot{position:relative;width:84px;height:84px}
+.avatar{
+  width:84px;height:84px;border-radius:50%;object-fit:cover;display:block;
+  border:3px solid var(--card);background:#cfd6d1;
+}
+.avatar-fallback{
+  width:84px;height:84px;border-radius:50%;border:3px solid var(--card);
+  display:grid;place-items:center;font-weight:640;font-size:1.6rem;color:#fff;
+  background:linear-gradient(150deg,#5c7264,#33463a);
+}
+/* QR badge sits on the avatar, opens a server-rendered SVG. No JS. */
+details.qr{position:absolute;top:-2px;right:-2px}
+details.qr>summary{
+  list-style:none;cursor:pointer;width:26px;height:26px;border-radius:50%;
+  background:#141a17;color:#fff;display:grid;place-items:center;
+  border:2px solid var(--card);
+}
+details.qr>summary::-webkit-details-marker{display:none}
+.qr-pop{
+  position:absolute;left:0;top:32px;z-index:15;background:var(--card);
+  border-radius:12px;padding:12px;box-shadow:0 12px 34px rgba(0,0,0,.3);
+  width:172px;text-align:center;
+}
+.qr-pop svg{width:140px;height:140px;display:block;margin:0 auto}
+.qr-pop .cap{font-size:.7rem;color:var(--muted);margin-top:8px}
+
+h1{font-size:1.5rem;font-weight:680;margin:0;letter-spacing:-.022em;overflow-wrap:anywhere}
+.headline{color:var(--soft);margin:5px 0 0;font-size:.9rem;overflow-wrap:anywhere}
+.meta{color:var(--muted);margin:3px 0 0;font-size:.85rem}
+
+.iconrow{display:flex;align-items:center;gap:13px;margin:14px 0 0;flex-wrap:wrap}
+.iconrow a{color:#20262e;display:grid;place-items:center}
+.iconrow a:hover{color:#000}
+.iconrow svg{width:15px;height:15px;fill:currentColor;display:block}
+
+.tagline{margin:16px 0 0;font-size:.92rem;color:var(--soft);overflow-wrap:anywhere}
+
+/* Share: <details> reveal is the no-JS base; script upgrades it. */
+details.share{margin-top:16px}
+details.share>summary{
+  list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  min-height:44px;border:1px solid #d9dde1;border-radius:11px;
+  font-weight:560;font-size:.94rem;color:var(--text);
+}
+details.share>summary::-webkit-details-marker{display:none}
+details.share>summary:hover{background:#f7f8f9}
+.share-body{display:flex;gap:8px;margin-top:9px}
+.share-body input{
+  flex:1;min-width:0;font:inherit;font-size:.82rem;padding:9px 11px;
+  border:1px solid var(--line);border-radius:9px;color:var(--soft);background:#fbfcfc;
+}
+.share-body button{
+  font:inherit;font-size:.82rem;font-weight:560;padding:9px 14px;cursor:pointer;
+  border:1px solid #d9dde1;border-radius:9px;background:#fff;color:var(--text);
+}
+
+/* ---- accounts card ------------------------------------------------------ */
+.card-pad{padding:18px 20px}
+h2{font-size:1rem;font-weight:640;margin:0 0 4px;letter-spacing:-.01em}
+.acct{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--line)}
+.acct:last-child{border-bottom:0}
+.acct-ico{flex:0 0 auto;width:17px;padding-top:2px;color:#20262e}
+.acct-ico svg{width:17px;height:17px;fill:currentColor;display:block}
+.acct-main{min-width:0}
+.acct-name{font-size:.88rem;font-weight:600}
+.acct-url{font-size:.8rem;color:var(--muted);overflow-wrap:anywhere;text-decoration:none;display:block;margin-top:1px}
+.acct-url:hover{text-decoration:underline}
+
+/* ---- advanced + footer -------------------------------------------------- */
+details.adv{margin:4px 0 0;text-align:center}
+details.adv>summary{
+  list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+  background:var(--pill);color:#2b333c;border-radius:999px;padding:8px 15px;
+  font-size:.82rem;font-weight:540;
+}
+details.adv>summary::-webkit-details-marker{display:none}
+.adv-body{
+  background:var(--card);border-radius:12px;margin-top:12px;padding:4px 18px;text-align:left;
+}
+.kv{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);font-size:.84rem}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--muted)}
+.kv .v{text-align:right;overflow-wrap:anywhere}
+
+footer{margin-top:26px;text-align:center}
+footer nav{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+footer a{color:var(--onpage);text-decoration:none;font-size:.76rem}
+footer a:hover{text-decoration:underline}
+.by{color:var(--onpage-dim);font-size:.7rem;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <details class="menu">
+      <summary aria-label="More options">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
+      </summary>
+      <div class="menu-panel">
+        <a href="#">Copy link</a>
+        <a href="#">Report abuse</a>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============ profile card ============ -->
+  <section class="card">
+    <div class="cover"></div>
+    <div class="idblock">
+
+      <div class="avatar-row">
+        <div class="avatar-slot">
+          <div class="avatar-fallback">UP</div>
+          <details class="qr">
+            <summary aria-label="Show QR code">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 3h7v7H3V3zm2 2v3h3V5H5zm9-2h7v7h-7V3zm2 2v3h3V5h-3zM3 14h7v7H3v-7zm2 2v3h3v-3H5zm9 -2h3v3h-3v-3zm5 0h2v2h-2v-2zm-5 5h3v2h-3v-2zm5 -2h2v4h-4v-2h2v-2z"/>
+              </svg>
+            </summary>
+            <div class="qr-pop">
+              <!-- In the real page this is QrCodeService::svg($card->nfcUrl()) -->
+              <svg viewBox="0 0 29 29" shape-rendering="crispEdges"><rect width="29" height="29" fill="#fff"/><g fill="#000">
+              <rect x="2" y="2" width="7" height="7"/><rect x="3" y="3" width="5" height="5" fill="#fff"/><rect x="4" y="4" width="3" height="3"/>
+              <rect x="20" y="2" width="7" height="7"/><rect x="21" y="3" width="5" height="5" fill="#fff"/><rect x="22" y="4" width="3" height="3"/>
+              <rect x="2" y="20" width="7" height="7"/><rect x="3" y="21" width="5" height="5" fill="#fff"/><rect x="4" y="22" width="3" height="3"/>
+              <rect x="11" y="2" width="1" height="1"/><rect x="13" y="2" width="1" height="1"/><rect x="15" y="3" width="1" height="1"/><rect x="12" y="4" width="1" height="1"/><rect x="14" y="5" width="1" height="1"/><rect x="11" y="6" width="1" height="1"/><rect x="16" y="6" width="1" height="1"/><rect x="13" y="7" width="1" height="1"/>
+              <rect x="2" y="11" width="1" height="1"/><rect x="4" y="12" width="1" height="1"/><rect x="6" y="11" width="1" height="1"/><rect x="3" y="14" width="1" height="1"/><rect x="7" y="13" width="1" height="1"/><rect x="5" y="16" width="1" height="1"/><rect x="2" y="17" width="1" height="1"/>
+              <rect x="11" y="11" width="2" height="2"/><rect x="15" y="12" width="1" height="1"/><rect x="13" y="14" width="2" height="2"/><rect x="17" y="15" width="1" height="1"/><rect x="11" y="16" width="1" height="1"/><rect x="16" y="18" width="1" height="1"/><rect x="12" y="19" width="1" height="1"/><rect x="19" y="11" width="1" height="1"/><rect x="21" y="13" width="1" height="1"/><rect x="24" y="12" width="1" height="1"/><rect x="26" y="14" width="1" height="1"/><rect x="20" y="16" width="1" height="1"/><rect x="23" y="17" width="1" height="1"/><rect x="25" y="19" width="1" height="1"/>
+              <rect x="11" y="21" width="1" height="1"/><rect x="14" y="22" width="1" height="1"/><rect x="12" y="24" width="1" height="1"/><rect x="16" y="23" width="1" height="1"/><rect x="19" y="21" width="1" height="1"/><rect x="22" y="22" width="1" height="1"/><rect x="25" y="24" width="1" height="1"/><rect x="20" y="25" width="1" height="1"/><rect x="17" y="26" width="1" height="1"/><rect x="13" y="26" width="1" height="1"/>
+              </g></svg>
+              <div class="cap">Scan to open this page</div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <h1>Uriel Papa</h1>
+      <p class="headline">Chief Executive Officer, Vite SEO Digital Advertising OPC</p>
+      <p class="meta">yurielyel &middot; Philippines</p>
+
+      <div class="iconrow">
+        <a href="#" aria-label="X"><svg viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg></a>
+        <a href="#" aria-label="LinkedIn"><svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 1 1 0-4.125 2.062 2.062 0 0 1 0 4.125zM7.119 20.452H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+        <a href="#" aria-label="TikTok"><svg viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg></a>
+        <a href="#" aria-label="GitHub"><svg viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+        <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a>
+      </div>
+
+      <p class="tagline">Say my name</p>
+
+      <details class="share">
+        <summary>Share</summary>
+        <div class="share-body">
+          <input value="nfc.viteseo.ph/n/X7K92LM4" readonly>
+          <button type="button">Copy</button>
+        </div>
+      </details>
+
+    </div>
+  </section>
+
+  <!-- ============ accounts card ============ -->
+  <section class="card card-pad">
+    <h2>Accounts</h2>
+
+    <div class="acct">
+      <span class="acct-ico"><svg viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg></span>
+      <div class="acct-main">
+        <div class="acct-name">X</div>
+        <a class="acct-url" href="#">x.com/its_uriel26</a>
+      </div>
+    </div>
+
+    <div class="acct">
+      <span class="acct-ico"><svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 1 1 0-4.125 2.062 2.062 0 0 1 0 4.125zM7.119 20.452H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></span>
+      <div class="acct-main">
+        <div class="acct-name">LinkedIn</div>
+        <a class="acct-url" href="#">linkedin.com/in/uriel-papa-vitese01</a>
+      </div>
+    </div>
+
+    <div class="acct">
+      <span class="acct-ico"><svg viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg></span>
+      <div class="acct-main">
+        <div class="acct-name">TikTok</div>
+        <a class="acct-url" href="#">tiktok.com/@its_uriel26</a>
+      </div>
+    </div>
+
+    <div class="acct">
+      <span class="acct-ico"><svg viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></span>
+      <div class="acct-main">
+        <div class="acct-name">GitHub</div>
+        <a class="acct-url" href="#">github.com/urielpapa</a>
+      </div>
+    </div>
+
+    <div class="acct">
+      <span class="acct-ico"><svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></span>
+      <div class="acct-main">
+        <div class="acct-name">Facebook</div>
+        <a class="acct-url" href="#">facebook.com/uriel.papa</a>
+      </div>
+    </div>
+  </section>
+
+  <details class="adv">
+    <summary>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6 3 12l5 6"/><path d="m16 6 5 6-5 6"/></svg>
+      Advanced details
+    </summary>
+    <!-- card_number is deliberately absent: it is an internal sequential ID and
+         publishing it would leak card inventory. See spec section 10. -->
+    <div class="adv-body">
+      <div class="kv"><span class="k">Permanent URL</span><span class="v">nfc.viteseo.ph/n/X7K92LM4</span></div>
+      <div class="kv"><span class="k">Last updated</span><span class="v">24 August 2026</span></div>
+    </div>
+  </details>
+
+  <footer>
+    <nav>
+      <a href="#">What is this?</a>
+      <a href="#">Terms of Service</a>
+      <a href="#">Privacy Policy</a>
+    </nav>
+    <div class="by">Powered by ViteSEO</div>
+  </footer>
+
+</div>
+</body>
+</html>
