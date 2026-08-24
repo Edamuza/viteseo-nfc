@@ -43,6 +43,7 @@ class NfcController extends Controller
             NfcMode::Contact => $this->showContact($card),
             NfcMode::Phone   => $this->showPhone($card),
             NfcMode::Email   => $this->showEmail($card),
+            NfcMode::Profile => $this->showProfile($card),
         };
     }
 
@@ -114,6 +115,19 @@ class NfcController extends Controller
             'card'   => $card,
             'mailto' => $mailto,
         ]));
+    }
+
+    /**
+     * Profile mode.
+     *
+     * Every card renders the not-ready page for now; the profile view lands in
+     * the next task and adds the branch. Existing at all is what matters here:
+     * an enum case with no match arm throws UnhandledMatchError, which would
+     * take down a live public URL.
+     */
+    private function showProfile(Card $card): Response
+    {
+        return $this->notReady($card);
     }
 
     /**

@@ -22,10 +22,15 @@ class DashboardController extends Controller
         $query = Card::query()
             ->select('cards.*')
             ->addSelect($activeLinkCount)
-            // Contact-mode status needs the name columns and nothing else.
-            // Selecting a subset keeps a 25-row page at a constant query count
-            // without hydrating whole profiles, including notes and addresses.
-            ->with(['contactProfile:id,card_id,first_name,middle_name,last_name,suffix,company']);
+            ->with([
+                // Contact-mode status needs the name columns and nothing else.
+                // Selecting a subset keeps a 25-row page at a constant query
+                // count without hydrating whole profiles, including notes and
+                // addresses.
+                'contactProfile:id,card_id,first_name,middle_name,last_name,suffix,company',
+                // Profile-mode status reads display_name alone.
+                'profile:id,card_id,display_name',
+            ]);
 
         $search = trim((string) $request->query('search', ''));
 

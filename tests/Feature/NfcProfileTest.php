@@ -133,4 +133,60 @@ class NfcProfileTest extends TestCase
 
         $this->assertSame(0, NfcProfile::query()->count());
     }
+
+    public function test_a_profile_mode_card_with_no_profile_shows_the_not_ready_page(): void
+    {
+        $card = $this->card();
+        $card->forceFill(['nfc_mode' => 'profile'])->save();
+
+        // Deliberately NOT the links setup form: Profile mode is admin-managed,
+        // so a visitor must never be offered a form that writes links onto it.
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertDontSee('activation_pin', false);
+    }
+
+    public function test_a_profile_mode_card_with_a_nameless_profile_shows_the_not_ready_page(): void
+    {
+        $card = $this->card();
+        $card->profile()->save($card->profile()->make(['headline' => 'CEO, Vite SEO']));
+        $card->forceFill(['nfc_mode' => 'profile'])->save();
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertDontSee('activation_pin', false)
+            ->assertDontSee('CEO, Vite SEO');
+    }
+
+    public function test_public_self_service_setup_still_refuses_profile_mode(): void
+    {
+        $card = $this->card();
+        $card->forceFill(['nfc_mode' => 'profile'])->save();
+
+        $this->post('/n/'.$card->public_id, [
+            'activation_pin' => '000000',
+            'links'          => [['title' => 'Site', 'url' => 'https://example.com']],
+        ])->assertRedirect('/n/'.$card->public_id);
+
+        $this->assertSame(0, $card->nfcLinks()->count(), 'a visitor must not be able to write links onto a profile card');
+    }
+
+    public function test_the_profile_mode_page_carries_no_store_and_noindex_headers(): void
+    {
+        $card = $this->card();
+        $card->profile()->save($card->profile()->make(['display_name' => 'Uriel Papa']));
+        $card->forceFill(['nfc_mode' => 'profile'])->save();
+
+        $response = $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+
+        // Symfony normalises and alphabetises Cache-Control, so assert on semantics.
+        $cc = (string) $response->headers->get('Cache-Control');
+        $this->assertStringContainsString('no-store', $cc, "Cache-Control was: {$cc}");
+        $this->assertStringContainsString('private', $cc, "Cache-Control was: {$cc}");
+        $this->assertStringContainsString('no-cache', $cc, "Cache-Control was: {$cc}");
+        $this->assertStringContainsString('must-revalidate', $cc, "Cache-Control was: {$cc}");
+        $this->assertStringContainsString('max-age=0', $cc, "Cache-Control was: {$cc}");
+    }
 }

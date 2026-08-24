@@ -15,6 +15,7 @@ enum NfcMode: string
     case Contact = 'contact';
     case Phone   = 'phone';
     case Email   = 'email';
+    case Profile = 'profile';
 
     public function label(): string
     {
@@ -23,6 +24,7 @@ enum NfcMode: string
             self::Contact => 'Digital Contact Card',
             self::Phone   => 'Phone / Call',
             self::Email   => 'Email',
+            self::Profile => 'Profile Page',
         };
     }
 
@@ -33,6 +35,7 @@ enum NfcMode: string
             self::Contact => 'Shows a digital business card with a Save to Contacts button.',
             self::Phone   => 'Shows a single Call button.',
             self::Email   => 'Shows a single Send Email button.',
+            self::Profile => 'Shows a rich profile page with avatar, bio and a list of linked accounts.',
         };
     }
 

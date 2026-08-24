@@ -133,6 +133,7 @@ class DashboardStatusTest extends TestCase
             'contact' => $card->contactProfile()->save($card->contactProfile()->make(['first_name' => 'John'])),
             'phone' => $card->forceFill(['nfc_phone_number' => '+639171234567'])->save(),
             'email' => $card->forceFill(['nfc_email_address' => 'hi@example.com'])->save(),
+            'profile' => $card->profile()->save($card->profile()->make(['display_name' => 'Uriel Papa'])),
         };
 
         $card->forceFill([
@@ -155,6 +156,8 @@ class DashboardStatusTest extends TestCase
             'phone unconfigured'    => ['phone', false],
             'email configured'      => ['email', true],
             'email unconfigured'    => ['email', false],
+            'profile configured'    => ['profile', true],
+            'profile unconfigured'  => ['profile', false],
         ];
     }
 
@@ -457,15 +460,15 @@ class DashboardStatusTest extends TestCase
     {
         $admin = $this->admin();
 
-        foreach (['links', 'contact', 'phone', 'email'] as $mode) {
-            $this->cardInMode($mode, true);
+        foreach (NfcMode::cases() as $mode) {
+            $this->cardInMode($mode->value, true);
         }
         $small = $this->dashboardQueryCount($admin);
 
         // 20 rows: still one page, so pagination is not the variable here.
         for ($i = 0; $i < 4; $i++) {
-            foreach (['links', 'contact', 'phone', 'email'] as $mode) {
-                $this->cardInMode($mode, true);
+            foreach (NfcMode::cases() as $mode) {
+                $this->cardInMode($mode->value, true);
             }
         }
         $large = $this->dashboardQueryCount($admin);

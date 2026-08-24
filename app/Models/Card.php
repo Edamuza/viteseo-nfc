@@ -83,6 +83,7 @@ class Card extends Model
             NfcMode::Contact => (bool) $this->contactProfile?->isMeaningful(),
             NfcMode::Phone   => (string) $this->nfc_phone_number !== '',
             NfcMode::Email   => (string) $this->nfc_email_address !== '',
+            NfcMode::Profile => (bool) $this->profile?->isMeaningful(),
         };
     }
 
@@ -112,7 +113,10 @@ class Card extends Model
                     ->whereRaw("coalesce(nfc_phone_number, '') != ''"))
               ->orWhere(fn (Builder $w) => $w
                     ->where('nfc_mode', NfcMode::Email->value)
-                    ->whereRaw("coalesce(nfc_email_address, '') != ''"));
+                    ->whereRaw("coalesce(nfc_email_address, '') != ''"))
+              ->orWhere(fn (Builder $w) => $w
+                    ->where('nfc_mode', NfcMode::Profile->value)
+                    ->whereHas('profile', fn ($p) => $p->meaningful()));
         };
 
         return $configured ? $query->where($matches) : $query->whereNot($matches);
