@@ -30,6 +30,7 @@
   --muted:#6b7480;
   --line:#e6e8eb;
   --pill:#e9edf0;
+  --ink:#0f1713;
   --radius:20px;
 }
 *{box-sizing:border-box}
@@ -40,6 +41,26 @@ body{
   padding:26px 20px calc(38px + env(safe-area-inset-bottom));
 }
 .wrap{max-width:680px;margin:0 auto}
+
+.topbar{display:flex;justify-content:flex-end;margin-bottom:14px}
+details.menu{position:relative}
+details.menu>summary{
+  list-style:none;cursor:pointer;width:40px;height:40px;border-radius:50%;
+  display:grid;place-items:center;background:rgba(255,255,255,.16);color:var(--on-brand);
+}
+details.menu>summary::-webkit-details-marker{display:none}
+.menu-panel{
+  position:absolute;right:0;top:47px;z-index:30;min-width:238px;
+  background:var(--card);border-radius:14px;padding:7px;
+  box-shadow:0 14px 38px rgba(0,0,0,.34);
+}
+.menu-panel a,.menu-panel button{
+  display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:10px;
+  color:var(--text);text-decoration:none;font:inherit;font-size:.94rem;
+  width:100%;background:none;border:0;cursor:pointer;text-align:left;
+}
+.menu-panel a:hover,.menu-panel button:hover{background:#f3f5f7}
+.menu-panel svg{width:16px;height:16px;fill:currentColor;flex:0 0 auto;color:var(--muted)}
 
 .card{background:var(--card);border-radius:var(--radius);overflow:hidden;
  border:1px solid rgba(0,0,0,.06);margin-bottom:18px}
@@ -55,6 +76,18 @@ body{
 }
 .avatar-img{width:110px;height:110px;border-radius:50%;border:4px solid var(--card);
  object-fit:cover;display:block}
+details.qr{position:absolute;top:-2px;right:-2px}
+details.qr>summary{
+  list-style:none;cursor:pointer;width:34px;height:34px;border-radius:50%;
+  background:#141a17;color:#fff;display:grid;place-items:center;
+  border:3px solid var(--card);
+}
+details.qr>summary::-webkit-details-marker{display:none}
+.qr-pop{
+  position:absolute;left:0;top:42px;z-index:25;background:var(--card);
+  border-radius:14px;padding:14px;box-shadow:0 14px 38px rgba(0,0,0,.3);
+}
+.qr-pop svg{width:176px;height:176px;display:block}
 
 h1{font-size:1.95rem;font-weight:680;margin:0;letter-spacing:-.024em;overflow-wrap:anywhere}
 .headline{color:var(--soft);margin:7px 0 0;font-size:1.02rem;overflow-wrap:anywhere}
@@ -65,6 +98,12 @@ h1{font-size:1.95rem;font-weight:680;margin:0;letter-spacing:-.024em;overflow-wr
 .iconrow svg{width:19px;height:19px;fill:currentColor;display:block}
 
 .tagline{margin:20px 0 0;font-size:1.02rem;color:var(--soft);overflow-wrap:anywhere}
+.sharebtn{
+  display:flex;align-items:center;justify-content:center;margin-top:22px;
+  min-height:54px;border:1px solid #d9dde1;border-radius:14px;
+  font-weight:570;font-size:1.04rem;color:var(--text);text-decoration:none;
+}
+.sharebtn:hover{background:#f7f8f9}
 
 .card-pad{padding:24px 28px}
 h2{font-size:1.14rem;font-weight:650;margin:0 0 6px;letter-spacing:-.012em}
@@ -109,6 +148,35 @@ h2{font-size:1.14rem;font-weight:650;margin:0 0 6px;letter-spacing:-.012em}
 }
 .modal-x:hover{background:#f1f3f5}
 
+.qr-stage{background:var(--ink);border-radius:16px;padding:24px;display:grid;place-items:center}
+.qr-card{background:#fff;border-radius:12px;overflow:hidden;width:232px}
+.qr-card .qr-img{position:relative;padding:18px;display:grid;place-items:center}
+.profile-qr{width:186px;height:186px;display:block}
+.qr-card .dl{
+  display:block;text-align:center;background:var(--pill);color:#2b333c;
+  padding:13px;font-size:.92rem;font-weight:560;text-decoration:none;
+}
+.qr-card .dl:hover{background:#dfe5e9}
+.modal-row{
+  display:flex;align-items:center;gap:14px;padding:18px 2px;
+  border-bottom:1px solid var(--line);color:var(--text);text-decoration:none;font-size:1.02rem;
+}
+.modal-row:last-of-type{border-bottom:0}
+.modal-row .ri{width:21px;color:var(--muted);flex:0 0 auto}
+.modal-row .ri svg{width:21px;height:21px;fill:currentColor;display:block}
+.modal-row .rt{font-weight:560;flex:1}
+.modal-row .rc{color:var(--muted)}
+.linkbar{
+  display:flex;align-items:center;gap:12px;margin-top:8px;
+  border:1px solid var(--line);border-radius:14px;padding:16px 18px;
+}
+.linkbar .u{flex:1;min-width:0;font-size:1rem;overflow-wrap:anywhere}
+.copybtn{
+  font:inherit;font-size:.96rem;font-weight:580;cursor:pointer;
+  background:none;border:0;color:var(--text);display:inline-flex;align-items:center;gap:7px;
+  flex:0 0 auto;
+}
+
 .welcome{
   background:linear-gradient(158deg,#16211b,#0f1713);
   border-radius:18px;padding:28px;text-align:left;color:#eaf0ec;
@@ -131,11 +199,38 @@ h2{font-size:1.14rem;font-weight:650;margin:0 0 6px;letter-spacing:-.012em}
 .kv .v{text-align:right;overflow-wrap:anywhere}
 
 footer{margin-top:32px;text-align:center}
-.by{color:var(--on-brand-dim);font-size:.78rem}
+footer nav{display:flex;gap:20px;justify-content:center;flex-wrap:wrap}
+footer a{color:var(--on-brand);text-decoration:none;font-size:.86rem}
+footer a:hover{text-decoration:underline}
+.by{color:var(--on-brand-dim);font-size:.78rem;margin-top:14px}
+.prose p{margin:0 0 13px;font-size:1rem;color:var(--soft);line-height:1.62}
+.prose p:last-child{margin-bottom:0}
+.toast{
+  position:fixed;left:50%;bottom:30px;transform:translate(-50%,14px);
+  background:#111814;color:#fff;border-radius:999px;padding:12px 20px;
+  font-size:.92rem;font-weight:550;z-index:90;display:flex;align-items:center;gap:9px;
+  opacity:0;visibility:hidden;transition:opacity .16s ease,transform .16s ease;
+}
+.toast.show{opacity:1;visibility:visible;transform:translate(-50%,0)}
+.toast svg{width:17px;height:17px;fill:none;stroke:#6ee7a8;stroke-width:2.6;
+ stroke-linecap:round;stroke-linejoin:round}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
+
+  <div class="topbar">
+    <details class="menu">
+      <summary aria-label="More options">
+        <svg width="19" height="19" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+      </summary>
+      <div class="menu-panel">
+        <a href="{{ route('nfc.profile.edit', $card->public_id) }}"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Edit your profile</a>
+        <button type="button" data-copy="{{ $card->nfcUrl() }}"><svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg> Copy link</button>
+      </div>
+    </details>
+  </div>
 
   <section class="card">
     <div class="cover"></div>
@@ -148,6 +243,12 @@ footer{margin-top:32px;text-align:center}
           @else
             <div class="avatar-fallback">{{ $profile->initials() }}</div>
           @endif
+          <details class="qr" data-qr-url="{{ $card->qrUrl() }}">
+            <summary aria-label="Show the card QR code">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h7v7H3V3zm2 2v3h3V5H5zm9-2h7v7h-7V3zm2 2v3h3V5h-3zM3 14h7v7H3v-7zm2 2v3h3v-3H5zm9-2h3v3h-3v-3zm5 0h2v2h-2v-2zm-5 5h3v2h-3v-2zm5-2h2v4h-4v-2h2v-2z"/></svg>
+            </summary>
+            <div class="qr-pop">{!! $cardQrSvg !!}</div>
+          </details>
         </div>
       </div>
 
@@ -183,6 +284,7 @@ footer{margin-top:32px;text-align:center}
       @endif
 
       @if ($profile->tagline)<p class="tagline">{{ $profile->tagline }}</p>@endif
+      <a class="sharebtn" href="#share" aria-haspopup="dialog" aria-controls="share">Share</a>
     </div>
   </section>
 
@@ -230,10 +332,47 @@ footer{margin-top:32px;text-align:center}
   </div>
 
   <footer>
-    {{-- The three global page links land in increment 4 with site_pages. --}}
+    <nav aria-label="ViteSEO information">
+      <a href="#about">What is this?</a>
+      <a href="#terms">Terms of Service</a>
+      <a href="#privacy">Privacy Policy</a>
+    </nav>
     <div class="by">Powered by ViteSEO</div>
   </footer>
 
+</div>
+
+<div class="modal" id="share" role="dialog" aria-modal="true" aria-labelledby="share-title">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2 id="share-title">Share Profile</h2>
+      <a class="modal-x" href="#" aria-label="Close">&#10005;</a>
+    </div>
+
+    <div class="qr-stage">
+      <div class="qr-card">
+        <div class="qr-img">
+          <img class="profile-qr" src="{{ route('nfc.profile.qr', $card->public_id) }}" data-qr-url="{{ $card->nfcUrl() }}" alt="QR code for this profile">
+        </div>
+        <a class="dl" href="{{ route('nfc.profile.qr', $card->public_id) }}" download>Download QR</a>
+      </div>
+    </div>
+
+    <a class="modal-row" href="{{ $shareMailto }}">
+      <span class="ri"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 4.5 18.94v-2.2A7.8 7.8 0 1 1 19.8 12v.9a1.4 1.4 0 0 1-2.8 0V8.2h-1.7v1a3.9 3.9 0 1 0 .5 5.6 3.2 3.2 0 0 0 5.7-1.9V12A10 10 0 0 0 12 2zm0 12.2A2.2 2.2 0 1 1 14.2 12 2.2 2.2 0 0 1 12 14.2z"/></svg></span>
+      <span class="rt">Share via Email</span><span class="rc">&rsaquo;</span>
+    </a>
+    <a class="modal-row" href="{{ route('nfc.profile.vcard', $card->public_id) }}">
+      <span class="ri"><svg viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM9 8.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm3.5 8h-7v-.6c0-1.2 1.6-2.2 3.5-2.2s3.5 1 3.5 2.2v.6zM19 15h-4v-1.5h4V15zm0-3h-4v-1.5h4V12zm0-3h-4V7.5h4V9z"/></svg></span>
+      <span class="rt">Add to contacts (vCard)</span><span class="rc">&rsaquo;</span>
+    </a>
+    <div class="linkbar">
+      <span class="u">{{ $card->nfcUrl() }}</span>
+      <button class="copybtn" type="button" data-copy="{{ $card->nfcUrl() }}">Copy link
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
+      </button>
+    </div>
+  </div>
 </div>
 
 @php
@@ -279,5 +418,56 @@ footer{margin-top:32px;text-align:center}
     </div>
   </div>
 </div>
+@foreach (['about', 'terms', 'privacy'] as $sitePageKey)
+  @php $sitePage = $sitePages->get($sitePageKey); @endphp
+  @if ($sitePage)
+    <div class="modal" id="{{ $sitePageKey }}" role="dialog" aria-modal="true" aria-labelledby="{{ $sitePageKey }}-title">
+      <div class="modal-box">
+        <div class="modal-head">
+          <h2 id="{{ $sitePageKey }}-title">{{ $sitePage->title }}</h2>
+          <a class="modal-x" href="#" aria-label="Close">&#10005;</a>
+        </div>
+        <div class="prose">
+          @foreach ($sitePage->paragraphs() as $paragraph)
+            <p>{{ $paragraph }}</p>
+          @endforeach
+        </div>
+      </div>
+    </div>
+  @endif
+@endforeach
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>
+  <span>Link copied</span>
+</div>
+<script>
+function copyFallback(value, done) {
+  var field = document.createElement('textarea');
+  field.value = value;
+  field.setAttribute('readonly', '');
+  field.style.position = 'fixed';
+  field.style.opacity = '0';
+  document.body.appendChild(field);
+  field.select();
+  if (document.execCommand('copy')) { done(); }
+  document.body.removeChild(field);
+}
+document.querySelectorAll('[data-copy]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var value = btn.dataset.copy;
+    var toast = document.getElementById('toast');
+    var done = function () {
+      toast.classList.add('show');
+      setTimeout(function () { toast.classList.remove('show'); }, 1900);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(value).then(done)
+        .catch(function () { copyFallback(value, done); });
+      return;
+    }
+    copyFallback(value, done);
+  });
+});
+</script>
 </body>
 </html>

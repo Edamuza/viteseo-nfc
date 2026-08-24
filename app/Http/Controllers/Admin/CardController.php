@@ -40,8 +40,9 @@ class CardController extends Controller
         $card->load('nfcLinks');
 
         return response()->view('admin.card', [
-            'card'    => $card,
-            'qrSvg'   => $this->qr->svgForCard($card),
+            'card' => $card,
+            'qrSvg' => $this->qr->svgForCard($card),
+            'latestProfileEdit' => $card->profileEdits()->first(),
         ])->header('Cache-Control', 'no-store, private, no-cache, must-revalidate, max-age=0');
     }
 
@@ -295,65 +296,6 @@ class CardController extends Controller
         }
 
         return back()->with('status', 'Contact details deleted.');
-    }
-
-    // --- Profile mode --------------------------------------------------------
-
-    /**
-     * PATCH /admin/cards/{card}/profile
-     *
-     * Only display_name for now. It is the one field that decides whether the
-     * public URL serves a page at all (NfcProfile::isMeaningful), so the mode
-     * is a trap without it; headline, username, location, tagline and the
-     * avatar arrive with the rest of the admin profile UI.
-     *
-     * The name is normalised on write rather than left to the model to trim on
-     * read. NfcProfile::scopeMeaningful() uses SQL trim(), which removes spaces
-     * but not tabs or newlines, and its docblock records that the divergence is
-     * unreachable "because every write path strips control characters first" -
-     * this is now one of those write paths, and stripControl() is what keeps
-     * that true. A name that normalises to nothing is stored as NULL, so the
-     * model, the SQL twin and the dashboard all agree the card is unconfigured.
-     */
-    public function updateProfile(Request $request, Card $card): RedirectResponse
-    {
-        $data = $request->validate([
-            // 120 is the column width; nullable so a name can be cleared
-            // without deleting the row, matching the contact form.
-            'display_name' => ['nullable', 'string', 'max:120'],
-        ]);
-
-        $profile = $card->profile ?: $card->profile()->make();
-
-        $profile->fill([
-            'display_name' => $this->stripControlOrNull($data['display_name'] ?? null),
-        ]);
-
-        if (! $profile->exists) {
-            $card->profile()->save($profile);
-        } else {
-            $profile->save();
-        }
-
-        if (! $profile->isMeaningful()) {
-            return back()->with('status', 'Saved. Add a display name before this card can display a profile.');
-        }
-
-        return back()->with('status', 'Profile details saved.');
-    }
-
-    /**
-     * DELETE /admin/cards/{card}/profile
-     * Explicit only - mode switching never deletes this.
-     *
-     * Delegates to CardResetService, which is the one place that knows a
-     * profile owns an avatar file as well as a row.
-     */
-    public function deleteProfile(Card $card): RedirectResponse
-    {
-        $this->reset->deleteProfile($card);
-
-        return back()->with('status', 'Profile details deleted.');
     }
 
     // --- Phone mode ----------------------------------------------------------

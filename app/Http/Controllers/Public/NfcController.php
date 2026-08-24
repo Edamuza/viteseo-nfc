@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Public;
 use App\Enums\NfcMode;
 use App\Http\Controllers\Controller;
 use App\Models\Card;
+use App\Models\SitePage;
 use App\Rules\SafeExternalUrl;
 use App\Rules\SafePhoneNumber;
 use App\Services\CardGenerationService;
+use App\Services\QrCodeService;
 use App\Services\VCardBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,7 +30,10 @@ use Illuminate\Support\Facades\RateLimiter;
  */
 class NfcController extends Controller
 {
-    public function __construct(private readonly CardGenerationService $cards) {}
+    public function __construct(
+        private readonly CardGenerationService $cards,
+        private readonly QrCodeService $qr,
+    ) {}
 
     /**
      * GET /n/{public_id}
@@ -132,13 +137,39 @@ class NfcController extends Controller
             return $this->notReady($card);
         }
 
+        $shareMailto = 'mailto:?'.http_build_query([
+            'subject' => 'View '.$profile->display_name."'s profile",
+            'body'    => 'Open the profile: '.$card->nfcUrl(),
+        ], '', '&', PHP_QUERY_RFC3986);
+
         return $this->noStore(response()->view('public.nfc-profile', [
-            'card'    => $card,
-            'profile' => $profile,
+            'card'        => $card,
+            'profile'     => $profile,
+            'cardQrSvg'   => $this->qr->svgForCard($card),
+            'shareMailto' => $shareMailto,
+            'sitePages'   => SitePage::query()
+                ->whereIn('key', ['about', 'terms', 'privacy'])
+                ->get()
+                ->keyBy('key'),
             // The same rows Links mode serves as plain buttons, so switching
             // between the two modes loses nothing.
             'links'   => $card->activeNfcLinks()->get(),
         ]));
+    }
+
+    public function profileQr(Card $card): Response
+    {
+        $profile = $card->profile;
+
+        abort_if($card->nfcMode() !== NfcMode::Profile || ! $profile || ! $profile->isMeaningful(), 404);
+
+        return response($this->qr->pngForProfile($card, $profile), 200, [
+            'Content-Type'           => 'image/png',
+            'Content-Disposition'    => 'attachment; filename="profile-'.$card->public_id.'-qr.png"',
+            'Cache-Control'          => 'no-store, private, no-cache, must-revalidate, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+            'X-Robots-Tag'           => 'noindex, nofollow',
+        ]);
     }
 
     /**
@@ -175,6 +206,21 @@ class NfcController extends Controller
             'Cache-Control'       => 'no-store, private, no-cache, must-revalidate, max-age=0',
             'X-Content-Type-Options' => 'nosniff',
             'X-Robots-Tag'        => 'noindex, nofollow',
+        ]);
+    }
+
+    public function profileVcard(Card $card, VCardBuilder $builder): Response
+    {
+        $profile = $card->profile;
+
+        abort_if($card->nfcMode() !== NfcMode::Profile || ! $profile || ! $profile->isMeaningful(), 404);
+
+        return response($builder->buildProfile($profile, $card->activeNfcLinks()->get()), 200, [
+            'Content-Type'           => 'text/vcard; charset=utf-8',
+            'Content-Disposition'    => 'attachment; filename="profile-'.$card->public_id.'.vcf"',
+            'Cache-Control'          => 'no-store, private, no-cache, must-revalidate, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+            'X-Robots-Tag'           => 'noindex, nofollow',
         ]);
     }
 

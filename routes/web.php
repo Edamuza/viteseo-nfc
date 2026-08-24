@@ -2,10 +2,13 @@
 
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\CardController;
+use App\Http\Controllers\Admin\CardProfileController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\NfcToolsController;
+use App\Http\Controllers\Admin\SitePageController;
 use App\Http\Controllers\Public\NfcController;
+use App\Http\Controllers\Public\NfcProfileEditController;
 use App\Http\Controllers\Public\QrController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,10 +33,19 @@ Route::get('/q/{card}/done',  [QrController::class, 'done'])->name('qr.done');
 Route::get('/n/{card}',       [NfcController::class, 'show'])->name('nfc.show');
 Route::post('/n/{card}',      [NfcController::class, 'store'])->middleware('throttle:20,1')->name('nfc.store');
 Route::get('/n/{card}/done',  [NfcController::class, 'done'])->name('nfc.done');
+Route::get('/n/{card}/qr.png', [NfcController::class, 'profileQr'])->name('nfc.profile.qr');
+Route::get('/n/{card}/edit', [NfcProfileEditController::class, 'edit'])->name('nfc.profile.edit');
+Route::post('/n/{card}/edit/unlock', [NfcProfileEditController::class, 'unlock'])
+    ->middleware('throttle:20,1')
+    ->name('nfc.profile.edit.unlock');
+Route::patch('/n/{card}/edit', [NfcProfileEditController::class, 'update'])
+    ->middleware('throttle:20,1')
+    ->name('nfc.profile.edit.update');
 
 // Digital contact card download. Generated from the database on every request,
 // so contact details can change without ever rewriting the physical NFC tag.
 Route::get('/n/{card}/contact.vcf', [NfcController::class, 'vcard'])->name('nfc.vcard');
+Route::get('/n/{card}/profile.vcf', [NfcController::class, 'profileVcard'])->name('nfc.profile.vcard');
 
 /*
 |--------------------------------------------------------------------------
@@ -56,6 +68,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/cards/generate', [DashboardController::class, 'generate'])->name('cards.generate');
 
         Route::get('/nfc-tools', [NfcToolsController::class, 'index'])->name('nfc-tools');
+        Route::get('/site-pages', [SitePageController::class, 'index'])->name('site-pages.index');
+        Route::patch('/site-pages/{sitePage:key}', [SitePageController::class, 'update'])->name('site-pages.update');
 
         Route::post('/export/qr-zip',              [ExportController::class, 'qrZip'])->name('export.qr-zip');
         Route::post('/export/sticker-templates',   [ExportController::class, 'stickerTemplates'])->name('export.sticker-templates');
@@ -79,8 +93,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('/contact',       [CardController::class, 'deleteContactProfile'])->name('contact.delete');
             Route::delete('/contact/photo', [CardController::class, 'deleteContactPhoto'])->name('contact.photo.delete');
 
-            Route::patch('/profile',  [CardController::class, 'updateProfile'])->name('profile.update');
-            Route::delete('/profile', [CardController::class, 'deleteProfile'])->name('profile.delete');
+            Route::patch('/profile',  [CardProfileController::class, 'update'])->name('profile.update');
+            Route::delete('/profile', [CardProfileController::class, 'destroy'])->name('profile.delete');
+            Route::delete('/profile/avatar', [CardProfileController::class, 'destroyAvatar'])->name('profile.avatar.delete');
+            Route::post('/profile/revert', [CardProfileController::class, 'revert'])->name('profile.revert');
 
             Route::patch('/phone',  [CardController::class, 'updatePhone'])->name('phone.update');
             Route::delete('/phone', [CardController::class, 'deletePhone'])->name('phone.delete');

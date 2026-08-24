@@ -23,6 +23,19 @@ class ImageIngest
 {
     public function store(UploadedFile $file, string $directory, int $maxEdge): string
     {
+        return $this->storeWithInspection($file, $directory, $maxEdge, fn (\GdImage $image) => null)['path'];
+    }
+
+    /**
+     * @return array{path: string, inspection: mixed}
+     */
+    public function storeWithInspection(
+        UploadedFile $file,
+        string $directory,
+        int $maxEdge,
+        callable $inspector,
+    ): array
+    {
         $raw = @file_get_contents($file->getRealPath());
 
         if ($raw === false) {
@@ -40,22 +53,48 @@ class ImageIngest
 
         if ($width > $maxEdge || $height > $maxEdge) {
             $scale   = $maxEdge / max($width, $height);
-            $resized = imagescale($image, (int) round($width * $scale), (int) round($height * $scale));
+            $resized = $this->resize($image, (int) round($width * $scale), (int) round($height * $scale));
 
-            if ($resized !== false) {
-                imagedestroy($image);
-                $image = $resized;
+            if (! $resized instanceof \GdImage) {
+                throw new UnreadableImageException('Could not resize the uploaded image.');
             }
+
+            unset($image);
+            $image = $resized;
         }
 
+        $inspection = $inspector($image);
+
         ob_start();
-        imagejpeg($image, null, 85);   // re-encode: output is a clean JPEG, nothing else
-        $clean = (string) ob_get_clean();
-        imagedestroy($image);
+        try {
+            if (! $this->writeJpeg($image)) {
+                throw new UnreadableImageException('Could not encode the processed image.');
+            }
+            $clean = (string) ob_get_contents();
+        } finally {
+            ob_end_clean();
+        }
+        unset($image);
+
+        if ($clean === '') {
+            throw new UnreadableImageException('Could not encode the processed image.');
+        }
 
         $path = trim($directory, '/').'/'.bin2hex(random_bytes(16)).'.jpg';
-        Storage::disk('public')->put($path, $clean);
+        if (! Storage::disk('public')->put($path, $clean)) {
+            throw new UnreadableImageException('Could not store the processed image.');
+        }
 
-        return $path;
+        return ['path' => $path, 'inspection' => $inspection];
+    }
+
+    protected function resize(\GdImage $image, int $width, int $height): \GdImage|false
+    {
+        return imagescale($image, $width, $height);
+    }
+
+    protected function writeJpeg(\GdImage $image): bool
+    {
+        return imagejpeg($image, null, 85);
     }
 }

@@ -98,12 +98,13 @@ h2{font-size:.95rem;font-weight:620;margin:0 0 16px;letter-spacing:-.005em}
 .btn-ghost:hover{background:var(--surface-sunken)}
 
 /* ── Forms ─────────────────────────────────────────────────── */
-input[type=text],input[type=url],input[type=email],input[type=password],input[type=number],select{
+input[type=text],input[type=url],input[type=email],input[type=password],input[type=number],select,textarea{
   padding:8px 11px;font-size:.88rem;border:1px solid var(--line-strong);border-radius:8px;
   background:var(--surface);color:var(--text);font-family:inherit;
 }
+textarea{display:block;width:100%;resize:vertical;line-height:1.55}
 input::placeholder{color:#9aa1ac}
-input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 label.fld{display:block;font-weight:570;font-size:.83rem;margin-bottom:6px;color:var(--text-soft)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .row-tight{gap:6px}
@@ -174,6 +175,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
   <nav>
     <a href="{{ route('admin.dashboard') }}" @class(['on' => request()->routeIs('admin.dashboard') || request()->routeIs('admin.cards.*')])>Cards</a>
     <a href="{{ route('admin.nfc-tools') }}" @class(['on' => request()->routeIs('admin.nfc-tools')])>NFC Tools</a>
+    <a href="{{ route('admin.site-pages.index') }}" @class(['on' => request()->routeIs('admin.site-pages.*')])>Site Pages</a>
   </nav>
   <form method="POST" action="{{ route('admin.logout') }}">@csrf
     <button class="btn btn-sm" type="submit">Sign out</button>

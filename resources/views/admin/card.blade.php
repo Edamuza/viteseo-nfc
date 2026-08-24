@@ -7,6 +7,12 @@
   $active     = $links->where('is_active', true);
   $qrOn       = $card->qrIsConfigured();
   $nfcCount   = $active->count();
+  $nfcReady   = $card->nfcModeIsConfigured();
+  $nfcLabel   = ! $nfcReady
+      ? 'Unconfigured'
+      : ($card->nfcMode() === \App\Enums\NfcMode::Links
+          ? ($nfcCount === 1 ? 'Active' : $nfcCount.' Links')
+          : $card->nfcMode()->label());
 @endphp
 
 {{-- ══════════════ HEADER ══════════════ --}}
@@ -17,8 +23,8 @@
       <p>Public ID <code>{{ $card->public_id }}</code></p>
       <div class="row row-tight" style="margin-top:10px">
         <span class="badge {{ $qrOn ? 'b-ok' : 'b-off' }}">QR&nbsp;&middot;&nbsp;{{ $qrOn ? 'Active' : 'Unconfigured' }}</span>
-        <span class="badge {{ $nfcCount > 0 ? 'b-ok' : 'b-off' }}">
-          NFC&nbsp;&middot;&nbsp;{{ $nfcCount === 0 ? 'Unconfigured' : ($nfcCount === 1 ? 'Active' : $nfcCount.' Links') }}
+        <span class="badge {{ $nfcReady ? 'b-ok' : 'b-off' }}">
+          NFC&nbsp;&middot;&nbsp;{{ $nfcLabel }}
         </span>
         <span class="badge b-off">Created {{ $card->created_at->format('Y-m-d') }}</span>
       </div>
@@ -158,44 +164,84 @@
         @if ($nfcProfile && $nfcProfile->isMeaningful())
           <span class="badge b-ok">Profile page live</span>
           <span class="muted">&nbsp;Tapping shows the profile page.</span>
+          <a class="small" href="{{ route('nfc.show', $card->public_id) }}" target="_blank" rel="noopener" style="margin-left:8px">Preview</a>
         @else
           <span class="badge b-off">Needs a display name</span>
           <span class="muted">&nbsp;Tapping shows the setup page until one is set.</span>
         @endif
       </p>
 
-      <form method="POST" action="{{ route('admin.cards.profile.update', $card->public_id) }}">
+      @if ($latestProfileEdit)
+        <div style="padding:12px 14px;margin:0 0 16px;border:1px solid var(--warn-line);border-radius:8px;background:var(--warn-soft)">
+          <p class="small" style="margin:0 0 9px">
+            <strong>Client edit available to revert</strong><br>
+            <span class="muted">{{ $latestProfileEdit->created_at->format('Y-m-d H:i') }} &middot; IP {{ $latestProfileEdit->ip_address }}</span>
+          </p>
+          <form method="POST" action="{{ route('admin.cards.profile.revert', $card->public_id) }}"
+                onsubmit="return confirm('Revert the latest client profile edit? This restores the profile and links exactly as they were before that edit.')">
+            @csrf
+            <button class="btn btn-sm" type="submit">Revert latest client edit</button>
+          </form>
+        </div>
+      @endif
+
+      <form method="POST" action="{{ route('admin.cards.profile.update', $card->public_id) }}" enctype="multipart/form-data">
         @csrf @method('PATCH')
-        <label class="fld" for="displayname">Display name</label>
-        <div class="row row-tight">
-          <input id="displayname" type="text" name="display_name" maxlength="120" placeholder="e.g. Uriel Papa"
-                 value="{{ old('display_name', $nfcProfile?->display_name) }}" style="flex:1;min-width:200px">
-          <button class="btn btn-sm btn-p" type="submit">Save</button>
+
+        <p class="fld" style="margin-top:4px">Identity</p>
+        <div class="fgrid">
+          @foreach ([
+            ['display_name','Display name',120,'e.g. Uriel Papa'],
+            ['headline','Headline',200,'e.g. CEO, ViteSEO'],
+            ['username','Username',60,'e.g. yurielyel'],
+            ['location','Location',100,'e.g. Philippines'],
+            ['tagline','Tagline',200,'A short personal line'],
+          ] as [$field,$label,$max,$placeholder])
+            <label><span>{{ $label }}</span><input type="text" name="{{ $field }}" maxlength="{{ $max }}"
+              placeholder="{{ $placeholder }}" value="{{ old($field, $nfcProfile?->$field) }}"></label>
+          @endforeach
+        </div>
+
+        <p class="fld">Avatar</p>
+        @if ($nfcProfile?->avatar_path)
+          <div class="row" style="margin-bottom:10px">
+            <img src="{{ asset('storage/'.$nfcProfile->avatar_path) }}" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:1px solid var(--line)">
+            <button class="btn btn-sm btn-d" type="submit" form="del-profile-avatar">Remove avatar</button>
+            @if ($nfcProfile->brand_color)<code>{{ $nfcProfile->brandColor() }}</code>@endif
+          </div>
+        @endif
+        <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp">
+        <p class="small muted" style="margin:7px 0 14px">JPEG, PNG or WebP, up to 2 MB. The page colour is derived automatically.</p>
+
+        <p class="fld">Welcome panel in Advanced details</p>
+        <div class="fgrid">
+          <label><span>Eyebrow</span><input type="text" name="welcome_eyebrow" maxlength="60" value="{{ old('welcome_eyebrow', $nfcProfile?->welcome_eyebrow) }}"></label>
+          <label><span>Heading</span><input type="text" name="welcome_heading" maxlength="200" value="{{ old('welcome_heading', $nfcProfile?->welcome_heading) }}"></label>
+        </div>
+        <label class="fld" for="welcome-body">Body</label>
+        <textarea id="welcome-body" name="welcome_body" rows="5" maxlength="600">{{ old('welcome_body', $nfcProfile?->welcome_body) }}</textarea>
+        <div class="fgrid" style="margin-top:12px">
+          <label><span>CTA label</span><input type="text" name="welcome_cta_label" maxlength="60" value="{{ old('welcome_cta_label', $nfcProfile?->welcome_cta_label) }}"></label>
+          <label><span>CTA URL</span><input type="url" name="welcome_cta_url" maxlength="500" placeholder="https://example.com" value="{{ old('welcome_cta_url', $nfcProfile?->welcome_cta_url) }}"></label>
+        </div>
+
+        <div class="row" style="margin-top:16px">
+          <button class="btn btn-sm btn-p" type="submit">Save profile</button>
           @if ($nfcProfile)
             <button class="btn btn-sm btn-d" type="submit" form="del-profile">Delete profile details</button>
           @endif
         </div>
-        <p class="small muted" style="margin:8px 0 0">
-          The person or brand the page is about. It is the one field that decides whether the
-          page can be shown at all, so a card with no display name serves the setup page instead.
-        </p>
       </form>
       @if ($nfcProfile)
-        {{-- The dialog names the scope, not the fields. deleteProfile() deletes
-             the whole nfc_profiles row, so a list of the columns that row holds
-             today ("display name, profile avatar") is a promise that gets
-             quietly shorter than the truth with every field a later increment
-             adds — exactly how the two reset dialogs above went stale. --}}
         <form id="del-profile" method="POST" action="{{ route('admin.cards.profile.delete', $card->public_id) }}"
               onsubmit="return confirm('Delete the profile page for this card?\n\nCLEARED: every profile page field, and the uploaded image if there is one. Nothing of the profile is kept.\nKEPT: all NFC links, the QR destination, and the contact / phone / email data.\n\nThis is permanent. Switching modes does not do this — only this button does.')">
           @csrf @method('DELETE')
         </form>
+        <form id="del-profile-avatar" method="POST" action="{{ route('admin.cards.profile.avatar.delete', $card->public_id) }}"
+              onsubmit="return confirm('Remove this profile avatar and its derived page colour? The rest of the profile stays unchanged.')">
+          @csrf @method('DELETE')
+        </form>
       @endif
-
-      <p class="small muted" style="margin:14px 0 0">
-        Headline, username, location, tagline and the avatar upload arrive in a later release.
-        Everything the profile page shows today comes from the display name above and the links below.
-      </p>
     </div>
 
     {{-- The public profile page's Accounts panel is these same links, so they

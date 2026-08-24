@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\NfcContactProfile;
+use App\Models\NfcProfile;
 
 /**
  * Builds a vCard 3.0 document from a contact profile.
@@ -83,6 +84,47 @@ class VCardBuilder
 
         $note = $this->composeNote($p);
         if ($note !== '') { $lines[] = 'NOTE:'.$this->esc($note); }
+
+        $lines[] = 'REV:'.gmdate('Y-m-d\TH:i:s\Z');
+        $lines[] = 'END:VCARD';
+
+        return implode(self::EOL, $lines).self::EOL;
+    }
+
+    public function buildProfile(NfcProfile $profile, iterable $links): string
+    {
+        $lines = [
+            'BEGIN:VCARD',
+            'VERSION:3.0',
+            'N:'.$this->structured(['', $profile->display_name, '', '', '']),
+            'FN:'.$this->esc($profile->display_name),
+        ];
+
+        $headline = trim((string) $profile->headline);
+        if ($headline !== '') {
+            [$title, $organisation] = array_pad(explode(',', $headline, 2), 2, '');
+            $title = trim($title);
+            $organisation = trim($organisation);
+
+            if ($title !== '') {
+                $lines[] = 'TITLE:'.$this->esc($title);
+            }
+            if ($organisation !== '') {
+                $lines[] = 'ORG:'.$this->esc($organisation);
+            }
+        }
+
+        foreach ($links as $link) {
+            $url = trim((string) $link->url);
+            if ($url !== '') {
+                $lines[] = 'URL:'.$this->esc($url);
+            }
+        }
+
+        $tagline = trim((string) $profile->tagline);
+        if ($tagline !== '') {
+            $lines[] = 'NOTE:'.$this->esc($tagline);
+        }
 
         $lines[] = 'REV:'.gmdate('Y-m-d\TH:i:s\Z');
         $lines[] = 'END:VCARD';

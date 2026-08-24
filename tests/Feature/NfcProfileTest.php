@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Card;
 use App\Models\NfcProfile;
 use App\Services\CardGenerationService;
+use App\Services\QrCodeService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
@@ -200,6 +201,99 @@ class NfcProfileTest extends TestCase
         return $card->fresh();
     }
 
+    public function test_profile_qr_download_returns_the_profile_qr_with_private_headers(): void
+    {
+        $card = $this->profileCard();
+
+        $response = $this->get('/n/'.$card->public_id.'/qr.png')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/png')
+            ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+
+        $cacheControl = (string) $response->headers->get('Cache-Control');
+        $this->assertStringContainsString('no-store', $cacheControl);
+        $this->assertStringContainsString('private', $cacheControl);
+        $this->assertStringContainsString('no-cache', $cacheControl);
+        $this->assertSame("\x89PNG\r\n\x1a\n", substr($response->getContent(), 0, 8));
+        $this->assertSame(
+            app(QrCodeService::class)->pngForProfile($card, $card->profile),
+            $response->getContent()
+        );
+        $this->assertStringContainsString(
+            'attachment; filename="profile-'.$card->public_id.'-qr.png"',
+            (string) $response->headers->get('Content-Disposition')
+        );
+    }
+
+    public function test_profile_qr_download_rejects_other_modes_and_empty_profiles(): void
+    {
+        $linksCard = $this->card();
+        $linksCard->profile()->save($linksCard->profile()->make(['display_name' => 'Uriel Papa']));
+
+        $emptyProfile = $this->card();
+        $emptyProfile->profile()->save($emptyProfile->profile()->make(['display_name' => '']));
+        $emptyProfile->forceFill(['nfc_mode' => 'profile'])->save();
+
+        $this->get('/n/'.$linksCard->public_id.'/qr.png')->assertNotFound();
+        $this->get('/n/'.$emptyProfile->public_id.'/qr.png')->assertNotFound();
+    }
+
+    public function test_avatar_badge_and_share_modal_keep_the_two_qr_destinations_separate(): void
+    {
+        $card = $this->profileCard();
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringContainsString('class="qr" data-qr-url="'.$card->qrUrl().'"', $body);
+        $this->assertStringContainsString(app(QrCodeService::class)->svgForCard($card), $body);
+        $this->assertStringContainsString(
+            'class="profile-qr" src="'.route('nfc.profile.qr', $card->public_id).'" data-qr-url="'.$card->nfcUrl().'"',
+            $body
+        );
+        $this->assertStringNotContainsString(
+            'class="profile-qr" src="'.route('admin.cards.qr.png', $card->public_id).'"',
+            $body
+        );
+    }
+
+    public function test_share_control_opens_a_centred_modal_with_all_share_actions(): void
+    {
+        $card = $this->profileCard();
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringContainsString('class="sharebtn" href="#share"', $body);
+        $this->assertStringContainsString(
+            'class="modal" id="share" role="dialog" aria-modal="true" aria-labelledby="share-title"',
+            $body
+        );
+        $this->assertStringContainsString('href="'.route('nfc.profile.qr', $card->public_id).'"', $body);
+        $this->assertStringContainsString('href="'.route('nfc.profile.vcard', $card->public_id).'"', $body);
+        $this->assertStringContainsString('Share via Email', $body);
+        $this->assertStringContainsString(rawurlencode($card->nfcUrl()), $body);
+        $this->assertStringContainsString('<span class="u">'.$card->nfcUrl().'</span>', $body);
+        $this->assertStringContainsString('max-height:calc(100dvh - 48px)', $body);
+    }
+
+    public function test_overflow_menu_has_only_edit_and_copy_and_copy_uses_a_live_region_toast(): void
+    {
+        $card = $this->profileCard();
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertSame(1, preg_match('#<div class="menu-panel">(.*?)</div>#s', $body, $matches));
+        $menu = $matches[1];
+
+        $this->assertStringContainsString('href="'.url('/n/'.$card->public_id.'/edit').'"', $menu);
+        $this->assertStringContainsString('Edit your profile', $menu);
+        $this->assertStringContainsString('data-copy="'.$card->nfcUrl().'"', $menu);
+        $this->assertStringContainsString('Copy link', $menu);
+        $this->assertSame(2, preg_match_all('#<(?:a|button)\b#', $menu));
+        $this->assertStringNotContainsString('Report abuse', $body);
+
+        $this->assertStringContainsString('id="toast" role="status" aria-live="polite"', $body);
+        $this->assertStringContainsString('Link copied', $body);
+        $this->assertStringContainsString("document.querySelectorAll('[data-copy]')", $body);
+        $this->assertStringContainsString('.catch(function () { copyFallback(value, done); })', $body);
+    }
+
     public function test_the_profile_page_shows_the_identity_block(): void
     {
         $card = $this->profileCard([
@@ -236,7 +330,7 @@ class NfcProfileTest extends TestCase
         $this->get('/n/'.$card->public_id)
             ->assertOk()
             ->assertSee('UP')
-            ->assertDontSee('<img', false);
+            ->assertDontSee('class="avatar-img"', false);
     }
 
     public function test_the_avatar_renders_the_stored_photo_when_there_is_one(): void

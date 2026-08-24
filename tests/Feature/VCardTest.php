@@ -29,6 +29,22 @@ class VCardTest extends TestCase
         return $this->get('/n/'.$card->public_id.'/contact.vcf')->assertOk()->getContent();
     }
 
+    private function profileCard(array $attrs = []): Card
+    {
+        $card = app(CardGenerationService::class)->generate(1)->first();
+        $card->profile()->save($card->profile()->make(array_merge([
+            'display_name' => 'Uriel Papa',
+        ], $attrs)));
+        $card->forceFill(['nfc_mode' => 'profile'])->save();
+
+        return $card->fresh();
+    }
+
+    private function profileVcf(Card $card): string
+    {
+        return $this->get('/n/'.$card->public_id.'/profile.vcf')->assertOk()->getContent();
+    }
+
     // ── Endpoint ────────────────────────────────────────────────────────────
 
     public function test_vcard_endpoint_returns_a_downloadable_vcard(): void
@@ -53,6 +69,77 @@ class VCardTest extends TestCase
     public function test_vcard_404s_for_an_unknown_card(): void
     {
         $this->get('/n/NOSUCHID/contact.vcf')->assertNotFound();
+    }
+
+    public function test_profile_vcard_maps_identity_headline_links_and_tagline(): void
+    {
+        $card = $this->profileCard([
+            'headline' => 'Chief Executive Officer, Vite SEO Digital Advertising OPC',
+            'tagline'  => 'Say my name',
+        ]);
+        $card->nfcLinks()->createMany([
+            ['title' => 'Site', 'url' => 'https://example.com', 'sort_order' => 0, 'is_active' => true],
+            ['title' => 'LinkedIn', 'url' => 'https://linkedin.com/in/uriel', 'sort_order' => 1, 'is_active' => true],
+            ['title' => 'Old', 'url' => 'https://old.example.com', 'sort_order' => 2, 'is_active' => false],
+        ]);
+
+        $response = $this->get('/n/'.$card->public_id.'/profile.vcf')
+            ->assertOk()
+            ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+        $vcard = $response->getContent();
+
+        $this->assertStringStartsWith("BEGIN:VCARD\r\nVERSION:3.0\r\n", $vcard);
+        $this->assertStringContainsString("\r\nN:;Uriel Papa;;;\r\n", $vcard);
+        $this->assertStringContainsString("\r\nFN:Uriel Papa\r\n", $vcard);
+        $this->assertStringContainsString("\r\nTITLE:Chief Executive Officer\r\n", $vcard);
+        $this->assertStringContainsString("\r\nORG:Vite SEO Digital Advertising OPC\r\n", $vcard);
+        $this->assertSame(2, substr_count($vcard, "\r\nURL:"));
+        $this->assertStringNotContainsString('old.example.com', $vcard);
+        $this->assertStringContainsString("\r\nNOTE:Say my name\r\n", $vcard);
+        $this->assertStringEndsWith("END:VCARD\r\n", $vcard);
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        $this->assertMatchesRegularExpression(
+            '/^attachment; filename="profile-[A-Z0-9]+\.vcf"$/',
+            (string) $response->headers->get('Content-Disposition')
+        );
+    }
+
+    public function test_profile_vcard_headline_without_a_comma_has_title_but_no_org(): void
+    {
+        $vcard = $this->profileVcf($this->profileCard(['headline' => 'Founder']));
+
+        $this->assertStringContainsString("\r\nTITLE:Founder\r\n", $vcard);
+        $this->assertStringNotContainsString("\r\nORG:", $vcard);
+    }
+
+    public function test_profile_vcard_escapes_injection_characters(): void
+    {
+        $card = $this->profileCard([
+            'display_name' => "Uriel, Papa;\r\nTEL:+199999999",
+            'headline'     => "CEO;\r\nORG:Injected, Vite\\SEO",
+            'tagline'      => "Hello\r\nEND:VCARD\r\nBEGIN:VCARD",
+        ]);
+
+        $vcard = $this->profileVcf($card);
+        $lines = explode("\r\n", $vcard);
+
+        $this->assertSame(1, count(array_filter($lines, fn ($line) => $line === 'BEGIN:VCARD')));
+        $this->assertSame(1, count(array_filter($lines, fn ($line) => $line === 'END:VCARD')));
+        $this->assertSame(0, count(array_filter($lines, fn ($line) => $line === 'TEL:+199999999')));
+        $this->assertSame(0, count(array_filter($lines, fn ($line) => $line === 'ORG:Injected')));
+        $this->assertStringContainsString('Uriel\\, Papa\\;\\nTEL:+199999999', $vcard);
+        $this->assertStringContainsString('NOTE:Hello\\nEND:VCARD\\nBEGIN:VCARD', $vcard);
+    }
+
+    public function test_profile_vcard_rejects_other_modes_and_empty_profiles(): void
+    {
+        $linksCard = $this->profileCard();
+        $linksCard->forceFill(['nfc_mode' => 'links'])->save();
+
+        $empty = $this->profileCard(['display_name' => '']);
+
+        $this->get('/n/'.$linksCard->public_id.'/profile.vcf')->assertNotFound();
+        $this->get('/n/'.$empty->public_id.'/profile.vcf')->assertNotFound();
     }
 
     // ── Structure ───────────────────────────────────────────────────────────

@@ -97,6 +97,29 @@ class ImageIngestTest extends TestCase
         $this->assertSame([200, 100], [$width, $height]);
     }
 
+    public function test_an_inspector_receives_the_resized_decode_before_it_is_reencoded(): void
+    {
+        Storage::fake('public');
+
+        $result = app(ImageIngest::class)->storeWithInspection(
+            $this->png(1200, 600),
+            'profile-avatars',
+            512,
+            function (\GdImage $image): string {
+                $this->assertSame([512, 256], [imagesx($image), imagesy($image)]);
+
+                return '#123456';
+            }
+        );
+
+        $this->assertSame('#123456', $result['inspection']);
+        $this->assertMatchesRegularExpression('#^profile-avatars/[0-9a-f]{32}\.jpg$#', $result['path']);
+        $this->assertSame(
+            'image/jpeg',
+            (string) (getimagesizefromstring(Storage::disk('public')->get($result['path']))['mime'] ?? '')
+        );
+    }
+
     public function test_a_non_image_is_rejected_with_a_domain_exception(): void
     {
         Storage::fake('public');
@@ -122,6 +145,60 @@ class ImageIngestTest extends TestCase
             app(ImageIngest::class)->store($file, 'contact-photos', 800);
         } catch (UnreadableImageException) {
             // expected
+        }
+
+        $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
+    public function test_a_failed_public_disk_write_is_reported_as_an_unreadable_image_error(): void
+    {
+        $disk = \Mockery::mock(\Illuminate\Contracts\Filesystem\Filesystem::class);
+        $disk->shouldReceive('put')->once()->andReturn(false);
+        Storage::shouldReceive('disk')->with('public')->once()->andReturn($disk);
+
+        $this->expectException(UnreadableImageException::class);
+        $this->expectExceptionMessage('Could not store the processed image.');
+
+        app(ImageIngest::class)->store($this->png(40, 40), 'profile-avatars', 512);
+    }
+
+    public function test_a_failed_jpeg_reencode_never_stores_an_empty_image(): void
+    {
+        Storage::fake('public');
+        $service = new class extends ImageIngest
+        {
+            protected function writeJpeg(\GdImage $image): bool
+            {
+                return false;
+            }
+        };
+
+        try {
+            $service->store($this->png(40, 40), 'profile-avatars', 512);
+            $this->fail('A failed JPEG encode must throw.');
+        } catch (UnreadableImageException $exception) {
+            $this->assertSame('Could not encode the processed image.', $exception->getMessage());
+        }
+
+        $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
+    public function test_a_failed_required_resize_never_stores_an_oversized_original(): void
+    {
+        Storage::fake('public');
+        $service = new class extends ImageIngest
+        {
+            protected function resize(\GdImage $image, int $width, int $height): \GdImage|false
+            {
+                return false;
+            }
+        };
+
+        try {
+            $service->store($this->png(1200, 600), 'profile-avatars', 512);
+            $this->fail('A failed resize must throw.');
+        } catch (UnreadableImageException $exception) {
+            $this->assertSame('Could not resize the uploaded image.', $exception->getMessage());
         }
 
         $this->assertSame([], Storage::disk('public')->allFiles());

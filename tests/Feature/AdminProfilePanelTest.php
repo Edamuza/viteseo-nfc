@@ -336,15 +336,31 @@ class AdminProfilePanelTest extends TestCase
         );
     }
 
-    // --- The deferred fields -------------------------------------------------
+    // --- Full Profile editor -------------------------------------------------
 
-    public function test_the_profile_panel_says_the_remaining_fields_arrive_later(): void
+    public function test_the_profile_panel_offers_every_identity_welcome_and_avatar_field(): void
     {
-        $this->assertStringContainsString(
-            'arrive in a later release',
-            $this->page($this->profileCard()),
-            'a panel with one field and no explanation reads as broken'
-        );
+        $card = $this->profileCard();
+        $body = $this->page($card);
+
+        foreach ([
+            'display_name', 'headline', 'username', 'location', 'tagline', 'avatar',
+            'welcome_eyebrow', 'welcome_heading', 'welcome_body',
+            'welcome_cta_label', 'welcome_cta_url',
+        ] as $field) {
+            $this->assertStringContainsString('name="'.$field.'"', $body, "missing {$field}");
+        }
+
+        $this->assertStringContainsString('enctype="multipart/form-data"', $body);
+        $this->assertStringContainsString('href="'.route('nfc.show', $card->public_id).'"', $body);
+        $this->assertStringNotContainsString('arrive in a later release', $body);
+    }
+
+    public function test_the_card_header_uses_the_current_mode_instead_of_link_count(): void
+    {
+        $body = $this->page($this->profileCard());
+
+        $this->assertStringContainsString('NFC&nbsp;&middot;&nbsp;Profile Page', $body);
     }
 
     // --- Writing the display name --------------------------------------------

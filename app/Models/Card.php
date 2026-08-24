@@ -63,6 +63,11 @@ class Card extends Model
         return $this->hasOne(NfcProfile::class);
     }
 
+    public function profileEdits(): HasMany
+    {
+        return $this->hasMany(NfcProfileEdit::class)->latest('created_at')->latest('id');
+    }
+
     // --- NFC mode -----------------------------------------------------------
 
     public function nfcMode(): NfcMode

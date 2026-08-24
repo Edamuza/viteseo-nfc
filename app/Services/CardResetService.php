@@ -74,17 +74,28 @@ class CardResetService
      * data meant "Reset entire card", which also destroys the QR destination
      * the printed card still points at.
      *
-     * No transaction: this is a single row delete, and the file is removed
-     * after it for the same reason the reset path defers to post-commit — a
-     * file deleted while its row survives shows a broken image on a live page.
+     * Profile audit snapshots are part of the previous holder's payload too:
+     * they can contain their text, links, and retained avatar paths. The row
+     * and history are removed atomically, then every referenced image is
+     * removed after commit.
      */
     public function deleteProfile(Card $card): void
     {
-        $avatarPath = $this->takeProfile($card);
+        $avatarPaths = DB::transaction(function () use ($card): array {
+            $lockedCard = Card::query()->whereKey($card->id)->lockForUpdate()->firstOrFail();
 
-        $this->photos->forget($avatarPath, $card);
+            return array_merge(
+                [$this->takeProfile($lockedCard)],
+                $this->takeProfileHistory($lockedCard)
+            );
+        });
+
+        foreach (array_unique(array_filter($avatarPaths)) as $avatarPath) {
+            $this->photos->forget($avatarPath, $card);
+        }
 
         $card->unsetRelation('profile');
+        $card->unsetRelation('profileEdits');
     }
 
     /**
@@ -107,6 +118,26 @@ class CardResetService
     }
 
     /**
+     * Deletes the client-edit audit history and returns every avatar retained
+     * solely because a snapshot can restore it.
+     *
+     * @return array<int, string>
+     */
+    private function takeProfileHistory(Card $card): array
+    {
+        $paths = $card->profileEdits()
+            ->get()
+            ->map(fn ($edit): ?string => data_get($edit->snapshot, 'profile.avatar_path'))
+            ->filter(fn ($path): bool => is_string($path) && $path !== '')
+            ->values()
+            ->all();
+
+        $card->profileEdits()->delete();
+
+        return $paths;
+    }
+
+    /**
      * Clears the NFC payload (and any extra columns the caller supplies) in one
      * transaction, then removes the contact photo, the profile avatar and the
      * landing page logo from disk and drops both loaded relations from the
@@ -120,20 +151,25 @@ class CardResetService
      */
     private function reset(Card $card, array $extraColumns = []): void
     {
-        $photoPath  = $card->contactProfile?->photo_path;
-        $logoPath   = $card->nfc_logo_path;
+        $photoPath  = null;
+        $logoPath   = null;
         $avatarPath = null;
+        $historicAvatarPaths = [];
 
-        DB::transaction(function () use ($card, $extraColumns, &$avatarPath) {
-            $card->nfcLinks()->delete();
+        DB::transaction(function () use ($card, $extraColumns, &$photoPath, &$logoPath, &$avatarPath, &$historicAvatarPaths) {
+            $lockedCard = Card::query()->whereKey($card->id)->lockForUpdate()->firstOrFail();
+            $photoPath = $lockedCard->contactProfile?->photo_path;
+            $logoPath = $lockedCard->nfc_logo_path;
+            $lockedCard->nfcLinks()->delete();
 
-            if ($contact = $card->contactProfile) {
+            if ($contact = $lockedCard->contactProfile) {
                 $contact->delete();
             }
 
-            $avatarPath = $this->takeProfile($card);
+            $avatarPath = $this->takeProfile($lockedCard);
+            $historicAvatarPaths = $this->takeProfileHistory($lockedCard);
 
-            $card->forceFill(array_merge([
+            $lockedCard->forceFill(array_merge([
                 'nfc_mode'          => NfcMode::Links,
                 'nfc_configured_at' => null,
                 'nfc_phone_number'  => null,
@@ -146,6 +182,8 @@ class CardResetService
             ], $extraColumns))->save();
         });
 
+        $card->refresh();
+
         // Delete the files only after the transaction commits. Filesystem
         // deletes do not roll back; a file removed while the profile row
         // survives would show a broken image on a live contact page. A file
@@ -154,9 +192,15 @@ class CardResetService
         $this->photos->forget($photoPath, $card);
         $this->photos->forget($avatarPath, $card);
         $this->photos->forget($logoPath, $card);
+        foreach (array_unique($historicAvatarPaths) as $historicAvatarPath) {
+            if ($historicAvatarPath !== $avatarPath) {
+                $this->photos->forget($historicAvatarPath, $card);
+            }
+        }
 
         // The in-memory model may still hold the profile we just deleted.
         $card->unsetRelation('contactProfile');
         $card->unsetRelation('profile');
+        $card->unsetRelation('profileEdits');
     }
 }
