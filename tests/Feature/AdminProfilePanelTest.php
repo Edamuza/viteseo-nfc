@@ -66,6 +66,52 @@ class AdminProfilePanelTest extends TestCase
             ->getContent();
     }
 
+    /**
+     * Does the page carry a form that submits to exactly this URL with exactly
+     * this verb?
+     *
+     * Searching the page for a route() URL is not enough here, and fails in two
+     * separate ways that both let an assertion pass on markup containing none
+     * of what it names:
+     *
+     *  - Two verbs, one URL. nfc.update and nfc.delete are both
+     *    /nfc-links/{link}; profile.update and profile.delete are both
+     *    /profile. The edit form's action satisfies a search for the delete
+     *    route, so every per-row delete form could be removed with the suite
+     *    still green - which is exactly what happened.
+     *  - One URL inside another. nfc.add is /nfc-links, a strict prefix of
+     *    /nfc-links/{link}, itself a strict prefix of /nfc-links/{link}/move.
+     *    An unanchored search for the add-link URL matches any per-row form.
+     *
+     * So the action is anchored by its own closing quote, and the verb is read
+     * from the form's _method field. The body between them is tempered against
+     * </form> so the match cannot run past this form and borrow the verb of a
+     * later one - the page always has a later DELETE form to borrow.
+     *
+     * @param  string|null  $method  null for a plain POST form, which has no _method field
+     */
+    private function assertHasForm(string $body, string $action, ?string $method, string $because): void
+    {
+        $pattern = '<form[^>]*action="'.preg_quote($action, '#').'"';
+
+        if ($method !== null) {
+            $pattern .= '(?:(?!</form>).)*?name="_method"\s+value="'.$method.'"';
+        }
+
+        $this->assertMatchesRegularExpression('#'.$pattern.'#s', $body, $because);
+    }
+
+    private function assertHasNoForm(string $body, string $action, ?string $method, string $because): void
+    {
+        $pattern = '<form[^>]*action="'.preg_quote($action, '#').'"';
+
+        if ($method !== null) {
+            $pattern .= '(?:(?!</form>).)*?name="_method"\s+value="'.$method.'"';
+        }
+
+        $this->assertDoesNotMatchRegularExpression('#'.$pattern.'#s', $body, $because);
+    }
+
     // --- The panel exists at all ---------------------------------------------
 
     public function test_the_profile_panel_reports_a_configured_card_as_live(): void
@@ -105,7 +151,12 @@ class AdminProfilePanelTest extends TestCase
         $body = $this->page($card);
 
         $this->assertStringContainsString('name="display_name"', $body);
-        $this->assertStringContainsString(route('admin.cards.profile.update', $card->public_id), $body);
+        $this->assertHasForm(
+            $body,
+            route('admin.cards.profile.update', $card->public_id),
+            'PATCH',
+            'the field needs a PATCH form to submit to'
+        );
     }
 
     public function test_the_display_name_field_is_prefilled_with_the_stored_name(): void
@@ -134,14 +185,16 @@ class AdminProfilePanelTest extends TestCase
         $body = $this->page($card->fresh());
 
         $this->assertStringContainsString('https://x.com/its_uriel26', $body);
-        $this->assertStringContainsString(
-            route('admin.cards.nfc.update', [$card->public_id, $link->id]),
+        $this->assertHasForm(
             $body,
+            route('admin.cards.nfc.update', [$card->public_id, $link->id]),
+            'PATCH',
             'each row must be editable without leaving Profile mode'
         );
-        $this->assertStringContainsString(
-            route('admin.cards.nfc.delete', [$card->public_id, $link->id]),
+        $this->assertHasForm(
             $body,
+            route('admin.cards.nfc.delete', [$card->public_id, $link->id]),
+            'DELETE',
             'each row must be deletable without leaving Profile mode'
         );
     }
@@ -150,9 +203,11 @@ class AdminProfilePanelTest extends TestCase
     {
         $card = $this->profileCard();
 
-        $this->assertStringContainsString(
+        $this->assertHasForm(
+            $this->page($card),
             route('admin.cards.nfc.add', $card->public_id),
-            $this->page($card)
+            null,
+            'a Profile card must be able to gain its first link without a mode switch'
         );
     }
 
@@ -164,9 +219,11 @@ class AdminProfilePanelTest extends TestCase
             'title' => 'GitHub', 'url' => 'https://github.com/two', 'sort_order' => 1, 'is_active' => true,
         ]);
 
-        $this->assertStringContainsString(
+        $this->assertHasForm(
+            $this->page($card->fresh()),
             route('admin.cards.nfc.move', [$card->public_id, $first->id]),
-            $this->page($card->fresh())
+            'PATCH',
+            'link order decides the order of the public page Accounts panel'
         );
     }
 
@@ -183,40 +240,48 @@ class AdminProfilePanelTest extends TestCase
         $body = $this->page($card->fresh());
 
         $this->assertStringContainsString('https://example.com/a', $body);
-        $this->assertStringContainsString(route('admin.cards.nfc.update', [$card->public_id, $link->id]), $body);
-        $this->assertStringContainsString(route('admin.cards.nfc.add', $card->public_id), $body);
+        $this->assertHasForm($body, route('admin.cards.nfc.update', [$card->public_id, $link->id]), 'PATCH', 'edit a link');
+        $this->assertHasForm($body, route('admin.cards.nfc.delete', [$card->public_id, $link->id]), 'DELETE', 'delete a link');
+        $this->assertHasForm($body, route('admin.cards.nfc.add', $card->public_id), null, 'add a link');
     }
 
     // --- The per-mode delete -------------------------------------------------
 
     /**
-     * Asserted on the form, not on the route URL: profile.update and
+     * Asserted on the form's own verb, not on the route URL: profile.update and
      * profile.delete are the same path and differ only by verb, so the update
-     * form's action already contains the delete route's URL. Only the DELETE
-     * form itself distinguishes the two.
+     * form's action already contains the delete route's URL.
      */
     public function test_the_profile_panel_offers_a_per_mode_delete(): void
     {
-        $body = $this->page($this->profileCard());
+        $card = $this->profileCard();
+        $body = $this->page($card);
 
         $this->assertStringContainsString(
             'Delete profile details',
             $body,
             'clearing profile data must not require a whole-card reset, which also destroys the QR destination'
         );
-        $this->assertMatchesRegularExpression(
-            '#<form id="del-profile".*?_method"\s+value="DELETE"#s',
+        $this->assertHasForm(
             $body,
+            route('admin.cards.profile.delete', $card->public_id),
+            'DELETE',
             'the button needs a DELETE form to submit'
         );
     }
 
     public function test_there_is_nothing_to_delete_when_no_profile_row_exists(): void
     {
-        $body = $this->page($this->profileCard(null));
+        $card = $this->profileCard(null);
+        $body = $this->page($card);
 
         $this->assertStringNotContainsString('Delete profile details', $body);
-        $this->assertStringNotContainsString('id="del-profile"', $body);
+        $this->assertHasNoForm(
+            $body,
+            route('admin.cards.profile.delete', $card->public_id),
+            'DELETE',
+            'the update form shares this URL, so only its verb tells the two apart'
+        );
     }
 
     // --- The deferred fields -------------------------------------------------
