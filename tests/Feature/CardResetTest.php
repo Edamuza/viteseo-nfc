@@ -167,6 +167,36 @@ class CardResetTest extends TestCase
         $this->assertSame('contact-photos/old.jpg', $card->contactProfile->photo_path);
     }
 
+    public function test_contact_photo_survives_when_reset_everything_transaction_rolls_back(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        Storage::disk('public')->assertExists('contact-photos/old.jpg');
+
+        $listener = function () {
+            throw new \RuntimeException('forced rollback');
+        };
+
+        Card::saving($listener);
+
+        try {
+            app(CardResetService::class)->resetEverything($card);
+            $this->fail('Expected reset to abort when the card save fails.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('forced rollback', $e->getMessage());
+        } finally {
+            // Blanket forget is safe only because this app registers no other
+            // Card saving listeners; re-check if that ever changes.
+            Card::getEventDispatcher()?->forget('eloquent.saving: '.Card::class);
+        }
+
+        Storage::disk('public')->assertExists('contact-photos/old.jpg');
+        $card->refresh();
+        $this->assertNotNull($card->contactProfile);
+        $this->assertSame('contact-photos/old.jpg', $card->contactProfile->photo_path);
+    }
+
     public function test_resetting_everything_clears_the_nfc_side_and_the_qr(): void
     {
         Storage::fake('public');

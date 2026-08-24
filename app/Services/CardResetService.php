@@ -18,6 +18,12 @@ use Illuminate\Support\Facades\Storage;
  * When a mode is added, this file is the single place that has to learn about
  * it. A mode missed here means a card the admin was told is blank still
  * answers with someone else's data.
+ *
+ * Each public method delegates to a private helper that runs exactly one
+ * database transaction, then deletes the contact photo and unsets the in-memory
+ * relation. File deletion is deliberately post-commit for both entry points:
+ * filesystem deletes do not roll back, and a file removed while the profile
+ * row survives would show a broken image on a live contact page.
  */
 class CardResetService
 {
@@ -31,16 +37,43 @@ class CardResetService
      */
     public function resetNfcSide(Card $card): void
     {
+        $this->reset($card);
+    }
+
+    /**
+     * resetNfcSide() plus the QR destination.
+     *
+     * Passes the two QR columns to the shared reset helper so they are cleared
+     * in the same transaction as the NFC payload — no nested transactions,
+     * no duplicated NFC column list.
+     */
+    public function resetEverything(Card $card): void
+    {
+        $this->reset($card, [
+            'qr_destination'   => null,
+            'qr_configured_at' => null,
+        ]);
+    }
+
+    /**
+     * Clears the NFC payload (and any extra columns the caller supplies) in one
+     * transaction, then removes the contact photo from disk and drops the
+     * loaded relation from the in-memory model.
+     *
+     * @param  array<string, mixed>  $extraColumns  Additional card columns to null out
+     */
+    private function reset(Card $card, array $extraColumns = []): void
+    {
         $photoPath = $card->contactProfile?->photo_path;
 
-        DB::transaction(function () use ($card) {
+        DB::transaction(function () use ($card, $extraColumns) {
             $card->nfcLinks()->delete();
 
             if ($profile = $card->contactProfile) {
                 $profile->delete();
             }
 
-            $card->forceFill([
+            $card->forceFill(array_merge([
                 'nfc_mode'          => NfcMode::Links,
                 'nfc_configured_at' => null,
                 'nfc_phone_number'  => null,
@@ -50,7 +83,7 @@ class CardResetService
                 'nfc_page_title'    => null,
                 'nfc_page_subtitle' => null,
                 'nfc_logo_path'     => null,
-            ])->save();
+            ], $extraColumns))->save();
         });
 
         // Delete the photo only after the transaction commits. Filesystem
@@ -63,23 +96,5 @@ class CardResetService
 
         // The in-memory model may still hold the profile we just deleted.
         $card->unsetRelation('contactProfile');
-    }
-
-    /**
-     * resetNfcSide() plus the QR destination.
-     *
-     * Expressed as a composition rather than its own column list, so a mode
-     * added to resetNfcSide() is automatically covered here too.
-     */
-    public function resetEverything(Card $card): void
-    {
-        DB::transaction(function () use ($card) {
-            $this->resetNfcSide($card);
-
-            $card->forceFill([
-                'qr_destination'   => null,
-                'qr_configured_at' => null,
-            ])->save();
-        });
     }
 }
