@@ -272,4 +272,59 @@ class CardResetTest extends TestCase
         $this->delete('/admin/cards/'.$card->public_id.'/nfc')->assertRedirect('/admin/login');
         $this->delete('/admin/cards/'.$card->public_id.'/reset')->assertRedirect('/admin/login');
     }
+
+    /**
+     * The next three tests assert the reset through the public routes rather
+     * than the columns, because a leak is only a bug once a visitor can see it.
+     * Each asserts the live "before" state first, so a reset that silently
+     * stopped working cannot pass by never having been configured.
+     */
+    public function test_a_reset_card_no_longer_serves_the_previous_holders_contact_page(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        // Before: the contact page is live.
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('John Doe');
+
+        $this->actingAs($this->admin())->delete('/admin/cards/'.$card->public_id.'/reset');
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('John Doe', $body);
+        $this->assertStringNotContainsString('Acme Ltd', $body);
+        $this->assertStringNotContainsString('+639171234567', $body);
+        $this->assertStringNotContainsString('hi@example.com', $body);
+    }
+
+    public function test_a_reset_card_no_longer_returns_the_previous_holders_vcard(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        // The route is /n/{card}/contact.vcf, named nfc.vcard. NfcController
+        // aborts 404 unless the card is in Contact mode with a named profile,
+        // so a reset card must stop returning a file at all.
+        $this->get('/n/'.$card->public_id.'/contact.vcf')->assertOk();
+
+        $this->actingAs($this->admin())->delete('/admin/cards/'.$card->public_id.'/reset');
+
+        $this->get('/n/'.$card->public_id.'/contact.vcf')->assertNotFound();
+    }
+
+    public function test_a_reset_card_stops_redirecting_to_the_previous_qr_destination(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        $this->get('/q/'.$card->public_id)->assertRedirect('https://example.com/qr');
+
+        $this->actingAs($this->admin())->delete('/admin/cards/'.$card->public_id.'/reset');
+
+        // An unconfigured QR renders the public.qr-setup view with a 200; it
+        // does not 404. See QrController::show.
+        $this->get('/q/'.$card->public_id)
+            ->assertOk()
+            ->assertDontSee('https://example.com/qr');
+    }
 }
