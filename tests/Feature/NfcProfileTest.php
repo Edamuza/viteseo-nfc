@@ -352,4 +352,161 @@ class NfcProfileTest extends TestCase
             ->assertSee('--brand:'.NfcProfile::DEFAULT_BRAND_COLOR, false)
             ->assertDontSee('<script>alert(1)</script>', false);
     }
+
+    // --- the accounts panel and the icon row ---------------------------------
+
+    private function link(Card $card, string $url, string $title = 'Link', bool $active = true, int $order = 0): void
+    {
+        $card->nfcLinks()->create([
+            'title' => $title, 'url' => $url, 'sort_order' => $order, 'is_active' => $active,
+        ]);
+    }
+
+    /**
+     * The icon row is the one block whose boundary a test has to find, because
+     * "which marks are in it" is the whole rule. Everything inside it is an
+     * <a> and an <svg>, so the first closing div is its own — and the caller
+     * asserts exactly that, so the day someone nests a div here the assumption
+     * fails loudly instead of silently widening the match.
+     */
+    private function iconRow(string $body): string
+    {
+        $this->assertSame(1, preg_match('#<div class="iconrow">(.*?)</div>#s', $body, $m), 'icon row not found');
+        $this->assertStringNotContainsString(
+            '<div',
+            $m[1],
+            'the icon row must not nest a div, or the first </div> is no longer its own'
+        );
+
+        return $m[1];
+    }
+
+    private function accountsPanel(string $body): string
+    {
+        $this->assertSame(1, preg_match('#<h2>Accounts</h2>(.*)#s', $body, $m), 'accounts panel not found');
+
+        return $m[1];
+    }
+
+    public function test_the_accounts_panel_lists_each_active_link_with_its_platform_and_display_url(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://x.com/its_uriel26', 'X', true, 0);
+        $this->link($card, 'https://www.linkedin.com/in/uriel-papa/', 'LinkedIn', true, 1);
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('Accounts')
+            ->assertSee('x.com/its_uriel26')
+            ->assertSee('LinkedIn')
+            ->assertSee('linkedin.com/in/uriel-papa');
+    }
+
+    public function test_an_inactive_link_is_not_listed(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://x.com/shown', 'X', true, 0);
+        $this->link($card, 'https://x.com/hidden', 'X', false, 1);
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringContainsString('x.com/shown', $body);
+        $this->assertStringNotContainsString('x.com/hidden', $body);
+    }
+
+    public function test_the_accounts_panel_is_omitted_entirely_when_there_are_no_links(): void
+    {
+        $card = $this->profileCard();
+
+        $this->get('/n/'.$card->public_id)->assertOk()->assertDontSee('Accounts');
+    }
+
+    public function test_an_unrecognised_host_is_listed_as_a_website_with_the_globe(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://viteseo.ph/services');
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringContainsString('Website', $body);
+        $this->assertStringContainsString('viteseo.ph/services', $body);
+    }
+
+    /**
+     * The icon is the only signal a visitor has about where a row leads, so a
+     * host that merely contains a brand name must not wear that brand's mark.
+     * LinkPlatform has its own unit test for this; this one pins that the view
+     * actually routes through it.
+     */
+    public function test_a_spoofed_host_does_not_get_a_brand_icon_on_the_page(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://linkedin.com.attacker.tld/in/uriel');
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringContainsString('Website', $body);
+        $this->assertStringNotContainsString('LinkedIn', $body, 'a hostile host must not borrow the LinkedIn label');
+    }
+
+    public function test_the_icon_row_carries_brand_links_only(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://x.com/its_uriel26', 'X', true, 0);
+        $this->link($card, 'https://viteseo.ph/services', 'Site', true, 1);
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        // One mark in the icon row (X); the plain website appears only in the
+        // panel below. A row of identical globes is noise, not navigation.
+        $this->assertSame(1, substr_count($this->iconRow($body), '<svg'), 'the icon row must carry brand marks only');
+
+        // Both links are still reachable from the panel.
+        $this->assertStringContainsString('x.com/its_uriel26', $body);
+        $this->assertStringContainsString('viteseo.ph/services', $body);
+    }
+
+    public function test_the_icon_row_is_omitted_when_no_link_has_a_brand(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://viteseo.ph/services');
+
+        $this->assertStringNotContainsString(
+            'class="iconrow"',
+            $this->get('/n/'.$card->public_id)->assertOk()->getContent(),
+            'an empty icon row is a gap under the name, not navigation'
+        );
+    }
+
+    /**
+     * Both lists read the same ordered relation, so the order an administrator
+     * arranged is the order a visitor sees. Insertion order here is deliberately
+     * not sort order: a list that merely echoed the ids would pass otherwise.
+     */
+    public function test_both_lists_follow_sort_order(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://github.com/third', 'GitHub', true, 2);
+        $this->link($card, 'https://x.com/first', 'X', true, 0);
+        $this->link($card, 'https://www.linkedin.com/in/second', 'LinkedIn', true, 1);
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        preg_match_all('#aria-label="([^"]+)"#', $this->iconRow($body), $marks);
+        $this->assertSame(['X', 'LinkedIn', 'GitHub'], $marks[1], 'the icon row ignores sort_order');
+
+        preg_match_all('#<div class="acct-name">([^<]+)</div>#', $this->accountsPanel($body), $names);
+        $this->assertSame(['X', 'LinkedIn', 'GitHub'], $names[1], 'the accounts panel ignores sort_order');
+    }
+
+    public function test_a_link_url_is_escaped_in_the_href(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://example.com/"><script>alert(1)</script>');
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('<script>alert(1)</script>', $body);
+        $this->assertStringContainsString('&lt;script&gt;', $body, 'the URL reached the page, escaped');
+    }
 }

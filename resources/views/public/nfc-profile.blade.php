@@ -109,13 +109,45 @@ footer{margin-top:32px;text-align:center}
         <p class="meta">{{ trim(implode(' · ', array_filter([$profile->username, $profile->location]))) }}</p>
       @endif
 
-      {{-- icon row: Task 9 --}}
+      {{-- Brand links only. A row of six identical globes is noise rather than
+           navigation, so unrecognised hosts appear in the panel below instead. --}}
+      @php
+        $branded = $links->filter(fn ($l) => \App\Services\LinkPlatform::forUrl($l->url) !== 'web');
+      @endphp
+      @if ($branded->isNotEmpty())
+        <div class="iconrow">
+          @foreach ($branded as $link)
+            @php $platform = \App\Services\LinkPlatform::forUrl($link->url); @endphp
+            <a href="{{ $link->url }}" rel="noopener noreferrer nofollow ugc" target="_blank"
+               aria-label="{{ \App\Services\LinkPlatform::label($platform) }}">
+              <x-platform-icon :platform="$platform" />
+            </a>
+          @endforeach
+        </div>
+      @endif
 
       @if ($profile->tagline)<p class="tagline">{{ $profile->tagline }}</p>@endif
     </div>
   </section>
 
-  {{-- accounts card: Task 9 --}}
+  @if ($links->isNotEmpty())
+    <section class="card card-pad">
+      <h2>Accounts</h2>
+      {{-- No verification badges anywhere: nothing here proves account
+           ownership, and a checkmark would assert a guarantee that does not
+           exist. Hence the plain heading rather than a verified-profile framing. --}}
+      @foreach ($links as $link)
+        @php $platform = \App\Services\LinkPlatform::forUrl($link->url); @endphp
+        <div class="acct">
+          <span class="acct-ico"><x-platform-icon :platform="$platform" /></span>
+          <div>
+            <div class="acct-name">{{ \App\Services\LinkPlatform::label($platform) }}</div>
+            <a class="acct-url" href="{{ $link->url }}" rel="noopener noreferrer nofollow ugc" target="_blank">{{ \App\Services\LinkPlatform::displayUrl($link->url) }}</a>
+          </div>
+        </div>
+      @endforeach
+    </section>
+  @endif
 
   <details class="adv">
     <summary>Advanced details</summary>

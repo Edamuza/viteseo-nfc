@@ -135,6 +135,9 @@ class NfcController extends Controller
         return $this->noStore(response()->view('public.nfc-profile', [
             'card'    => $card,
             'profile' => $profile,
+            // The same rows Links mode serves as plain buttons, so switching
+            // between the two modes loses nothing.
+            'links'   => $card->activeNfcLinks()->get(),
         ]));
     }
 
