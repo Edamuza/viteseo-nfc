@@ -427,6 +427,74 @@ class AdminProfilePanelTest extends TestCase
         $this->assertSame('Uriel Papa', $card->fresh()->profile->display_name);
     }
 
+    // --- The whole journey ---------------------------------------------------
+
+    /**
+     * The journey finding 1 said was impossible, in one test: switch a card to
+     * Profile, name it, add a link, see it published, clear it again - all from
+     * inside Profile mode and without disturbing the QR destination the printed
+     * card points at.
+     *
+     * Every individual claim here has its own test above. This one exists
+     * because the failure was a gap *between* the pieces: each part worked and
+     * nothing joined them up, so the mode was reachable and unusable.
+     */
+    public function test_an_admin_can_configure_and_clear_a_profile_card_without_leaving_the_mode(): void
+    {
+        $admin = $this->admin();
+        $card  = $this->card();
+
+        // A live QR destination, to prove the whole journey never touches it.
+        $this->actingAs($admin)->patch('/admin/cards/'.$card->public_id.'/qr', [
+            'destination' => 'https://viteseo.ph/landing',
+        ])->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)
+            ->patch('/admin/cards/'.$card->public_id.'/nfc-mode', ['nfc_mode' => 'profile'])
+            ->assertSessionHasNoErrors();
+
+        // A card in Profile mode with nothing in it says so, and offers the one
+        // field that fixes it.
+        $body = $this->page($card->fresh());
+        $this->assertStringContainsString('Needs a display name', $body);
+        $this->assertStringContainsString('name="display_name"', $body);
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Not set up yet');
+
+        $this->actingAs($admin)->patch('/admin/cards/'.$card->public_id.'/profile', [
+            'display_name' => 'Uriel Papa',
+        ])->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)->post('/admin/cards/'.$card->public_id.'/nfc-links', [
+            'title' => 'X', 'url' => 'https://x.com/its_uriel26',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(NfcMode::Profile, $card->fresh()->nfcMode(), 'the admin never left the mode');
+        $this->assertStringContainsString('Profile page live', $this->page($card->fresh()));
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('Uriel Papa')
+            ->assertSee('Accounts')
+            ->assertSee('x.com/its_uriel26');
+
+        $this->actingAs($admin)->delete('/admin/cards/'.$card->public_id.'/profile');
+
+        $card->refresh();
+        $this->assertNull($card->profile);
+        $this->assertSame(NfcMode::Profile, $card->nfcMode());
+        $this->assertSame('https://viteseo.ph/landing', $card->qr_destination, 'the printed QR still points somewhere');
+        $this->assertSame(1, $card->nfcLinks()->count(), 'a per-mode delete clears one mode');
+
+        $end = $this->get('/n/'.$card->public_id)->assertOk();
+        $end->assertSee('Not set up yet');
+        $end->assertDontSee('Uriel Papa');
+        // Profile mode is admin-managed: the not-ready page must never offer a
+        // visitor the links setup form.
+        $end->assertDontSee('activation_pin', false);
+
+        $this->get('/q/'.$card->public_id)->assertRedirect('https://viteseo.ph/landing');
+    }
+
     // --- Mode switching stays lossless ---------------------------------------
 
     public function test_switching_away_from_profile_mode_keeps_the_display_name(): void

@@ -28,6 +28,17 @@ Each of these has a later increment and must not be built here. If a task tempts
 - Share control, Share modal, the profile-URL QR, the avatar QR badge, the public QR download, `profile.vcf`, the `...` overflow menu, Copy link and its toast — **increment 3**.
 - The three footer links and their modals (`site_pages`) — **increment 4**. This increment's footer carries only the "Powered by ViteSEO" byline.
 - Admin profile UI, avatar upload, the welcome panel fields, and `DominantColor` extraction — **increment 5**. `brand_color` therefore stays null throughout this increment and every page falls back to the default colour.
+
+  > **Partially overridden by the increment-2 review.** "No admin UI yet" was
+  > coherent while the mode was reachable only by writing `nfc_mode` directly.
+  > Task 6 made it selectable from the admin mode picker instead, and that turned
+  > the deferral into a trap: one click put a live card into a mode with no
+  > panel, no field to fill and no explanation, while its public URL answered
+  > "Not set up yet" indefinitely. A minimal panel therefore lands here —
+  > `display_name`, the shared link table and add form, and a per-mode delete.
+  > Headline, username, location, tagline, the welcome fields, the avatar upload
+  > and `DominantColor` remain increment 5; the avatar has no ingest path yet, so
+  > there is nothing for a form to write.
 - Client PIN-gated self-service editing and the `nfc_profile_edits` audit table — **increment 6**.
 
 ### Increment-1 guards this work must satisfy
