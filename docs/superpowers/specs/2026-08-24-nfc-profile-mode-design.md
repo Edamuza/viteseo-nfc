@@ -10,6 +10,11 @@ page: cover image, circular avatar with a QR badge, name, headline, `username ·
 location`, a row of social icons, a tagline, a Share control, and an accounts
 panel listing each link with its platform icon and display URL.
 
+It also carries a Share modal with a scannable profile QR and a vCard download
+(sections 11–12), an admin-authored welcome panel inside Advanced details
+(section 10), and a PIN-gated form letting the cardholder edit their own details
+(section 13).
+
 The existing `Links` mode stays exactly as it is — minimal, unbranded, and
 redirect-first. Profile is a separate mode so neither behaviour has to compromise
 for the other.
@@ -60,7 +65,12 @@ belong on the hot `cards` row.
 | `tagline` | string(200) nullable | "Say my name" |
 | `avatar_path` | string(255) nullable | server-generated relative path |
 | `cover_path` | string(255) nullable | server-generated relative path |
-| `timestamps` | | |
+| `welcome_eyebrow` | string(60) nullable | "Heya, partners!" |
+| `welcome_heading` | string(200) nullable | headline of the welcome panel |
+| `welcome_body` | text nullable | max 600 chars, enforced in validation |
+| `welcome_cta_label` | string(60) nullable | "Book a free consultation" |
+| `welcome_cta_url` | string(500) nullable | validated with `SafeExternalUrl` |
+| `timestamps` | | `updated_at` backs the "Last updated" row |
 
 `App\Models\NfcProfile` mirrors `NfcContactProfile`: an explicit `$fillable`
 allow-list that omits `card_id`, `avatar_path` and `cover_path` (paths are set only
@@ -159,14 +169,14 @@ entirely:
 - **`...` overflow menu** — a `<details>` with a CSS-positioned panel. Without JS
   it cannot close on outside-click; tapping the summary again closes it, which is
   an acceptable trade for shipping no script.
-- **QR badge** — a `<details>` wrapping a server-rendered SVG from the existing
-  `QrCodeService::svg($card->nfcUrl())`. Note this is the **NFC** URL, not
-  `svgForCard()`, which encodes the `/q/` URL. `SVG_SIZE` is 1000, so the markup
-  needs a wrapper with an explicit CSS width to render at badge scale.
-- **Share** — base state is a `<details>` revealing the page URL as selectable
-  text plus a Copy button. A ~15-line inline script upgrades it: when
-  `navigator.share` exists the summary triggers the native share sheet, and the
-  Copy button uses `navigator.clipboard`. With JS off, the reveal still works.
+- **QR badge on the avatar** — a `<details>` wrapping
+  `QrCodeService::svgForCard($card)`, which encodes the **`/q/` URL**. This is the
+  code physically printed on the card, and it is deliberately *not* the profile
+  URL — a card carries both an NFC tag and a printed QR, and the two resolve to
+  different things. The popover labels it "Card QR" so the distinction is visible
+  rather than implied. `SVG_SIZE` is 1000, so the markup needs a wrapper with an
+  explicit CSS width to render at badge scale.
+- **Share** — a modal, described in section 11.
 
 ### 7. Admin surface
 
@@ -234,9 +244,10 @@ view's own `:root` block rather than being pushed into a shared layout. The
 existing pages stay untouched.
 
 A rendered mockup of the approved design lives at
-`docs/superpowers/specs/mockups/2026-08-24-nfc-profile.html`, with a screenshot in
-`shots/profile-wide.png`. Its CSS is intended to transfer into the Blade view
-directly.
+`docs/superpowers/specs/mockups/2026-08-24-nfc-profile.html`, with screenshots in
+`shots/profile-v2.png` and `shots/profile-v2-share.png`. Its CSS is intended to
+transfer into the Blade view directly. Append `#share` to the mockup URL to see
+the Share modal.
 
 ### 10. Public-facing copy and disclosure
 
@@ -247,11 +258,9 @@ theirs falls in that sequence. `routes/web.php` already states that public route
 expose "no card inventory, no admin surface and no internal IDs", and printing the
 card number would contradict that for no user benefit.
 
-The `...` overflow menu carries **Copy link** and **Report abuse**. Gravatar's
-menu items (Gravatar.com, Edit your profile, Developer API) are product-specific
-and have no equivalent here. "Save to contacts" is deliberately excluded: that is
-Contact mode's job, and offering a `.vcf` from a Profile-mode card would need
-contact data this mode does not have.
+The `...` overflow menu carries **Edit your profile** (section 13), **Copy link**
+and **Report abuse**. Gravatar's remaining items (Gravatar.com, Developer API) are
+product-specific and have no equivalent here.
 
 ## Testing
 
@@ -278,20 +287,146 @@ Unit tests for `LinkPlatform`:
 Unit tests for `ImageIngest`: output is a valid JPEG, oversized input is scaled to
 the requested longest edge, and a non-image is rejected.
 
+For the Share modal, QR split and vCard:
+
+- The avatar badge QR encodes the `/q/` URL and the modal QR encodes the `/n/`
+  URL. This is asserted directly, because the two being swapped is the most
+  likely regression here and would be invisible on inspection.
+- The public QR download returns a valid PNG and carries no-store headers.
+- `profile.vcf` is version 3.0, contains `FN` from `display_name`, splits
+  `headline` into `TITLE` and `ORG` on the first comma, and emits one `URL` per
+  active link.
+- A `headline` with no comma produces a `TITLE` and no `ORG`.
+- CRLF and `;`/`,` in any profile field cannot forge a vCard property.
+
+For the welcome block:
+
+- Every welcome field is HTML-escaped on the public page.
+- `welcome_cta_url` rejects a `javascript:` scheme and any non-http(s) scheme via
+  `SafeExternalUrl`.
+- The block is omitted entirely when no welcome fields are set, rather than
+  rendering an empty panel.
+
+For client self-service editing:
+
+- A wrong PIN does not modify the profile and is rate limited after five attempts.
+- A correct PIN writes the profile and records one `nfc_profile_edits` row
+  containing the pre-edit snapshot.
+- The admin revert action restores the snapshot exactly.
+- The edit form is reachable only for cards in Profile mode.
+
+### 11. Share modal
+
+Tapping Share opens a modal containing, top to bottom: a QR of the **profile URL**
+(`/n/{public_id}`) on a dark stage, a "Download QR" button, a "Share via Email"
+row, an "Add to contacts (vCard)" row, and a link bar showing the URL with a Copy
+button.
+
+**Implemented with CSS `:target`, not JavaScript.** The Share control is
+`<a href="#share">`, the overlay is `#share` with `display:none` flipped by
+`.modal:target`, and the close button is `<a href="#">`. This keeps the page
+script-free and means the modal survives with JS disabled. The only remaining
+script on the page is the clipboard call behind "Copy link"; its base state is the
+URL rendered as selectable text, so nothing is lost without it.
+
+Endpoint notes:
+
+- **Download QR** is a new *public* route, `GET /n/{card}/qr.png`, returning the
+  profile-URL QR. QR downloads are currently admin-only; this one is public by
+  necessity, and it exposes nothing the visitor cannot already see, since they are
+  looking at the page the code encodes.
+- **Share via Email** is a plain `mailto:` with a prefilled subject and the profile
+  URL in the body. No backend.
+- **Add to contacts (vCard)** is covered in section 12.
+
+**The QR embeds the avatar in its centre.** `QrCodeService` currently documents
+level M with "No logo is embedded in V1, so we do not need Q or H." Punching a
+hole in the middle destroys modules, so the profile QR is rendered at level **H**
+(~30% recovery) and the avatar is capped at roughly 22% of the code's area. This
+is a change to `QrCodeService`, added as a new method rather than by altering the
+existing card-QR path, so printed card QRs keep their current level-M density.
+
+### 12. vCard from profile data
+
+"Add to contacts" serves `GET /n/{card}/profile.vcf`, built by the existing
+`VCardBuilder` from **profile** fields rather than a contact profile, since Profile
+mode has no contact record:
+
+- `FN` / `N` from `display_name`
+- `TITLE` and `ORG` from `headline`, split on the first comma when one is present,
+  otherwise the whole string becomes `TITLE`
+- `URL` lines from the card's active links
+- `NOTE` from `tagline`
+- `PHOTO` is omitted; embedding the avatar would bloat the file for little gain
+
+`VCardBuilder::build()` currently takes a `NfcContactProfile`. It grows a sibling
+method that accepts the profile model, sharing the same private `esc()` and
+`structured()` helpers so the CR/LF and RFC 2426 escaping rules stay in exactly
+one place.
+
+### 13. Client self-service editing
+
+The `...` menu links to `GET /n/{card}/edit`, which asks for the activation PIN
+and then allows the cardholder to change their own profile text, links, avatar and
+cover.
+
+**This is gated by the universal PIN `000000`, at the product owner's explicit
+direction.** The consequence is recorded here so it is not rediscovered later:
+that PIN is identical on every card, is shown in the admin UI, and is documented
+in `CardGenerationService` as "an anti-accident guard, not an authentication
+secret". Anyone who reaches a card's URL can therefore rewrite that card's
+profile — including repointing every link while leaving the cardholder's name and
+photo in place. The permanent URL is printed on physical plastic, so a cardholder
+cannot rotate away from an abuse incident.
+
+Three mitigations are in scope, none of which change the PIN decision:
+
+1. **Rate limiting.** The edit endpoint reuses the existing
+   `RateLimiter`-per-`card|ip` pattern from `NfcController::store()`.
+2. **Audit trail.** A new `nfc_profile_edits` table records `card_id`, IP, user
+   agent, timestamp and a JSON snapshot of the values *before* the edit. This is
+   what makes an incident diagnosable instead of invisible.
+3. **Admin revert.** Because the snapshot exists, the admin card page gets a
+   "Revert to previous version" action. Recovery does not depend on anyone having
+   noticed the change quickly.
+
+### 14. Scale
+
+The reference design reads larger than the first mockup. Confirmed values, taken
+from the approved revision-2 render:
+
+| Token | Value |
+|---|---|
+| column max-width | 480px (was 420) |
+| base font | 17px (was 16) |
+| `h1` | 1.85rem (was 1.4) |
+| avatar | 104px (was 78) |
+| cover height | 132px |
+| card radius | 18px |
+| account row icon | 20px |
+
 ## Delivery order
 
-Three increments, each independently shippable and testable. The first does not
-depend on the other two and fixes live bugs, so it lands first.
+Five increments, each independently shippable and testable. The first does not
+depend on any of the others and fixes live bugs, so it lands first.
 
 1. **Reset and dashboard correctness** (section 8, minus the Profile-specific
    parts). Makes `resetNfc`/`resetCard` honest for the four existing modes and
    makes the dashboard mode-aware. No new tables, no new UI. This is the smallest
    change with the highest value, since it closes an existing data leak.
-2. **Profile mode data and rendering** (sections 1–6). Migration, model, enum case,
-   `LinkPlatform`, `ImageIngest` extraction, the public view. Reachable by setting
-   the mode directly; no admin UI yet.
-3. **Admin surface** (section 7), plus wiring Profile into the reset and dashboard
-   logic delivered in step 1.
+2. **Profile mode data and rendering** (sections 1–6, 14). Migration, model, enum
+   case, `LinkPlatform`, `ImageIngest` extraction, the public view at the approved
+   scale. Reachable by setting the mode directly; no admin UI yet.
+3. **Share modal, QR split and vCard** (sections 11–12). The `:target` modal, the
+   level-H avatar QR method on `QrCodeService`, the public QR download route, and
+   the profile vCard.
+4. **Admin surface** (section 7), including the welcome-block fields, plus wiring
+   Profile into the reset and dashboard logic delivered in step 1.
+5. **Client self-service editing** (section 13). The PIN-gated edit form, rate
+   limiting, the `nfc_profile_edits` audit table and the admin revert action.
+   Deliberately last: it is the only increment that lets an unauthenticated
+   visitor write to an already-configured card, so it ships once everything it
+   touches is settled and tested.
 
 ## Consequences
 
@@ -300,4 +435,12 @@ depend on the other two and fixes live bugs, so it lands first.
 - `resetNfc` is more destructive than it is today. It is already labelled as a
   reset and sits behind a confirmation, and the per-mode deletes cover the
   narrower case.
-- One inline script appears on one public page, purely as progressive enhancement.
+- A card's two QR codes now both appear in the UI and encode different URLs. The
+  avatar badge is labelled "Card QR" specifically so this is not mistaken for a
+  bug.
+- Profile mode becomes the only mode where a visitor can edit an
+  already-configured card. Section 13 records the accepted risk and the three
+  mitigations that bound it.
+- One inline script remains, behind "Copy link", purely as progressive
+  enhancement. Everything else on the page — including the Share modal — works
+  with JavaScript disabled.
