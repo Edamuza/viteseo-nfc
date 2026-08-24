@@ -7,6 +7,7 @@ use App\Models\NfcProfile;
 use App\Services\CardGenerationService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Blade;
 use Tests\TestCase;
 
 class NfcProfileTest extends TestCase
@@ -363,29 +364,63 @@ class NfcProfileTest extends TestCase
     }
 
     /**
-     * The icon row is the one block whose boundary a test has to find, because
-     * "which marks are in it" is the whole rule. Everything inside it is an
-     * <a> and an <svg>, so the first closing div is its own — and the caller
-     * asserts exactly that, so the day someone nests a div here the assumption
-     * fails loudly instead of silently widening the match.
+     * The icon row is one of two blocks whose boundary a test has to find,
+     * because "which marks are in it" is the whole rule. Everything inside it
+     * is an <a> and an <svg>, so the first closing div is its own — and this
+     * helper asserts exactly that, so the day someone nests a div here the
+     * assumption fails loudly instead of silently widening the match.
      */
     private function iconRow(string $body): string
     {
-        $this->assertSame(1, preg_match('#<div class="iconrow">(.*?)</div>#s', $body, $m), 'icon row not found');
+        $this->assertSame(
+            1,
+            preg_match_all('#<div class="iconrow">(.*?)</div>#s', $body, $m),
+            'expected exactly one icon row'
+        );
         $this->assertStringNotContainsString(
             '<div',
-            $m[1],
+            $m[1][0],
             'the icon row must not nest a div, or the first </div> is no longer its own'
         );
 
-        return $m[1];
+        return $m[1][0];
     }
 
+    /**
+     * Bounded at the panel's own </section>, not at the end of the document:
+     * a helper that ran on to the footer would let a mark or a URL rendered
+     * anywhere below the panel satisfy an assertion about the panel.
+     */
     private function accountsPanel(string $body): string
     {
-        $this->assertSame(1, preg_match('#<h2>Accounts</h2>(.*)#s', $body, $m), 'accounts panel not found');
+        $this->assertSame(
+            1,
+            preg_match_all('#<h2>Accounts</h2>(.*?)</section>#s', $body, $m),
+            'expected exactly one accounts panel'
+        );
+        $this->assertStringNotContainsString(
+            '<section',
+            $m[1][0],
+            'the panel must not nest a section, or the first </section> is no longer its own'
+        );
 
-        return $m[1];
+        return $m[1][0];
+    }
+
+    /**
+     * The exact <svg> the component renders for a platform.
+     *
+     * Comparing against the component's own output rather than against pasted
+     * path data is what lets a test say "this row wears the X mark" instead of
+     * the far weaker "this row wears some mark".
+     */
+    private function mark(string $platform): string
+    {
+        $html = Blade::render('<x-platform-icon :platform="$platform" />', ['platform' => $platform]);
+
+        $this->assertSame(1, preg_match('#<svg.*</svg>#s', $html, $m), "no mark rendered for {$platform}");
+
+        return $m[0];
     }
 
     public function test_the_accounts_panel_lists_each_active_link_with_its_platform_and_display_url(): void
@@ -394,12 +429,53 @@ class NfcProfileTest extends TestCase
         $this->link($card, 'https://x.com/its_uriel26', 'X', true, 0);
         $this->link($card, 'https://www.linkedin.com/in/uriel-papa/', 'LinkedIn', true, 1);
 
-        $this->get('/n/'.$card->public_id)
-            ->assertOk()
-            ->assertSee('Accounts')
-            ->assertSee('x.com/its_uriel26')
-            ->assertSee('LinkedIn')
-            ->assertSee('linkedin.com/in/uriel-papa');
+        $panel = $this->accountsPanel($this->get('/n/'.$card->public_id)->assertOk()->getContent());
+
+        $this->assertStringContainsString('<div class="acct-name">X</div>', $panel);
+        $this->assertStringContainsString('<div class="acct-name">LinkedIn</div>', $panel);
+
+        // Asserted as the anchor's inner text, not as a bare substring: the
+        // href holds the same characters, so a plain assertSee() would pass
+        // with the visible line rendered empty.
+        $this->assertStringContainsString('>x.com/its_uriel26</a>', $panel);
+        $this->assertStringContainsString('>linkedin.com/in/uriel-papa</a>', $panel);
+    }
+
+    /**
+     * One mark per row. Without a count the panel could ship every row as a
+     * bare label and nothing would notice.
+     */
+    public function test_every_account_row_carries_a_mark(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://x.com/a', 'X', true, 0);
+        $this->link($card, 'https://github.com/b', 'GitHub', true, 1);
+        $this->link($card, 'https://viteseo.ph/c', 'Site', true, 2);
+
+        $panel = $this->accountsPanel($this->get('/n/'.$card->public_id)->assertOk()->getContent());
+
+        $this->assertSame(3, substr_count($panel, '<span class="acct-ico">'), 'one icon slot per row');
+        $this->assertSame(3, substr_count($panel, '<svg'), 'one mark per row');
+        $this->assertSame(3, substr_count($panel, 'class="acct-url"'), 'one visible URL per row');
+    }
+
+    /**
+     * The mark has to be the link's own. A single hardcoded platform would
+     * dress every row in the same globe while the label beside it still read
+     * "X" — which is worse than no icon, because the icon is the part a
+     * visitor reads first.
+     */
+    public function test_each_list_renders_the_mark_belonging_to_the_link(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://x.com/its_uriel26', 'X', true, 0);
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        foreach (['icon row' => $this->iconRow($body), 'accounts panel' => $this->accountsPanel($body)] as $where => $html) {
+            $this->assertStringContainsString($this->mark('x'), $html, "the {$where} does not wear the X mark");
+            $this->assertStringNotContainsString($this->mark('web'), $html, "the {$where} fell back to the globe");
+        }
     }
 
     public function test_an_inactive_link_is_not_listed(): void
@@ -408,9 +484,10 @@ class NfcProfileTest extends TestCase
         $this->link($card, 'https://x.com/shown', 'X', true, 0);
         $this->link($card, 'https://x.com/hidden', 'X', false, 1);
 
-        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $panel = $this->accountsPanel($body);
 
-        $this->assertStringContainsString('x.com/shown', $body);
+        $this->assertStringContainsString('>x.com/shown</a>', $panel);
         $this->assertStringNotContainsString('x.com/hidden', $body);
     }
 
@@ -426,27 +503,47 @@ class NfcProfileTest extends TestCase
         $card = $this->profileCard();
         $this->link($card, 'https://viteseo.ph/services');
 
-        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $panel = $this->accountsPanel($this->get('/n/'.$card->public_id)->assertOk()->getContent());
 
-        $this->assertStringContainsString('Website', $body);
-        $this->assertStringContainsString('viteseo.ph/services', $body);
+        $this->assertStringContainsString('<div class="acct-name">Website</div>', $panel);
+        $this->assertStringContainsString('>viteseo.ph/services</a>', $panel);
+        $this->assertStringContainsString($this->mark('web'), $panel, 'the globe is the whole point of this row');
     }
 
     /**
      * The icon is the only signal a visitor has about where a row leads, so a
      * host that merely contains a brand name must not wear that brand's mark.
      * LinkPlatform has its own unit test for this; this one pins that the view
-     * actually routes through it.
+     * actually routes through it — label and mark both.
      */
     public function test_a_spoofed_host_does_not_get_a_brand_icon_on_the_page(): void
     {
         $card = $this->profileCard();
         $this->link($card, 'https://linkedin.com.attacker.tld/in/uriel');
 
-        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $panel = $this->accountsPanel($body);
 
-        $this->assertStringContainsString('Website', $body);
+        $this->assertStringContainsString('<div class="acct-name">Website</div>', $panel);
+        $this->assertStringContainsString($this->mark('web'), $panel);
+        $this->assertStringNotContainsString($this->mark('linkedin'), $body, 'a hostile host must not borrow the LinkedIn mark');
         $this->assertStringNotContainsString('LinkedIn', $body, 'a hostile host must not borrow the LinkedIn label');
+    }
+
+    /**
+     * The panel's most-read line names the host the visitor will actually
+     * reach. Userinfo before an @ is the classic way to make that line open
+     * with a brand the visitor trusts.
+     */
+    public function test_a_userinfo_url_does_not_read_as_the_brand_it_borrows(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://x.com@attacker.tld/pay');
+
+        $panel = $this->accountsPanel($this->get('/n/'.$card->public_id)->assertOk()->getContent());
+
+        $this->assertStringContainsString('>attacker.tld/pay</a>', $panel);
+        $this->assertStringNotContainsString('>x.com@attacker.tld/pay</a>', $panel);
     }
 
     public function test_the_icon_row_carries_brand_links_only(): void
@@ -455,15 +552,16 @@ class NfcProfileTest extends TestCase
         $this->link($card, 'https://x.com/its_uriel26', 'X', true, 0);
         $this->link($card, 'https://viteseo.ph/services', 'Site', true, 1);
 
-        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $panel = $this->accountsPanel($body);
 
         // One mark in the icon row (X); the plain website appears only in the
         // panel below. A row of identical globes is noise, not navigation.
         $this->assertSame(1, substr_count($this->iconRow($body), '<svg'), 'the icon row must carry brand marks only');
 
-        // Both links are still reachable from the panel.
-        $this->assertStringContainsString('x.com/its_uriel26', $body);
-        $this->assertStringContainsString('viteseo.ph/services', $body);
+        // Both links are still reachable from the panel, as visible text.
+        $this->assertStringContainsString('>x.com/its_uriel26</a>', $panel);
+        $this->assertStringContainsString('>viteseo.ph/services</a>', $panel);
     }
 
     public function test_the_icon_row_is_omitted_when_no_link_has_a_brand(): void
@@ -508,5 +606,46 @@ class NfcProfileTest extends TestCase
 
         $this->assertStringNotContainsString('<script>alert(1)</script>', $body);
         $this->assertStringContainsString('&lt;script&gt;', $body, 'the URL reached the page, escaped');
+    }
+
+    /**
+     * Escaping the attribute is not a scheme check. SafeExternalUrl guards
+     * every write path today, so a "javascript:" row can only exist if some
+     * future path forgets it — which is exactly when a read-side backstop is
+     * the thing standing between a stored string and script execution.
+     */
+    public function test_a_stored_javascript_url_never_becomes_a_live_href(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'javascript:alert(document.domain)');
+
+        $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $panel = $this->accountsPanel($body);
+
+        $this->assertStringNotContainsString('href="javascript:', $body);
+        $this->assertStringContainsString('href="#"', $panel, 'the row stays, defused');
+    }
+
+    public function test_a_stored_data_url_never_becomes_a_live_href(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==');
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('href="data:', $body);
+        $this->assertStringContainsString('href="#"', $this->accountsPanel($body));
+    }
+
+    public function test_an_ordinary_link_still_reaches_its_href_untouched(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://x.com/its_uriel26');
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        // The backstop must not become a wall: both lists still link out.
+        $this->assertStringContainsString('href="https://x.com/its_uriel26"', $this->iconRow($body));
+        $this->assertStringContainsString('href="https://x.com/its_uriel26"', $this->accountsPanel($body));
     }
 }

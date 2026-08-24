@@ -118,7 +118,7 @@ footer{margin-top:32px;text-align:center}
         <div class="iconrow">
           @foreach ($branded as $link)
             @php $platform = \App\Services\LinkPlatform::forUrl($link->url); @endphp
-            <a href="{{ $link->url }}" rel="noopener noreferrer nofollow ugc" target="_blank"
+            <a href="{{ \App\Services\LinkPlatform::safeHref($link->url) }}" rel="noopener noreferrer nofollow ugc" target="_blank"
                aria-label="{{ \App\Services\LinkPlatform::label($platform) }}">
               <x-platform-icon :platform="$platform" />
             </a>
@@ -142,7 +142,7 @@ footer{margin-top:32px;text-align:center}
           <span class="acct-ico"><x-platform-icon :platform="$platform" /></span>
           <div>
             <div class="acct-name">{{ \App\Services\LinkPlatform::label($platform) }}</div>
-            <a class="acct-url" href="{{ $link->url }}" rel="noopener noreferrer nofollow ugc" target="_blank">{{ \App\Services\LinkPlatform::displayUrl($link->url) }}</a>
+            <a class="acct-url" href="{{ \App\Services\LinkPlatform::safeHref($link->url) }}" rel="noopener noreferrer nofollow ugc" target="_blank">{{ \App\Services\LinkPlatform::displayUrl($link->url) }}</a>
           </div>
         </div>
       @endforeach

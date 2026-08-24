@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Rules\SafeExternalUrl;
+
 /**
  * Maps a link URL to a platform key, its label, and a short display form.
  *
@@ -62,14 +64,70 @@ class LinkPlatform
     }
 
     /**
+     * The URL the visitor may safely tap, or "#".
+     *
+     * Escaping the attribute stops breakout but says nothing about the scheme:
+     * a stored "javascript:" URL is a live script the moment the row is
+     * tapped. SafeExternalUrl guards every write path today, so this is the
+     * read-side backstop for a row written before that rule existed or by a
+     * path that forgets it. Its allow-list is reused rather than copied,
+     * because two lists that must agree eventually do not.
+     *
+     * Anything without an explicit http(s) scheme fails closed, including a
+     * scheme-relative "//evil.tld" and input parse_url cannot read at all.
+     */
+    public static function safeHref(string $url): string
+    {
+        $trimmed = trim($url);
+        $scheme  = parse_url($trimmed, PHP_URL_SCHEME);
+
+        return is_string($scheme) && in_array(strtolower($scheme), SafeExternalUrl::ALLOWED_SCHEMES, true)
+            ? $trimmed
+            : '#';
+    }
+
+    /**
      * "x.com/its_uriel26" rather than the full URL: the panel has to stay
      * readable in one line on a phone.
+     *
+     * Rebuilt from parse_url's components rather than stripped with a prefix
+     * regex. A strip only removes what it recognises at the front and leaves
+     * the rest, so "https://x.com@attacker.tld/pay" would read as though it
+     * led to x.com — and this line is the most-read thing in the panel. Taking
+     * the host parse_url reports means only the real authority can lead.
+     *
+     * The query is kept: it frequently *is* the destination (youtube.com/watch
+     * ?v=... is a different video per value). The fragment is dropped: it never
+     * reaches a server, so it cannot change which origin answers, and it is the
+     * one component an author can stuff with brand-shaped padding for free. The
+     * href keeps the whole URL either way, so nothing is lost by following it.
      */
     public static function displayUrl(string $url): string
     {
         $trimmed = trim($url);
-        $short   = preg_replace('#^https?://#i', '', $trimmed) ?? $trimmed;
-        $short   = preg_replace('#^www\.#i', '', $short) ?? $short;
+        $parts   = parse_url($trimmed);
+        $host    = is_array($parts) ? (string) ($parts['host'] ?? '') : '';
+
+        if ($host === '') {
+            // No authority to misread. Fall back to the cosmetic strip so a
+            // scheme-less or unparseable value still reads as it was typed.
+            $short = preg_replace('#^https?://#i', '', $trimmed) ?? $trimmed;
+
+            return rtrim(preg_replace('#^www\.#i', '', $short) ?? $short, '/');
+        }
+
+        $short = preg_replace('#^www\.#i', '', strtolower($host)) ?? '';
+
+        if (isset($parts['port'])) {
+            $short .= ':'.$parts['port'];
+        }
+
+        // The path keeps its case; only the host is case-insensitive.
+        $short .= (string) ($parts['path'] ?? '');
+
+        if ((string) ($parts['query'] ?? '') !== '') {
+            $short .= '?'.$parts['query'];
+        }
 
         return rtrim($short, '/');
     }
