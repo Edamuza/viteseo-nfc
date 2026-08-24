@@ -37,6 +37,9 @@
         <input type="hidden" name="format" value="svg">
         <button class="btn btn-sm" type="submit">Download QR codes (SVG)</button>
       </form>
+      <form method="POST" action="{{ route('admin.export.sticker-templates') }}">@csrf
+        <button class="btn btn-sm" type="submit">Download all templates (PNG)</button>
+      </form>
       <form method="POST" action="{{ route('admin.export.activation') }}"
             onsubmit="return confirm('This CSV lists the activation PIN for every card. Continue?')">@csrf
         <button class="btn btn-sm" type="submit">Activation manifest</button>

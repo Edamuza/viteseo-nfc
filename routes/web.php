@@ -58,6 +58,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/nfc-tools', [NfcToolsController::class, 'index'])->name('nfc-tools');
 
         Route::post('/export/qr-zip',              [ExportController::class, 'qrZip'])->name('export.qr-zip');
+        Route::post('/export/sticker-templates',   [ExportController::class, 'stickerTemplates'])->name('export.sticker-templates');
         Route::post('/export/activation-manifest', [ExportController::class, 'activationManifest'])->name('export.activation');
 
         Route::prefix('cards/{card}')->name('cards.')->group(function () {
@@ -65,6 +66,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
             Route::get('/qr.svg', [CardController::class, 'downloadSvg'])->name('qr.svg');
             Route::get('/qr.png', [CardController::class, 'downloadPng'])->name('qr.png');
+            Route::get('/sticker-template.zip', [CardController::class, 'downloadStickerTemplate'])->name('sticker.download');
 
             Route::patch('/qr',  [CardController::class, 'setQrDestination'])->name('qr.set');
             Route::delete('/qr', [CardController::class, 'resetQr'])->name('qr.reset');

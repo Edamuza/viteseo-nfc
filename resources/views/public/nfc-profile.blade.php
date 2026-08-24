@@ -80,14 +80,50 @@ h2{font-size:1.14rem;font-weight:650;margin:0 0 6px;letter-spacing:-.012em}
 .acct-dead{font-size:.9rem;color:var(--muted);overflow-wrap:anywhere;display:block;margin-top:2px;
  text-decoration:line-through}
 
-details.adv{margin:6px 0 0;text-align:center}
-details.adv>summary{
-  list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+.adv-trigger-wrap{margin:6px 0 0;text-align:center}
+.adv-trigger{
+  display:inline-flex;align-items:center;gap:8px;text-decoration:none;
   background:var(--pill);color:#2b333c;border-radius:999px;padding:11px 19px;
   font-size:.92rem;font-weight:550;
 }
-details.adv>summary::-webkit-details-marker{display:none}
-.adv-body{background:var(--card);border:1px solid rgba(0,0,0,.06);border-radius:16px;
+.adv-trigger:hover{background:#dfe5e9}
+
+/* Shared with the Share modal that lands in increment 3. CSS :target keeps
+   both overlays usable without JavaScript. */
+.modal{
+  display:none;position:fixed;inset:0;z-index:60;
+  background:rgba(6,10,8,.62);padding:24px;
+  align-items:center;justify-content:center;overflow:auto;
+}
+.modal:target{display:flex}
+.modal-box{
+  background:var(--card);border-radius:22px;width:100%;max-width:520px;
+  padding:26px;box-shadow:0 26px 70px rgba(0,0,0,.5);
+  max-height:calc(100dvh - 48px);overflow:auto;
+}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}
+.modal-head h2{font-size:1.36rem;font-weight:670;margin:0;letter-spacing:-.018em}
+.modal-x{
+  width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
+  color:var(--soft);text-decoration:none;font-size:1.15rem;flex:0 0 auto;
+}
+.modal-x:hover{background:#f1f3f5}
+
+.welcome{
+  background:linear-gradient(158deg,#16211b,#0f1713);
+  border-radius:18px;padding:28px;text-align:left;color:#eaf0ec;
+}
+.welcome-eyebrow{font-size:.96rem;font-weight:600;margin:0 0 10px;color:#a8c0b0}
+.welcome h3{font-size:1.42rem;font-weight:680;margin:0;letter-spacing:-.02em;line-height:1.26}
+.welcome-copy{font-size:.96rem;color:#b8c4bc;margin:12px 0 0;white-space:pre-line}
+.welcome-cta{
+  display:inline-flex;align-items:center;gap:7px;margin-top:20px;
+  background:#fff;color:#12190f;text-decoration:none;
+  border-radius:11px;padding:12px 18px;font-weight:600;font-size:.96rem;
+}
+.welcome-cta:hover{background:#edf1ee}
+
+.adv-body{background:var(--card);border:1px solid var(--line);border-radius:16px;
  margin-top:14px;padding:6px 24px;text-align:left}
 .kv{display:flex;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--line);font-size:.94rem}
 .kv:last-child{border-bottom:0}
@@ -182,28 +218,66 @@ footer{margin-top:32px;text-align:center}
     </section>
   @endif
 
-  <details class="adv">
-    {{-- The summary is inline-flex with an 8px gap, which is a two-child
+  <div class="adv-trigger-wrap">
+    {{-- The trigger is inline-flex with an 8px gap, which is a two-child
          layout: the chevron is what the gap spaces and what makes the pill read
          as a control rather than a stray word. Copied from the mockup verbatim
          rather than retyped - mistyped path data renders as a smear. --}}
-    <summary>
+    <a class="adv-trigger" href="#advanced-details" aria-haspopup="dialog" aria-controls="advanced-details">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6 3 12l5 6"/><path d="m16 6 5 6-5 6"/></svg>
       Advanced details
-    </summary>
-    <div class="adv-body">
-      {{-- The permanent URL, never the card number: publishing a sequential
-           internal id tells a visitor how many cards exist. --}}
-      <div class="kv"><span class="k">Permanent URL</span><span class="v">{{ $card->nfcUrl() }}</span></div>
-      <div class="kv"><span class="k">Last updated</span><span class="v">{{ $profile->updated_at->format('j F Y') }}</span></div>
-    </div>
-  </details>
+    </a>
+  </div>
 
   <footer>
     {{-- The three global page links land in increment 4 with site_pages. --}}
     <div class="by">Powered by ViteSEO</div>
   </footer>
 
+</div>
+
+@php
+  $welcomeCtaHref = filled($profile->welcome_cta_url)
+      ? \App\Services\LinkPlatform::safeHref($profile->welcome_cta_url)
+      : '#';
+  $hasWelcomeCta = filled($profile->welcome_cta_label) && $welcomeCtaHref !== '#';
+  $hasWelcome = filled($profile->welcome_eyebrow)
+      || filled($profile->welcome_heading)
+      || filled($profile->welcome_body)
+      || $hasWelcomeCta;
+@endphp
+
+<div class="modal" id="advanced-details" role="dialog" aria-modal="true" aria-labelledby="advanced-details-title">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2 id="advanced-details-title">Advanced details</h2>
+      <a class="modal-x" href="#" aria-label="Close">&#10005;</a>
+    </div>
+
+    @if ($hasWelcome)
+      <section class="welcome">
+        @if (filled($profile->welcome_eyebrow))
+          <p class="welcome-eyebrow">{{ $profile->welcome_eyebrow }}</p>
+        @endif
+        @if (filled($profile->welcome_heading))
+          <h3>{{ $profile->welcome_heading }}</h3>
+        @endif
+        @if (filled($profile->welcome_body))
+          <p class="welcome-copy">{{ $profile->welcome_body }}</p>
+        @endif
+        @if ($hasWelcomeCta)
+          <a class="welcome-cta" href="{{ $welcomeCtaHref }}" rel="noopener noreferrer nofollow ugc" target="_blank">{{ $profile->welcome_cta_label }}</a>
+        @endif
+      </section>
+    @endif
+
+    <div class="adv-body">
+      {{-- The permanent URL, never the card number: publishing a sequential
+           internal id tells a visitor how many cards exist. --}}
+      <div class="kv"><span class="k">Permanent URL</span><span class="v">{{ $card->nfcUrl() }}</span></div>
+      <div class="kv"><span class="k">Last updated</span><span class="v">{{ $profile->updated_at->format('j F Y') }}</span></div>
+    </div>
+  </div>
 </div>
 </body>
 </html>

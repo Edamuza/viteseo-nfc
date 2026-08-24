@@ -48,6 +48,7 @@
         <button class="btn btn-sm" type="button" onclick="copyText('qrurl',this)">Copy URL</button>
         <a class="btn btn-sm" href="{{ route('admin.cards.qr.svg', $card->public_id) }}">Download SVG</a>
         <a class="btn btn-sm" href="{{ route('admin.cards.qr.png', $card->public_id) }}">Download PNG</a>
+        <a class="btn btn-sm" href="{{ route('admin.cards.sticker.download', $card->public_id) }}">Download sticker template</a>
       </div>
 
       <label class="fld">Current destination</label>
@@ -55,6 +56,7 @@
         <p class="small" style="margin:0 0 14px"><code>{{ $card->qr_destination }}</code></p>
       @else
         <p class="small muted" style="margin:0 0 14px">Not configured &mdash; scanning shows the setup page.</p>
+        <p class="small muted" style="margin:-8px 0 14px">The sticker can still be downloaded; scans open the setup page until a destination is set.</p>
       @endif
 
       <form method="POST" action="{{ route('admin.cards.qr.set', $card->public_id) }}">

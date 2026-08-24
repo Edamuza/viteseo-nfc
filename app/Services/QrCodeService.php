@@ -9,6 +9,7 @@ use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
+use InvalidArgumentException;
 
 /**
  * QR codes are rendered on demand from the card's permanent URL. Nothing is
@@ -38,9 +39,9 @@ class QrCodeService
         return $this->svg($card->qrUrl());
     }
 
-    public function pngForCard(Card $card): string
+    public function pngForCard(Card $card, int $maxSize = self::PNG_SIZE): string
     {
-        return $this->png($card->qrUrl());
+        return $this->png($card->qrUrl(), $maxSize);
     }
 
     public function svg(string $payload): string
@@ -57,14 +58,22 @@ class QrCodeService
      * Rendered with GD directly rather than through an image back-end, so the
      * only hard dependency is ext-gd (imagick is not installed on PHP 8.4 here).
      */
-    public function png(string $payload): string
+    public function png(string $payload, int $maxSize = self::PNG_SIZE): string
     {
+        if ($maxSize < 1) {
+            throw new InvalidArgumentException('QR maximum size must be positive.');
+        }
+
         $matrix  = Encoder::encode($payload, $this->eccLevel(), Encoder::DEFAULT_BYTE_MODE_ECODING)->getMatrix();
         $modules = $matrix->getWidth();
         $total   = $modules + (self::QUIET_ZONE * 2);
 
+        if ($maxSize < $total) {
+            throw new InvalidArgumentException('QR maximum size is too small for one pixel per module.');
+        }
+
         // Integer scale keeps every module pixel-crisp; no resampling blur.
-        $scale = max(1, (int) floor(self::PNG_SIZE / $total));
+        $scale = (int) floor($maxSize / $total);
         $size  = $total * $scale;
 
         $img   = imagecreatetruecolor($size, $size);
@@ -85,7 +94,7 @@ class QrCodeService
         ob_start();
         imagepng($img, null, 9);
         $data = (string) ob_get_clean();
-        imagedestroy($img);
+        unset($img);
 
         return $data;
     }

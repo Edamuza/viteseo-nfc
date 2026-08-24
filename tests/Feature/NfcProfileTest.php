@@ -296,6 +296,7 @@ class NfcProfileTest extends TestCase
         $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
 
         $this->assertStringContainsString($card->public_id, $body);
+        $this->assertStringContainsString($card->profile->updated_at->format('j F Y'), $body);
         $this->assertStringNotContainsString(
             $card->card_number,
             $body,
@@ -303,23 +304,45 @@ class NfcProfileTest extends TestCase
         );
     }
 
+    public function test_advanced_details_opens_a_centred_modal_instead_of_an_inline_disclosure(): void
+    {
+        $card = $this->profileCard();
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringContainsString('class="adv-trigger" href="#advanced-details"', $body);
+        $this->assertStringContainsString(
+            'class="modal" id="advanced-details" role="dialog" aria-modal="true" aria-labelledby="advanced-details-title"',
+            $body
+        );
+        $this->assertStringContainsString('href="#" aria-label="Close"', $body);
+        $this->assertStringContainsString('.modal:target{display:flex}', $body);
+        $this->assertMatchesRegularExpression(
+            '#\.modal\{[^}]*align-items:center;[^}]*justify-content:center;#s',
+            $body,
+            'the overlay is not centred in both directions'
+        );
+        $this->assertStringContainsString('max-height:calc(100dvh - 48px)', $body);
+        $this->assertStringNotContainsString('<details class="adv">', $body);
+    }
+
     /**
-     * The summary is `display:inline-flex; align-items:center; gap:8px` - a
+     * The trigger is `display:inline-flex; align-items:center; gap:8px` - a
      * two-child layout. With only the label in it the gap has nothing to space
      * and the pill reads as a plain word rather than a control, which is why
      * the mockup puts a chevron there and why the CSS for it is already in the
      * stylesheet.
      */
-    public function test_the_advanced_details_summary_carries_the_chevron(): void
+    public function test_the_advanced_details_trigger_carries_the_chevron(): void
     {
         $card = $this->profileCard();
 
         $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
 
         $this->assertMatchesRegularExpression(
-            '#<summary>\s*<svg[^>]*>.*?</svg>\s*Advanced details\s*</summary>#s',
+            '~<a class="adv-trigger" href="#advanced-details"[^>]*>\s*<svg[^>]*>.*?</svg>\s*Advanced details\s*</a>~s',
             $body,
-            'the summary has no mark before its label'
+            'the modal trigger has no mark before its label'
         );
     }
 
@@ -335,6 +358,68 @@ class NfcProfileTest extends TestCase
         $this->get('/n/'.$card->public_id)
             ->assertOk()
             ->assertSee('<path d="M8 6 3 12l5 6"/><path d="m16 6 5 6-5 6"/>', false);
+    }
+
+    public function test_the_advanced_details_modal_renders_and_escapes_the_welcome_panel(): void
+    {
+        $card = $this->profileCard([
+            'welcome_eyebrow'   => '<script>eyebrow()</script>',
+            'welcome_heading'   => '<img src=x onerror=heading()>',
+            'welcome_body'      => '<svg onload=body()>Body',
+            'welcome_cta_label' => 'Book <b>now</b>',
+            'welcome_cta_url'   => 'https://viteseo.ph/book',
+        ]);
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringContainsString('class="welcome"', $body);
+        $this->assertStringContainsString('&lt;script&gt;eyebrow()&lt;/script&gt;', $body);
+        $this->assertStringContainsString('&lt;img src=x onerror=heading()&gt;', $body);
+        $this->assertStringContainsString('&lt;svg onload=body()&gt;Body', $body);
+        $this->assertStringContainsString('>Book &lt;b&gt;now&lt;/b&gt;</a>', $body);
+        $this->assertStringNotContainsString('<script>eyebrow()</script>', $body);
+        $this->assertStringNotContainsString('<img src=x onerror=heading()>', $body);
+        $this->assertStringNotContainsString('<svg onload=body()>', $body);
+        $this->assertStringNotContainsString('>Book <b>now</b></a>', $body);
+    }
+
+    public function test_an_empty_welcome_panel_is_omitted_from_advanced_details(): void
+    {
+        $card = $this->profileCard();
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertDontSee('class="welcome"', false);
+    }
+
+    public function test_a_safe_welcome_cta_is_a_live_external_link(): void
+    {
+        $card = $this->profileCard([
+            'welcome_heading'   => 'Grow your brand',
+            'welcome_cta_label' => 'Book now',
+            'welcome_cta_url'   => 'https://viteseo.ph/book',
+        ]);
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee(
+                'class="welcome-cta" href="https://viteseo.ph/book" rel="noopener noreferrer nofollow ugc" target="_blank"',
+                false
+            );
+    }
+
+    public function test_an_unsafe_welcome_cta_never_becomes_a_live_link(): void
+    {
+        $card = $this->profileCard([
+            'welcome_heading'   => 'Grow your brand',
+            'welcome_cta_label' => 'Book now',
+            'welcome_cta_url'   => 'javascript:alert(document.domain)',
+        ]);
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('href="javascript:', $body);
+        $this->assertStringNotContainsString('class="welcome-cta"', $body);
     }
 
     public function test_the_page_uses_the_default_brand_colour_when_none_is_derived(): void

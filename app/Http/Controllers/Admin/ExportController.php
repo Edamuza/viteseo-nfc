@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Card;
+use App\Services\CardReviewStickerService;
 use App\Services\QrCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -13,7 +14,10 @@ use ZipArchive;
 
 class ExportController extends Controller
 {
-    public function __construct(private readonly QrCodeService $qr) {}
+    public function __construct(
+        private readonly QrCodeService $qr,
+        private readonly CardReviewStickerService $stickers,
+    ) {}
 
     /**
      * POST /admin/export/qr-zip
@@ -91,6 +95,21 @@ class ExportController extends Controller
                 'Cache-Control' => 'no-store, private',
             ])
             ->deleteFileAfterSend(true);
+    }
+
+    public function stickerTemplates(): Response
+    {
+        $cards = Card::query()->orderBy('id')->get();
+
+        if ($cards->isEmpty()) {
+            abort(404, 'No cards are available for template export.');
+        }
+
+        return response($this->stickers->zipForCards($cards), 200, [
+            'Content-Type'        => 'application/zip',
+            'Content-Disposition' => 'attachment; filename="nfc-card-templates-'.now()->format('Ymd-His').'.zip"',
+            'Cache-Control'       => 'no-store, private',
+        ]);
     }
 
     /**

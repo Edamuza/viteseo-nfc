@@ -10,6 +10,7 @@ use App\Models\NfcLink;
 use App\Rules\SafeExternalUrl;
 use App\Rules\SafePhoneNumber;
 use App\Services\CardGenerationService;
+use App\Services\CardReviewStickerService;
 use App\Services\CardResetService;
 use App\Services\PublicImageStorage;
 use App\Services\ImageIngest;
@@ -31,6 +32,7 @@ class CardController extends Controller
         private readonly CardResetService $reset,
         private readonly PublicImageStorage $photos,
         private readonly ImageIngest $images,
+        private readonly CardReviewStickerService $stickers,
     ) {}
 
     public function show(Card $card): Response
@@ -497,6 +499,17 @@ class CardController extends Controller
         return response($this->qr->pngForCard($card), 200, [
             'Content-Type'        => 'image/png',
             'Content-Disposition' => 'attachment; filename="'.$card->assetBasename().'.png"',
+            'Cache-Control'       => 'no-store, private',
+        ]);
+    }
+
+    public function downloadStickerTemplate(Card $card): Response
+    {
+        $basename = $this->stickers->downloadBasename($card);
+
+        return response($this->stickers->zipFor($card), 200, [
+            'Content-Type'        => 'application/zip',
+            'Content-Disposition' => 'attachment; filename="'.$basename.'-template.zip"',
             'Cache-Control'       => 'no-store, private',
         ]);
     }
