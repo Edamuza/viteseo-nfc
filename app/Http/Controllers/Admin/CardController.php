@@ -324,7 +324,7 @@ class CardController extends Controller
         $profile = $card->profile ?: $card->profile()->make();
 
         $profile->fill([
-            'display_name' => $this->stripControl((string) ($data['display_name'] ?? '')) ?: null,
+            'display_name' => $this->stripControlOrNull($data['display_name'] ?? null),
         ]);
 
         if (! $profile->exists) {
@@ -389,7 +389,7 @@ class CardController extends Controller
 
         $card->forceFill([
             'nfc_email_address' => $this->stripControl($data['nfc_email_address']),
-            'nfc_email_subject' => $this->stripControl((string) ($data['nfc_email_subject'] ?? '')) ?: null,
+            'nfc_email_subject' => $this->stripControlOrNull($data['nfc_email_subject'] ?? null),
             'nfc_email_body'    => (string) ($data['nfc_email_body'] ?? '') !== ''
                 ? str_replace(["\r\n", "\r"], "\n", $data['nfc_email_body'])
                 : null,
@@ -410,10 +410,45 @@ class CardController extends Controller
 
     // --- helpers -------------------------------------------------------------
 
-    /** Removes CR, LF and other control characters that could inject a vCard line or a header. */
+    /**
+     * Removes CR, LF and other control characters that could inject a vCard line
+     * or a header.
+     *
+     * The encoding scrub comes first because the pattern is /u, and a /u pattern
+     * returns null on malformed UTF-8 - which the `?? ''` below then turned into
+     * the whole value being thrown away over one bad byte. Refusing the bad bytes
+     * is load-bearing (these strings reach utf8mb4 columns, and MySQL rejects
+     * invalid sequences outright), but losing the valid characters with them is a
+     * bigger loss than the problem. mb_convert_encoding replaces each invalid
+     * sequence with "?", so the admin sees a name with a blemish they can fix
+     * rather than a field that silently emptied itself. It is a no-op on the
+     * normal path, where the input is already valid UTF-8.
+     *
+     * iconv('UTF-8', 'UTF-8//IGNORE') would drop the bytes rather than mark
+     * them, but truncates the rest of the string at the first bad byte on some
+     * libiconv builds. Predictability wins.
+     */
     private function stripControl(string $v): string
     {
-        return trim(preg_replace('/[\x00-\x1F\x7F]/u', '', $v) ?? '');
+        $valid = mb_convert_encoding($v, 'UTF-8', 'UTF-8');
+
+        return trim(preg_replace('/[\x00-\x1F\x7F]/u', '', $valid) ?? '');
+    }
+
+    /**
+     * stripControl(), with a value that normalises to nothing expressed as NULL.
+     *
+     * Not `?: null`, which is how a display name of "0" and an email subject of
+     * "0" both came to be stored as NULL: PHP reads "0" as falsy, so the save
+     * reported success while quietly discarding what the admin typed. Short
+     * numeric values are exactly what these fields get - a year, a ticket
+     * number, a table number.
+     */
+    private function stripControlOrNull(?string $v): ?string
+    {
+        $clean = $this->stripControl((string) $v);
+
+        return $clean === '' ? null : $clean;
     }
 
     // --- Whole card ----------------------------------------------------------

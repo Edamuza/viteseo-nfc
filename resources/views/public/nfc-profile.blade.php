@@ -16,8 +16,10 @@
   --brand-soft:{{ $profile->brandColorSoftRgba() }};
   /* Nothing on the page consumes --on-brand yet. Both of its users sit on the
      brand-coloured background outside the white cards: the overflow menu
-     trigger and the share control in increment 3, and the footer nav in
-     increment 4. Kept rather than dropped so the pair stays together -
+     trigger (mockup:56, increment 3) and the footer nav (mockup:157,
+     increment 4). The share control is not one of them - it uses var(--text),
+     because it sits inside a white card, which is the same rule that puts these
+     two here. Kept rather than dropped so the pair stays together -
      --on-brand-dim below is already in use by the byline, and re-deriving one
      half of a contrast pair from the mockup later is how the two drift. */
   --on-brand:#e8f1ec;

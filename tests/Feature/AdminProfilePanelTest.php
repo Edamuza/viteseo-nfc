@@ -402,6 +402,93 @@ class AdminProfilePanelTest extends TestCase
         );
     }
 
+    /**
+     * The natural way an admin backs a card out of Profile mode without losing
+     * the row: clear the field and save. The row has to survive - deleting it is
+     * what the separate Delete button is for, and doing it here would take the
+     * avatar and every other field with it - while the badge, the model, the SQL
+     * twin and the public page all have to agree the card is no longer live.
+     *
+     * The whitespace test above only ever exercised a card that had no row to
+     * begin with, so nothing covered the transition from live to blank.
+     */
+    public function test_blanking_the_display_name_on_a_live_card_stands_the_page_down(): void
+    {
+        $card = $this->profileCard(['display_name' => 'Uriel Papa']);
+
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Uriel Papa');
+        $this->assertTrue($card->nfcModeIsConfigured(), 'the fixture starts live');
+
+        $this->actingAs($this->admin())
+            ->patch('/admin/cards/'.$card->public_id.'/profile', ['display_name' => ''])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Saved. Add a display name before this card can display a profile.');
+
+        $card->refresh();
+
+        $this->assertNotNull($card->profile, 'clearing the field must not delete the row');
+        $this->assertNull($card->profile->display_name);
+        $this->assertFalse($card->profile->isMeaningful());
+        $this->assertFalse($card->nfcModeIsConfigured());
+        $this->assertFalse(
+            NfcProfile::query()->meaningful()->where('card_id', $card->id)->exists(),
+            'the SQL twin must agree the card is no longer configured'
+        );
+
+        $this->assertStringContainsString('Needs a display name', $this->page($card));
+
+        $public = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $this->assertStringNotContainsString('Uriel Papa', $public, 'the public page still serves the name it was told to drop');
+    }
+
+    /**
+     * "0" is falsy in PHP, so `stripControl(...) ?: null` stored a display name
+     * of 0 as NULL: the save reported success, the badge said the card still
+     * needed a name, and the public URL served the not-ready page. A one-glyph
+     * name is unusual but it is not empty, and the admin has no way to tell the
+     * difference between "rejected" and "quietly discarded".
+     */
+    public function test_a_display_name_of_zero_is_stored_rather_than_dropped(): void
+    {
+        $card = $this->profileCard(null);
+
+        $this->actingAs($this->admin())
+            ->patch('/admin/cards/'.$card->public_id.'/profile', ['display_name' => '0'])
+            ->assertSessionHas('status', 'Profile details saved.');
+
+        $card->refresh();
+
+        $this->assertSame('0', $card->profile->display_name);
+        $this->assertTrue($card->profile->isMeaningful());
+        $this->assertTrue($card->nfcModeIsConfigured());
+        $this->assertTrue(
+            NfcProfile::query()->meaningful()->where('card_id', $card->id)->exists(),
+            'the SQL twin must agree that "0" is a name'
+        );
+    }
+
+    /**
+     * A /u pattern returns null on malformed UTF-8, and `?? ''` turned that into
+     * the whole name being discarded. Refusing the bad bytes is load-bearing -
+     * they reach a utf8mb4 column and MySQL would reject the write - but losing
+     * the valid characters with them is a bigger loss than the problem.
+     */
+    public function test_malformed_utf8_in_a_display_name_costs_only_the_bad_bytes(): void
+    {
+        $card = $this->profileCard(null);
+
+        $this->actingAs($this->admin())
+            ->patch('/admin/cards/'.$card->public_id.'/profile', ['display_name' => "Uriel\xFF Papa"])
+            ->assertSessionHas('status', 'Profile details saved.');
+
+        $stored = $card->fresh()->profile->display_name;
+
+        $this->assertNotNull($stored, 'the whole name was discarded over one bad byte');
+        $this->assertStringContainsString('Uriel', $stored);
+        $this->assertStringContainsString('Papa', $stored);
+        $this->assertTrue(mb_check_encoding($stored, 'UTF-8'), 'what is stored must be valid UTF-8');
+    }
+
     public function test_control_characters_are_stripped_from_a_display_name(): void
     {
         $card = $this->profileCard(null);

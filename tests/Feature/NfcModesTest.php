@@ -208,6 +208,39 @@ class NfcModesTest extends TestCase
         $this->assertNull($card->fresh()->nfc_email_address);
     }
 
+    /**
+     * "0" is falsy in PHP, so `stripControl(...) ?: null` turned a subject line
+     * of 0 into NULL and the saved email action lost it silently, reporting
+     * success. Short numeric subjects - a ticket number, a year, a table number
+     * at an event - are exactly what a card like this gets used for.
+     */
+    public function test_an_email_subject_of_zero_is_saved_rather_than_dropped(): void
+    {
+        $card = $this->card();
+
+        $this->actingAs($this->admin())->from('/admin/cards/'.$card->public_id)
+            ->patch('/admin/cards/'.$card->public_id.'/email', [
+                'nfc_email_address' => 'hello@example.com',
+                'nfc_email_subject' => '0',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('0', $card->fresh()->nfc_email_subject);
+    }
+
+    public function test_an_email_subject_of_only_whitespace_is_saved_as_nothing(): void
+    {
+        $card = $this->card();
+
+        $this->actingAs($this->admin())
+            ->patch('/admin/cards/'.$card->public_id.'/email', [
+                'nfc_email_address' => 'hello@example.com',
+                'nfc_email_subject' => "  \t ",
+            ]);
+
+        $this->assertNull($card->fresh()->nfc_email_subject);
+    }
+
     // ── Mode switching is lossless ──────────────────────────────────────────
 
     public function test_switching_modes_preserves_every_modes_data(): void
