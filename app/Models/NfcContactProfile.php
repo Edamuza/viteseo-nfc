@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class NfcContactProfile extends Model
@@ -128,5 +129,40 @@ class NfcContactProfile extends Model
     public function isMeaningful(): bool
     {
         return $this->hasName();
+    }
+
+    /**
+     * SQL twin of isMeaningful().
+     *
+     * The dashboard counts configured cards across the whole table and cannot
+     * instantiate a model per row, so this rule exists in both PHP and SQL.
+     * test_meaningful_scope_agrees_with_is_meaningful is what keeps the two
+     * from drifting apart.
+     *
+     * Name columns are trimmed to mirror displayName(); company is left
+     * untrimmed to mirror hasName(). That asymmetry is inherited from those
+     * methods — do not "tidy" it here or the dashboard count will change.
+     *
+     * Column names come from a hardcoded literal array below, not user input,
+     * so building the expression as raw SQL carries no injection risk.
+     *
+     * A NULL column does not satisfy the checks, which is exactly the wanted
+     * behaviour: unset is not meaningful.
+     *
+     * One known limit: SQL trim() removes spaces, while PHP trim() also removes
+     * tabs and newlines. A name of "\t" would therefore be meaningful here and
+     * not in PHP. It is unreachable today because every write path strips
+     * control characters first (see CardController::stripControl), so it is
+     * documented rather than worked around — a portable fix needs per-driver
+     * SQL. Revisit if a write path ever stops stripping.
+     */
+    public function scopeMeaningful(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            foreach (['first_name', 'middle_name', 'last_name', 'suffix'] as $column) {
+                $q->orWhereRaw("trim(coalesce({$column}, '')) != ''");
+            }
+            $q->orWhereRaw("coalesce(company, '') != ''");
+        });
     }
 }

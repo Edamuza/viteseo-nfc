@@ -368,6 +368,15 @@ Add to `tests/Feature/DashboardStatusTest.php`:
         $this->assertFalse(Card::query()->whereNfcModeConfigured()->whereKey($card->getKey())->exists());
     }
 
+    // As delivered, the two tests below were generalised into a data provider
+    // covering every branch, not just contact-on-phone: an active link on a
+    // contact-mode card, a phone number on an email-mode card, an email address
+    // on a links-mode card, and empty-string (not just NULL) phone and email
+    // columns. Each case was mutation-tested by deleting the corresponding
+    // `where('nfc_mode', ...)` predicate and confirming a failure. Do not
+    // narrow this back to one case — the mode predicates are what stop another
+    // mode's leftover data from reading as configured, and only these fixtures
+    // hold them in place.
     public function test_another_modes_data_does_not_configure_the_current_mode(): void
     {
         // A phone-mode card holding only contact details is not configured: the
@@ -414,15 +423,17 @@ In `app/Models/Card.php`, add `use Illuminate\Database\Eloquent\Builder;` to the
                     ->whereHas('contactProfile', fn ($p) => $p->meaningful()))
               ->orWhere(fn (Builder $w) => $w
                     ->where('nfc_mode', NfcMode::Phone->value)
-                    ->where('nfc_phone_number', '!=', ''))
+                    ->whereRaw("coalesce(nfc_phone_number, '') != ''"))
               ->orWhere(fn (Builder $w) => $w
                     ->where('nfc_mode', NfcMode::Email->value)
-                    ->where('nfc_email_address', '!=', ''));
+                    ->whereRaw("coalesce(nfc_email_address, '') != ''"));
         };
 
         return $configured ? $query->where($matches) : $query->whereNot($matches);
     }
 ```
+
+`nfc_phone_number` and `nfc_email_address` are nullable, and `coalesce` is load-bearing rather than defensive. A bare `where('nfc_phone_number', '!=', '')` gets the positive case right by accident — SQL evaluates `NULL != ''` to UNKNOWN, and a WHERE clause drops UNKNOWN rows, which happens to match the PHP method. But `NOT UNKNOWN` is still UNKNOWN, so the negated form drops the same rows instead of selecting them, and `whereNfcModeConfigured(false)` stops being the complement of `whereNfcModeConfigured()`. Coercing NULL to `''` first makes the predicate two-valued, so the negation is exact. This mirrors the PHP side's `(string) $this->nfc_phone_number !== ''` cast, and it is the same reason Task 2's scope wraps its columns in `coalesce`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -520,9 +531,14 @@ class CardResetTest extends TestCase
             'nfc_page_title'    => 'Acme',
             'nfc_page_subtitle' => 'Links',
             'nfc_logo_path'     => 'logos/acme.png',
-            'nfc_configured_at' => now(),
+            // Fixed, historical, and deliberately not now(): a fixture value
+            // that coincides with what a bug would write proves nothing. If the
+            // service ever overwrote qr_configured_at with now(), a now()
+            // fixture would match it to the second and the guard below would
+            // pass while the QR side had in fact been touched.
+            'nfc_configured_at' => '2024-06-15 09:30:00',
             'qr_destination'    => 'https://example.com/qr',
-            'qr_configured_at'  => now(),
+            'qr_configured_at'  => '2024-06-15 09:30:00',
         ])->save();
 
         return $card->fresh();
@@ -571,12 +587,16 @@ class CardResetTest extends TestCase
     {
         Storage::fake('public');
         $card = $this->fullyPopulatedCard();
+        $originalQrConfiguredAt = $card->qr_configured_at->format('Y-m-d H:i:s');
 
         app(CardResetService::class)->resetNfcSide($card);
         $card->refresh();
 
         $this->assertSame('https://example.com/qr', $card->qr_destination);
-        $this->assertNotNull($card->qr_configured_at);
+
+        // Exact equality, not assertNotNull: "untouched" has to mean untouched,
+        // and a service that rewrote this to now() would satisfy a null check.
+        $this->assertSame($originalQrConfiguredAt, $card->qr_configured_at->format('Y-m-d H:i:s'));
     }
 
     public function test_resetting_the_nfc_side_keeps_the_permanent_identity(): void
@@ -642,13 +662,13 @@ class CardResetService
      */
     public function resetNfcSide(Card $card): void
     {
+        // Read before the transaction: the model is gone by the time it commits.
+        $photoPath = $card->contactProfile?->photo_path;
+
         DB::transaction(function () use ($card) {
             $card->nfcLinks()->delete();
 
             if ($profile = $card->contactProfile) {
-                if ($profile->photo_path) {
-                    Storage::disk('public')->delete($profile->photo_path);
-                }
                 $profile->delete();
             }
 
@@ -664,6 +684,14 @@ class CardResetService
                 'nfc_logo_path'     => null,
             ])->save();
         });
+
+        // Delete the photo only after the transaction commits. Filesystem
+        // deletes do not roll back; a file removed while the profile row
+        // survives would show a broken image on a live contact page. An
+        // orphaned file after a successful reset costs disk space only.
+        if ($photoPath) {
+            Storage::disk('public')->delete($photoPath);
+        }
 
         // The in-memory model may still hold the profile we just deleted.
         $card->unsetRelation('contactProfile');
@@ -746,21 +774,57 @@ Add to `app/Services/CardResetService.php`:
     /**
      * resetNfcSide() plus the QR destination.
      *
-     * Expressed as a composition rather than its own column list, so a mode
-     * added to resetNfcSide() is automatically covered here too.
+     * Passes the two QR columns to the shared reset helper so they are cleared
+     * in the same transaction as the NFC payload — no nested transactions,
+     * no duplicated NFC column list.
      */
     public function resetEverything(Card $card): void
     {
-        DB::transaction(function () use ($card) {
-            $this->resetNfcSide($card);
-
-            $card->forceFill([
-                'qr_destination'   => null,
-                'qr_configured_at' => null,
-            ])->save();
-        });
+        $this->reset($card, [
+            'qr_destination'   => null,
+            'qr_configured_at' => null,
+        ]);
     }
 ```
+
+This requires restructuring Task 4's method rather than wrapping it. Wrapping does not work: `resetNfcSide()` deletes the photo file straight after its own transaction, and under nesting that inner commit is only a savepoint release, so a failing QR save would roll the profile row back with the file already gone — reinstating the bug Task 4 exists to fix, one level up.
+
+So both public methods become one-line delegations to a private helper that takes the extra columns:
+
+```php
+    private function reset(Card $card, array $extraColumns = []): void
+    {
+        $photoPath = $card->contactProfile?->photo_path;
+
+        DB::transaction(function () use ($card, $extraColumns) {
+            $card->nfcLinks()->delete();
+
+            if ($profile = $card->contactProfile) {
+                $profile->delete();
+            }
+
+            $card->forceFill(array_merge([
+                'nfc_mode'          => NfcMode::Links,
+                'nfc_configured_at' => null,
+                'nfc_phone_number'  => null,
+                'nfc_email_address' => null,
+                'nfc_email_subject' => null,
+                'nfc_email_body'    => null,
+                'nfc_page_title'    => null,
+                'nfc_page_subtitle' => null,
+                'nfc_logo_path'     => null,
+            ], $extraColumns))->save();
+        });
+
+        if ($photoPath) {
+            Storage::disk('public')->delete($photoPath);
+        }
+
+        $card->unsetRelation('contactProfile');
+    }
+```
+
+One transaction, one post-commit file deletion, and the NFC column list written once — which is the property that matters when a fifth mode is added, since one edit then covers both entry points.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -897,7 +961,7 @@ Replace `resetCard()`:
     {
         $this->reset->resetEverything($card);
 
-        return back()->with('status', 'Card fully reset. Card number, public ID and both permanent URLs are unchanged.');
+        return back()->with('status', 'Card reset. Both sides are blank. Card number, public ID, both permanent URLs and the activation PIN are unchanged.');
     }
 ```
 
@@ -906,7 +970,9 @@ Keep the `use Illuminate\Support\Facades\DB;` import — the link reordering met
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `php artisan test --filter=CardResetTest`
-Expected: PASS, 9 tests.
+Expected: PASS, 11 tests.
+
+Both endpoint tests assert the exact status message string. The message is the promise the admin acts on when re-issuing a card, so it is held by a test rather than left to drift. The full-reset message names the activation PIN as surviving, and that test asserts `activation_pin_hash` is unchanged, so the message and the behaviour cannot diverge.
 
 Run: `php artisan test`
 Expected: PASS. `AdminTest::test_nfc_reset_does_not_affect_qr` and `AdminTest::test_full_reset_preserves_permanent_identity` both already pass under the new behaviour — they assert on links, branding, QR and identity, all of which are unchanged — and neither asserts on the status message text. No edits to `AdminTest.php` are expected.
@@ -990,14 +1056,22 @@ Add to `tests/Feature/CardResetTest.php`:
     }
 ```
 
+Two corrections were made to the above while implementing, both because the test as drafted could not fail:
+
+1. The contact-page test's phone and email assertions named `nfc_phone_number` and `nfc_email_address`, but `public/nfc-contact.blade.php` renders the *profile's* phone and email columns, never the card's. The test now sets `mobile_phone` and `personal_email` on the profile and asserts them visible before the reset, so every value asserted as gone afterwards is one the page demonstrably printed. The card-column phone and email got their own tests through Phone and Email mode, which are the pages that print them.
+
+2. All three mode tests re-select the mode through `PATCH /admin/cards/{card}/nfc-mode` after the reset. Without that, resetting `nfc_mode` to `Links` hides every other mode's data behind the setup page, so a reset that flipped the mode and left the data behind would pass. Re-selecting the mode is also the real re-issue flow: reset, then configure for the new holder.
+
 - [ ] **Step 2: Run tests to verify they pass**
 
 These describe behaviour that Task 6 already delivered, so they should pass immediately. That is the point: they are regression locks, not drivers.
 
 Run: `php artisan test --filter=CardResetTest`
-Expected: PASS, 12 tests.
+Expected: PASS, 16 tests.
 
 If any fail, the reset is still leaking. Fix `CardResetService`, not the test.
+
+Then prove each lock can fail. Removing the profile delete from `CardResetService::reset()` must fail the contact-page test; dropping `nfc_phone_number` from its column list must fail the phone test; dropping `nfc_email_address` must fail the email test. A lock that cannot fail is decoration.
 
 - [ ] **Step 3: Commit**
 
@@ -1145,7 +1219,7 @@ In `resources/views/admin/dashboard.blade.php`, replace lines 66-84:
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `php artisan test --filter=DashboardStatusTest`
-Expected: PASS, 26 tests.
+Expected: PASS. The badge tests were later folded into the existing `modeStates` provider so all four modes are covered in both states — the three-Active-plus-one-Unconfigured set drafted above left Links unpinned and could not catch a state stuck on Active for phone or email. The link-count assertion reads the cell's text rather than matching a literal attribute order.
 
 Run: `php artisan test`
 Expected: PASS. `AdminTest.php` makes no assertion on the dashboard's NFC status text, so no edits there are expected.
@@ -1268,7 +1342,7 @@ That needs one more scope. Add it to `app/Models/Card.php`, next to `scopeWhereN
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `php artisan test --filter=DashboardStatusTest`
-Expected: PASS, 28 tests.
+Expected: PASS. The implemented scope uses the symmetric `coalesce(qr_destination, '') != ''` / `= ''` pair rather than the `whereNotNull` form drafted above — same behaviour, and the same idiom Task 3 settled on for the nullable phone and email columns. A partition test over NULL, empty-string and real-URL fixtures proves the two branches are an exact complement.
 
 Run: `php artisan test`
 Expected: PASS. `AdminTest.php` asserts no stat numbers, so no edits there are expected.
@@ -1395,7 +1469,7 @@ Out of scope for this increment, by design: `NfcMode::Profile`, the `nfc_profile
 
 ## Notes for the implementer
 
-- `resetEverything()` opens a transaction and calls `resetNfcSide()`, which opens another. Laravel implements the inner one as a savepoint, so this is safe and intentional — it keeps the QR clear atomic with the NFC clear.
+- Both reset methods delegate to a single private helper with one transaction. Do not reintroduce nesting: see Task 5 for why wrapping `resetNfcSide()` puts the photo file at risk of a rollback it cannot undo.
 - `Storage::fake('public')` must be called before `fullyPopulatedCard()`, because that helper writes the fake contact photo.
 - The `AdminTest.php` updates named in Tasks 6, 8 and 9 are conditional. Read the file first; if it makes no assertion on those strings or numbers, drop it from the `git add`.
 - `bootstrap/cache/routes-v7.php` exists in this repo. If a route change ever seems not to take effect, `php artisan route:clear`. No task here changes routes, so it should not come up.

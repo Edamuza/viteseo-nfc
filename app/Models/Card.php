@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\NfcMode;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -80,6 +81,55 @@ class Card extends Model
         };
     }
 
+    /**
+     * SQL twin of nfcModeIsConfigured().
+     *
+     * The dashboard needs this as a countable query, and each mode stores its
+     * payload somewhere different, so the branch has to be reproduced in SQL.
+     * test_configured_scope_agrees_with_nfc_mode_is_configured is what keeps
+     * the two implementations honest.
+     *
+     * When a mode is added, both this scope and nfcModeIsConfigured() must
+     * learn about it, or a card actively serving that mode reads as
+     * "Unconfigured" on the dashboard.
+     */
+    public function scopeWhereNfcModeConfigured(Builder $query, bool $configured = true): Builder
+    {
+        $matches = function (Builder $q) {
+            $q->where(fn (Builder $w) => $w
+                    ->where('nfc_mode', NfcMode::Links->value)
+                    ->whereHas('nfcLinks', fn ($l) => $l->where('is_active', true)))
+              ->orWhere(fn (Builder $w) => $w
+                    ->where('nfc_mode', NfcMode::Contact->value)
+                    ->whereHas('contactProfile', fn ($p) => $p->meaningful()))
+              ->orWhere(fn (Builder $w) => $w
+                    ->where('nfc_mode', NfcMode::Phone->value)
+                    ->whereRaw("coalesce(nfc_phone_number, '') != ''"))
+              ->orWhere(fn (Builder $w) => $w
+                    ->where('nfc_mode', NfcMode::Email->value)
+                    ->whereRaw("coalesce(nfc_email_address, '') != ''"));
+        };
+
+        return $configured ? $query->where($matches) : $query->whereNot($matches);
+    }
+
+    /**
+     * SQL twin of qrIsConfigured(). Mirrors it exactly, including treating an
+     * empty string as unconfigured — the previous stats() used a bare
+     * whereNotNull and so counted a blank destination as active.
+     *
+     * qr_destination is nullable, and `NULL != ''` is UNKNOWN in SQL, so a
+     * naive negation would drop every NULL row from both branches. coalesce
+     * collapses NULL to '' first, which makes the predicate two-valued and the
+     * two branches an exact partition of the table.
+     */
+    public function scopeWhereQrConfigured(Builder $query, bool $configured = true): Builder
+    {
+        return $configured
+            ? $query->whereRaw("coalesce(qr_destination, '') != ''")
+            : $query->whereRaw("coalesce(qr_destination, '') = ''");
+    }
+
     // --- Permanent URLs (never change for the life of the card) --------------
 
     public function qrUrl(): string
@@ -101,6 +151,13 @@ class Card extends Model
 
     public function activeNfcLinkCount(): int
     {
+        // The dashboard selects this aggregate once for the whole page as a
+        // correlated subquery. Honouring it here is what keeps a 25-row table at
+        // a constant query count instead of one count per row.
+        if (array_key_exists('active_link_count', $this->attributes)) {
+            return (int) $this->attributes['active_link_count'];
+        }
+
         return $this->relationLoaded('activeNfcLinks')
             ? $this->activeNfcLinks->count()
             : $this->activeNfcLinks()->count();
