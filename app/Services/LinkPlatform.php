@@ -139,6 +139,12 @@ class LinkPlatform
      * "example.com/#/dashboard" and "example.com/#/settings" would otherwise
      * render as two byte-identical rows leading to different places.
      *
+     * Keeping either one does let an author pad the tail with brand-shaped
+     * text: "attacker.tld/?x.com=verified" always could, and pointing a
+     * fragment at your own root ("attacker.tld/#x.com/verified") gets the same
+     * effect. Neither is a new class of problem, because the host still leads
+     * in every case — which is the part that carries the trust.
+     *
      * Known limits, all inherent to showing a hostname at all and all
      * mitigated by the row still reading "Website" under a globe rather than
      * under a borrowed brand:
@@ -185,6 +191,14 @@ class LinkPlatform
         // lone lead byte behind. htmlspecialchars — what Blade's e() calls —
         // returns "" for invalid UTF-8, so the row would render an icon and a
         // label with no URL at all. The untouched input is still valid.
+        //
+        // This branch returns the input *with* its scheme, unlike every other
+        // row. Do not "tidy" that up: the scheme is what keeps a borrowed brand
+        // off the first character. Stripping it would turn
+        // "https://x.com@х.evil.tld/pay" into "x.com@х.evil.tld/pay" and undo
+        // the whole reason this method rebuilds from components. Only punycode
+        // can be stored today, so nothing reaches here; whichever increment
+        // adds IDN support has to strip the userinfo here instead.
         return mb_check_encoding($short, 'UTF-8') ? $short : $trimmed;
     }
 
