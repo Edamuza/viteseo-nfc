@@ -1056,14 +1056,22 @@ Add to `tests/Feature/CardResetTest.php`:
     }
 ```
 
+Two corrections were made to the above while implementing, both because the test as drafted could not fail:
+
+1. The contact-page test's phone and email assertions named `nfc_phone_number` and `nfc_email_address`, but `public/nfc-contact.blade.php` renders the *profile's* phone and email columns, never the card's. The test now sets `mobile_phone` and `personal_email` on the profile and asserts them visible before the reset, so every value asserted as gone afterwards is one the page demonstrably printed. The card-column phone and email got their own tests through Phone and Email mode, which are the pages that print them.
+
+2. All three mode tests re-select the mode through `PATCH /admin/cards/{card}/nfc-mode` after the reset. Without that, resetting `nfc_mode` to `Links` hides every other mode's data behind the setup page, so a reset that flipped the mode and left the data behind would pass. Re-selecting the mode is also the real re-issue flow: reset, then configure for the new holder.
+
 - [ ] **Step 2: Run tests to verify they pass**
 
 These describe behaviour that Task 6 already delivered, so they should pass immediately. That is the point: they are regression locks, not drivers.
 
 Run: `php artisan test --filter=CardResetTest`
-Expected: PASS, 12 tests.
+Expected: PASS, 16 tests.
 
 If any fail, the reset is still leaking. Fix `CardResetService`, not the test.
+
+Then prove each lock can fail. Removing the profile delete from `CardResetService::reset()` must fail the contact-page test; dropping `nfc_phone_number` from its column list must fail the phone test; dropping `nfc_email_address` must fail the email test. A lock that cannot fail is decoration.
 
 - [ ] **Step 3: Commit**
 
@@ -1211,7 +1219,7 @@ In `resources/views/admin/dashboard.blade.php`, replace lines 66-84:
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `php artisan test --filter=DashboardStatusTest`
-Expected: PASS, 26 tests.
+Expected: PASS. The badge tests were later folded into the existing `modeStates` provider so all four modes are covered in both states — the three-Active-plus-one-Unconfigured set drafted above left Links unpinned and could not catch a state stuck on Active for phone or email. The link-count assertion reads the cell's text rather than matching a literal attribute order.
 
 Run: `php artisan test`
 Expected: PASS. `AdminTest.php` makes no assertion on the dashboard's NFC status text, so no edits there are expected.
@@ -1334,7 +1342,7 @@ That needs one more scope. Add it to `app/Models/Card.php`, next to `scopeWhereN
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `php artisan test --filter=DashboardStatusTest`
-Expected: PASS, 28 tests.
+Expected: PASS. The implemented scope uses the symmetric `coalesce(qr_destination, '') != ''` / `= ''` pair rather than the `whereNotNull` form drafted above — same behaviour, and the same idiom Task 3 settled on for the nullable phone and email columns. A partition test over NULL, empty-string and real-URL fixtures proves the two branches are an exact complement.
 
 Run: `php artisan test`
 Expected: PASS. `AdminTest.php` asserts no stat numbers, so no edits there are expected.
