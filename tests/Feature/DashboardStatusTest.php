@@ -224,6 +224,8 @@ class DashboardStatusTest extends TestCase
             'contact profile on phone mode' => ['phone', 'contact'],
             'phone mode with empty phone number' => ['phone', 'empty_phone'],
             'email mode with empty email address' => ['email', 'empty_email'],
+            'profile mode with empty display name' => ['profile', 'empty_display_name'],
+            'profile mode with whitespace display name' => ['profile', 'whitespace_display_name'],
         ];
     }
 
@@ -243,6 +245,12 @@ class DashboardStatusTest extends TestCase
             'email' => $card->forceFill(['nfc_email_address' => 'hi@example.com'])->save(),
             'empty_phone' => $card->forceFill(['nfc_phone_number' => ''])->save(),
             'empty_email' => $card->forceFill(['nfc_email_address' => ''])->save(),
+            'empty_display_name' => $card->profile()->save(
+                $card->profile()->make(['display_name' => ''])
+            ),
+            'whitespace_display_name' => $card->profile()->save(
+                $card->profile()->make(['display_name' => '   '])
+            ),
         };
 
         return $card->fresh();
@@ -294,7 +302,7 @@ class DashboardStatusTest extends TestCase
      * three modes, and a state stuck on Active is caught by the unconfigured
      * half of each pair.
      *
-     * @param  'links'|'contact'|'phone'|'email'  $mode
+     * @param  'links'|'contact'|'phone'|'email'|'profile'  $mode
      */
     #[\PHPUnit\Framework\Attributes\DataProvider('modeStates')]
     public function test_dashboard_badge_names_the_mode_and_its_state(string $mode, bool $configured): void
@@ -396,9 +404,11 @@ class DashboardStatusTest extends TestCase
 
     public function test_stats_count_every_mode_as_configured(): void
     {
+        $modeCount = count(NfcMode::cases());
+
         // One configured card per mode, QR set on all of them.
-        foreach (['links', 'contact', 'phone', 'email'] as $mode) {
-            $this->cardInMode($mode, true);
+        foreach (NfcMode::cases() as $mode) {
+            $this->cardInMode($mode->value, true);
         }
 
         // Two unconfigured: one in contact mode, one left at the links default.
@@ -407,10 +417,10 @@ class DashboardStatusTest extends TestCase
 
         $stats = app(DashboardController::class)->stats();
 
-        $this->assertSame(6, $stats['total']);
-        $this->assertSame(4, $stats['qrConfigured']);
-        $this->assertSame(4, $stats['nfcConfigured'], 'all four modes count as configured');
-        $this->assertSame(4, $stats['fullyConfigured']);
+        $this->assertSame($modeCount + 2, $stats['total']);
+        $this->assertSame($modeCount, $stats['qrConfigured']);
+        $this->assertSame($modeCount, $stats['nfcConfigured'], 'every mode in the enum counts as configured');
+        $this->assertSame($modeCount, $stats['fullyConfigured']);
         $this->assertSame(2, $stats['fullyUnconfigured']);
     }
 

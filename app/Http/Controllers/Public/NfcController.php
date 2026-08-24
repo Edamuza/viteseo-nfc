@@ -133,9 +133,9 @@ class NfcController extends Controller
     /**
      * Admin-managed modes with no data yet.
      *
-     * Deliberately NOT the links setup form: contact/phone/email are configured
-     * by the administrator, so a visitor must not be offered a self-service form
-     * that would write links onto a card in a different mode.
+     * Deliberately NOT the links setup form: every mode except Links is
+     * configured by the administrator, so a visitor must not be offered a
+     * self-service form that would write links onto a card in a different mode.
      */
     private function notReady(Card $card): Response
     {
