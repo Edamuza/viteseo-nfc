@@ -378,13 +378,19 @@
 {{-- ══════════════ DANGER ZONE ══════════════ --}}
 <div class="panel danger-zone">
   <h2>Danger zone</h2>
+  {{-- This copy is a promise the admin acts on when re-issuing a card, so it
+       names everything CardResetService::resetEverything() actually clears. It
+       listed only links and landing-page details for two increments after the
+       service grew the contact profile, its photo, the profile row and the
+       avatar. --}}
   <p class="small" style="margin:0 0 14px;color:var(--text-soft)">
-    Clears the QR destination, all NFC links and the landing page details.
+    Clears the QR destination, all NFC links and the landing page details, the contact card and its photo,
+    the profile page and its avatar, and any saved phone number or email action.
     <strong>Keeps</strong> the card number, public ID, both permanent URLs and the activation PIN,
     so the physical card stays usable.
   </p>
   <form method="POST" action="{{ route('admin.cards.reset', $card->public_id) }}"
-        onsubmit="return confirm('Reset the ENTIRE card?\n\nCLEARED: QR destination, all NFC links, landing page details.\nKEPT: card number, public ID, both permanent URLs, activation PIN.\n\nThis cannot be undone.')">
+        onsubmit="return confirm('Reset the ENTIRE card?\n\nCLEARED: QR destination, all NFC links, landing page details, contact card and photo, profile page and avatar, saved phone number, saved email action.\nKEPT: card number, public ID, both permanent URLs, activation PIN.\n\nThis cannot be undone.')">
     @csrf @method('DELETE')
     <button class="btn btn-d" type="submit">Reset entire card</button>
   </form>

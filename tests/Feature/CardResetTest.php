@@ -427,6 +427,128 @@ class CardResetTest extends TestCase
             ->assertDontSee('https://example.com/qr');
     }
 
+    /**
+     * The confirmation dialogs, held to the same standard as the flash
+     * messages above.
+     *
+     * The flash message is asserted word for word because it is a promise the
+     * admin acts on when re-issuing a card. The confirm dialog is the one they
+     * read *first*, and it is the last chance to stop - so a dialog that
+     * under-states what is about to be destroyed is worse than a stale flash
+     * message, not better. Both drifted behind the service: it grew the contact
+     * profile and photo, then the profile row and avatar, while the dialogs
+     * still listed only links and landing-page details.
+     *
+     * The confirm text is pulled out of the form's own onsubmit attribute
+     * rather than searched for in the whole page, because "QR destination"
+     * appears three times elsewhere on that page and would make the assertion
+     * pass without the dialog saying anything at all.
+     */
+    private function confirmTextFor(Card $card, string $action): string
+    {
+        $body = $this->actingAs($this->admin())
+            ->get('/admin/cards/'.$card->public_id)
+            ->assertOk()
+            ->getContent();
+
+        $pattern = '#<form[^>]*action="'.preg_quote($action, '#').'"[^>]*onsubmit="return confirm\((.*?)\)"#s';
+
+        $this->assertMatchesRegularExpression($pattern, $body, 'no confirmed form posts to '.$action);
+        preg_match($pattern, $body, $m);
+
+        return $m[1];
+    }
+
+    /** @return array<string, array{string}> */
+    public static function everythingAWholeCardResetDestroys(): array
+    {
+        return [
+            'the QR destination'    => ['QR destination'],
+            'every NFC link'        => ['all NFC links'],
+            'the landing page'      => ['landing page details'],
+            'the contact card'      => ['contact card and photo'],
+            'the profile page'      => ['profile page and avatar'],
+            'the saved phone'       => ['phone number'],
+            'the saved email'       => ['email action'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('everythingAWholeCardResetDestroys')]
+    public function test_the_whole_card_reset_dialog_names_what_it_destroys(string $promise): void
+    {
+        $card    = $this->fullyPopulatedCard();
+        $confirm = $this->confirmTextFor($card, route('admin.cards.reset', $card->public_id));
+
+        $this->assertStringContainsString(
+            $promise,
+            $confirm,
+            'the dialog does not warn that this is destroyed, but resetEverything() destroys it'
+        );
+    }
+
+    /** @return array<string, array{string}> */
+    public static function everythingAnNfcResetDestroys(): array
+    {
+        return [
+            'every NFC link'   => ['all links'],
+            'the landing page' => ['landing page details'],
+            'the contact card' => ['contact card and photo'],
+            'the profile page' => ['profile page and avatar'],
+            'the saved phone'  => ['phone number'],
+            'the saved email'  => ['email action'],
+        ];
+    }
+
+    /**
+     * resetNfcSide() clears every mode - its own flash message says so. The
+     * dialog claimed the opposite: that "any saved contact/phone/email data are
+     * NOT affected". An admin who read that and pressed the button lost the
+     * contact card they had been promised would survive.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('everythingAnNfcResetDestroys')]
+    public function test_the_nfc_reset_dialog_names_what_it_destroys(string $promise): void
+    {
+        $card = $this->fullyPopulatedCard();
+        $card->forceFill(['nfc_mode' => 'links'])->save();
+
+        $confirm = $this->confirmTextFor($card, route('admin.cards.nfc.reset', $card->public_id));
+
+        $this->assertStringContainsString(
+            $promise,
+            $confirm,
+            'the dialog does not warn that this is destroyed, but resetNfcSide() destroys it'
+        );
+    }
+
+    public function test_the_nfc_reset_dialog_promises_only_the_qr_survives(): void
+    {
+        $card = $this->fullyPopulatedCard();
+        $card->forceFill(['nfc_mode' => 'links'])->save();
+
+        $confirm = $this->confirmTextFor($card, route('admin.cards.nfc.reset', $card->public_id));
+
+        $this->assertStringNotContainsString(
+            'contact/phone/email data are NOT affected',
+            $confirm,
+            'the dialog promised data survives that the service deletes'
+        );
+        $this->assertStringContainsString('QR destination', $confirm, 'the QR really does survive, and that is worth saying');
+    }
+
+    public function test_the_danger_zone_description_names_what_the_reset_clears(): void
+    {
+        $card = $this->fullyPopulatedCard();
+
+        $body = $this->actingAs($this->admin())
+            ->get('/admin/cards/'.$card->public_id)
+            ->assertOk()
+            ->getContent();
+
+        // The paragraph above the button, which is read before the dialog.
+        $this->assertStringContainsString('contact card and its photo', $body);
+        $this->assertStringContainsString('profile page and its avatar', $body);
+    }
+
     public function test_a_reset_card_no_longer_serves_the_previous_holders_profile_page(): void
     {
         Storage::fake('public');

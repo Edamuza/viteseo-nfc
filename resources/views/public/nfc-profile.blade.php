@@ -14,6 +14,12 @@
 :root{
   --brand:{{ $profile->brandColor() }};
   --brand-soft:{{ $profile->brandColorSoftRgba() }};
+  /* Nothing on the page consumes --on-brand yet. Both of its users sit on the
+     brand-coloured background outside the white cards: the overflow menu
+     trigger and the share control in increment 3, and the footer nav in
+     increment 4. Kept rather than dropped so the pair stays together -
+     --on-brand-dim below is already in use by the byline, and re-deriving one
+     half of a contrast pair from the mockup later is how the two drift. */
   --on-brand:#e8f1ec;
   --on-brand-dim:#a9c2b6;
   --card:#fff;
@@ -175,7 +181,14 @@ footer{margin-top:32px;text-align:center}
   @endif
 
   <details class="adv">
-    <summary>Advanced details</summary>
+    {{-- The summary is inline-flex with an 8px gap, which is a two-child
+         layout: the chevron is what the gap spaces and what makes the pill read
+         as a control rather than a stray word. Copied from the mockup verbatim
+         rather than retyped - mistyped path data renders as a smear. --}}
+    <summary>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6 3 12l5 6"/><path d="m16 6 5 6-5 6"/></svg>
+      Advanced details
+    </summary>
     <div class="adv-body">
       {{-- The permanent URL, never the card number: publishing a sequential
            internal id tells a visitor how many cards exist. --}}

@@ -74,8 +74,13 @@
     </div>
   </form>
   @if ($links->count())
+    {{-- The dialog lists every mode, because resetNfcSide() clears every mode.
+         It used to promise that "saved contact/phone/email data are NOT
+         affected", which was true when the action only knew about links and
+         false from the moment reset was centralised - an admin who read it and
+         pressed the button lost the contact card it said would survive. --}}
     <form id="reset-nfc" method="POST" action="{{ route('admin.cards.nfc.reset', $card->public_id) }}"
-          onsubmit="return confirm('Reset NFC links?\n\nAll links plus the landing page title, subtitle and logo are deleted. The QR destination and any saved contact/phone/email data are NOT affected.')">
+          onsubmit="return confirm('Reset the ENTIRE NFC side?\n\nCLEARED: all links, landing page details, contact card and photo, profile page and avatar, saved phone number, saved email action. The mode returns to Links.\nKEPT: the QR destination and both permanent URLs.\n\nThis cannot be undone.')">
       @csrf @method('DELETE')
     </form>
   @endif

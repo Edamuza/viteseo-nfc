@@ -303,6 +303,40 @@ class NfcProfileTest extends TestCase
         );
     }
 
+    /**
+     * The summary is `display:inline-flex; align-items:center; gap:8px` - a
+     * two-child layout. With only the label in it the gap has nothing to space
+     * and the pill reads as a plain word rather than a control, which is why
+     * the mockup puts a chevron there and why the CSS for it is already in the
+     * stylesheet.
+     */
+    public function test_the_advanced_details_summary_carries_the_chevron(): void
+    {
+        $card = $this->profileCard();
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '#<summary>\s*<svg[^>]*>.*?</svg>\s*Advanced details\s*</summary>#s',
+            $body,
+            'the summary has no mark before its label'
+        );
+    }
+
+    /**
+     * Asserted as path data, not just as "an svg": mistyped path data renders
+     * as a smear that no structural assertion would catch. These two paths are
+     * the mockup's, verbatim.
+     */
+    public function test_the_chevron_is_the_mockups_own_mark(): void
+    {
+        $card = $this->profileCard();
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('<path d="M8 6 3 12l5 6"/><path d="m16 6 5 6-5 6"/>', false);
+    }
+
     public function test_the_page_uses_the_default_brand_colour_when_none_is_derived(): void
     {
         $card = $this->profileCard();
