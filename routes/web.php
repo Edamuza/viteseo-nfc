@@ -77,6 +77,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('/contact',       [CardController::class, 'deleteContactProfile'])->name('contact.delete');
             Route::delete('/contact/photo', [CardController::class, 'deleteContactPhoto'])->name('contact.photo.delete');
 
+            Route::patch('/profile',  [CardController::class, 'updateProfile'])->name('profile.update');
+            Route::delete('/profile', [CardController::class, 'deleteProfile'])->name('profile.delete');
+
             Route::patch('/phone',  [CardController::class, 'updatePhone'])->name('phone.update');
             Route::delete('/phone', [CardController::class, 'deletePhone'])->name('phone.delete');
 

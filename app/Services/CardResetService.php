@@ -59,6 +59,48 @@ class CardResetService
     }
 
     /**
+     * Deletes only the Profile-mode payload: the profile row and its avatar.
+     *
+     * The admin panel's "Delete profile details" button, the counterpart of the
+     * Contact-mode delete. It lives here rather than in the controller so that
+     * what a profile owns on disk is stated once — see takeProfile(), which
+     * both this and the reset path go through. Without it, clearing profile
+     * data meant "Reset entire card", which also destroys the QR destination
+     * the printed card still points at.
+     *
+     * No transaction: this is a single row delete, and the file is removed
+     * after it for the same reason the reset path defers to post-commit — a
+     * file deleted while its row survives shows a broken image on a live page.
+     */
+    public function deleteProfile(Card $card): void
+    {
+        $avatarPath = $this->takeProfile($card);
+
+        $this->photos->forget($avatarPath, $card);
+
+        $card->unsetRelation('profile');
+    }
+
+    /**
+     * Deletes the profile row and hands back the avatar that is now orphaned,
+     * for the caller to remove from disk once it is safe to do so.
+     *
+     * The return value is what lets the reset path run this inside its
+     * transaction while still deleting the file only after the commit.
+     */
+    private function takeProfile(Card $card): ?string
+    {
+        if (! $profile = $card->profile) {
+            return null;
+        }
+
+        $avatarPath = $profile->avatar_path;
+        $profile->delete();
+
+        return $avatarPath;
+    }
+
+    /**
      * Clears the NFC payload (and any extra columns the caller supplies) in one
      * transaction, then removes the contact photo and the profile avatar from
      * disk and drops both loaded relations from the in-memory model.
@@ -68,18 +110,16 @@ class CardResetService
     private function reset(Card $card, array $extraColumns = []): void
     {
         $photoPath  = $card->contactProfile?->photo_path;
-        $avatarPath = $card->profile?->avatar_path;
+        $avatarPath = null;
 
-        DB::transaction(function () use ($card, $extraColumns) {
+        DB::transaction(function () use ($card, $extraColumns, &$avatarPath) {
             $card->nfcLinks()->delete();
 
             if ($contact = $card->contactProfile) {
                 $contact->delete();
             }
 
-            if ($profile = $card->profile) {
-                $profile->delete();
-            }
+            $avatarPath = $this->takeProfile($card);
 
             $card->forceFill(array_merge([
                 'nfc_mode'          => NfcMode::Links,
