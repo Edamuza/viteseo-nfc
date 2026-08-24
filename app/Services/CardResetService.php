@@ -64,4 +64,22 @@ class CardResetService
         // The in-memory model may still hold the profile we just deleted.
         $card->unsetRelation('contactProfile');
     }
+
+    /**
+     * resetNfcSide() plus the QR destination.
+     *
+     * Expressed as a composition rather than its own column list, so a mode
+     * added to resetNfcSide() is automatically covered here too.
+     */
+    public function resetEverything(Card $card): void
+    {
+        DB::transaction(function () use ($card) {
+            $this->resetNfcSide($card);
+
+            $card->forceFill([
+                'qr_destination'   => null,
+                'qr_configured_at' => null,
+            ])->save();
+        });
+    }
 }

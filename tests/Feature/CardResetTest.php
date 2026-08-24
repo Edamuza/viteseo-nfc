@@ -166,4 +166,32 @@ class CardResetTest extends TestCase
         $this->assertNotNull($card->contactProfile);
         $this->assertSame('contact-photos/old.jpg', $card->contactProfile->photo_path);
     }
+
+    public function test_resetting_everything_clears_the_nfc_side_and_the_qr(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        app(CardResetService::class)->resetEverything($card);
+
+        $this->assertNfcSideIsClear($card);
+        $this->assertNull($card->qr_destination, 'qr destination');
+        $this->assertNull($card->qr_configured_at, 'qr timestamp');
+    }
+
+    public function test_resetting_everything_keeps_the_permanent_identity(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+        $publicId = $card->public_id;
+        $nfcUrl = $card->nfcUrl();
+        $qrUrl = $card->qrUrl();
+
+        app(CardResetService::class)->resetEverything($card);
+        $card->refresh();
+
+        $this->assertSame($publicId, $card->public_id);
+        $this->assertSame($nfcUrl, $card->nfcUrl());
+        $this->assertSame($qrUrl, $card->qrUrl());
+    }
 }
