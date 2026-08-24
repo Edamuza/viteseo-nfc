@@ -274,27 +274,94 @@ class CardResetTest extends TestCase
     }
 
     /**
-     * The next three tests assert the reset through the public routes rather
-     * than the columns, because a leak is only a bug once a visitor can see it.
+     * The next tests assert the reset through the public routes rather than the
+     * columns: those are what a visitor to a re-issued card actually reaches.
      * Each asserts the live "before" state first, so a reset that silently
-     * stopped working cannot pass by never having been configured.
+     * stopped working cannot pass by never having been configured, and every
+     * value asserted as gone afterwards is one the page demonstrably printed
+     * beforehand - an assertion against a value the view never renders would
+     * be an assertion that can never fail.
+     *
+     * Each mode has its own test, and each puts the card back into that mode
+     * after the reset. That is the real re-issue flow - reset, then configure
+     * for the new holder - and it is what makes these tests bite: a reset that
+     * only flipped nfc_mode back to Links while leaving the data behind would
+     * pass if the page were checked in Links mode, then leak the moment the
+     * mode was selected again.
      */
+    /** Mode selection through the admin endpoint, as an admin re-issuing the card would. */
+    private function selectNfcMode(Card $card, string $mode): void
+    {
+        $this->actingAs($this->admin())
+            ->patch('/admin/cards/'.$card->public_id.'/nfc-mode', ['nfc_mode' => $mode])
+            ->assertSessionHasNoErrors();
+    }
+
     public function test_a_reset_card_no_longer_serves_the_previous_holders_contact_page(): void
     {
         Storage::fake('public');
         $card = $this->fullyPopulatedCard();
 
-        // Before: the contact page is live.
-        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('John Doe');
+        // The contact view renders the profile's own phone and email columns,
+        // never the card's nfc_* ones, so the profile carries them here.
+        $card->contactProfile->fill([
+            'mobile_phone'   => '+639171112222',
+            'personal_email' => 'john@example.com',
+        ])->save();
+
+        // Before: every value asserted below is on the live page.
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('John Doe')
+            ->assertSee('Acme Ltd')
+            ->assertSee('+639171112222')
+            ->assertSee('john@example.com');
 
         $this->actingAs($this->admin())->delete('/admin/cards/'.$card->public_id.'/reset');
+        $this->selectNfcMode($card, 'contact');
 
         $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
 
-        $this->assertStringNotContainsString('John Doe', $body);
-        $this->assertStringNotContainsString('Acme Ltd', $body);
-        $this->assertStringNotContainsString('+639171234567', $body);
-        $this->assertStringNotContainsString('hi@example.com', $body);
+        foreach (['John Doe', 'Acme Ltd', '+639171112222', 'john@example.com'] as $leaked) {
+            $this->assertStringNotContainsString($leaked, $body, $leaked.' survived the reset');
+        }
+    }
+
+    public function test_a_reset_card_no_longer_serves_the_previous_holders_phone_number(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+        $card->forceFill(['nfc_mode' => 'phone'])->save();
+
+        // Phone mode prints nfc_phone_number verbatim as the heading.
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('+639171234567');
+
+        $this->actingAs($this->admin())->delete('/admin/cards/'.$card->public_id.'/reset');
+        $this->selectNfcMode($card, 'phone');
+
+        $this->get('/n/'.$card->public_id)->assertOk()->assertDontSee('+639171234567');
+    }
+
+    public function test_a_reset_card_no_longer_serves_the_previous_holders_email_address(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+        $card->forceFill(['nfc_mode' => 'email'])->save();
+
+        // Email mode prints nfc_email_address as the heading and the subject
+        // below it; the mailto href carries the same address percent-encoded.
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('hi@example.com')
+            ->assertSee('Hello');
+
+        $this->actingAs($this->admin())->delete('/admin/cards/'.$card->public_id.'/reset');
+        $this->selectNfcMode($card, 'email');
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('hi@example.com', $body, 'address survived the reset');
+        $this->assertStringNotContainsString('hi%40example.com', $body, 'encoded address survived in the mailto');
     }
 
     public function test_a_reset_card_no_longer_returns_the_previous_holders_vcard(): void
