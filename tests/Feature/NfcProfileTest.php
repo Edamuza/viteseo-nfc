@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Card;
 use App\Models\NfcProfile;
 use App\Services\CardGenerationService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -60,13 +61,32 @@ class NfcProfileTest extends TestCase
             'avatar_path'  => '../../etc/passwd',
             'brand_color'  => '#ff0000',
         ]);
+
+        $this->assertSame($card->id, $profile->card_id, 'card_id must not be mass-assignable from request data');
+        $this->assertNull($profile->avatar_path, 'avatar_path must not be mass-assignable from request data');
+        $this->assertNull($profile->brand_color, 'brand_color must not be mass-assignable from request data');
+
         $card->profile()->save($profile);
 
         $stored = $card->fresh()->profile;
 
-        $this->assertSame($card->id, $stored->card_id, 'card_id must not be re-pointable by request data');
         $this->assertNull($stored->avatar_path, 'avatar_path is set only from a server-generated name');
         $this->assertNull($stored->brand_color, 'brand_color is derived, never submitted');
+    }
+
+    public function test_default_brand_color_constant(): void
+    {
+        $this->assertSame('#0f1713', NfcProfile::DEFAULT_BRAND_COLOR);
+    }
+
+    public function test_a_card_may_have_only_one_profile(): void
+    {
+        $card = $this->card();
+        $card->profile()->save($card->profile()->make(['display_name' => 'Uriel Papa']));
+
+        $this->expectException(QueryException::class);
+
+        $card->profile()->save($card->profile()->make(['display_name' => 'Duplicate']));
     }
 
     public function test_deleting_a_card_deletes_its_profile(): void
