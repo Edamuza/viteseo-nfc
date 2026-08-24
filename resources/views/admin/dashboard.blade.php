@@ -64,7 +64,12 @@
     </tr></thead>
     <tbody>
     @forelse ($cards as $card)
-      @php $n = (int) $card->active_link_count; @endphp
+      @php
+        $n       = (int) $card->active_link_count;
+        $mode    = $card->nfcMode();
+        $nfcOn   = $card->nfcModeIsConfigured();
+        $isLinks = $mode === \App\Enums\NfcMode::Links;
+      @endphp
       <tr>
         <td data-label="Card Number"><strong>{{ $card->card_number }}</strong></td>
         <td data-label="Public ID"><code>{{ $card->public_id }}</code></td>
@@ -73,12 +78,15 @@
             {{ $card->qr_destination ? 'Active' : 'Unconfigured' }}
           </span>
         </td>
+        {{-- Badge text stays on ONE line: the tests assert the whole
+             "label &middot; state" string, and Blade would otherwise wrap
+             newlines and indentation into the middle of it. --}}
         <td data-label="NFC Status">
-          <span class="badge {{ $n > 0 ? 'b-ok' : 'b-off' }}">
-            {{ $n === 0 ? 'Unconfigured' : ($n === 1 ? 'Active' : $n.' Links') }}
-          </span>
+          <span class="badge {{ $nfcOn ? 'b-ok' : 'b-off' }}">{{ $mode->label() }} &middot; {{ $nfcOn ? 'Active' : 'Unconfigured' }}</span>
         </td>
-        <td data-label="NFC Links" class="mono muted">{{ $n }}</td>
+        {{-- The count only means something in Links mode; showing 0 next to a
+             live contact card is what made the old dashboard misleading. --}}
+        <td data-label="NFC Links" class="mono muted">{{ $isLinks ? $n : '—' }}</td>
         <td data-label="Created" class="muted small">{{ $card->created_at->format('Y-m-d') }}</td>
         <td><a class="btn btn-sm" href="{{ route('admin.cards.show', $card->public_id) }}">View</a></td>
       </tr>

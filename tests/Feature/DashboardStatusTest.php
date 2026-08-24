@@ -245,4 +245,58 @@ class DashboardStatusTest extends TestCase
 
         $this->assertConfiguredScopeAgreement($card, false);
     }
+
+    /**
+     * The badge renders as "{mode label} &middot; {Active|Unconfigured}" on a
+     * single line, so asserting the whole string pins mode and state together.
+     *
+     * Do NOT assert with assertDontSee('Unconfigured'): the stats block at the
+     * top of the dashboard has a permanent stat labelled "Unconfigured", so
+     * that assertion can never pass. Assert the exact badge instead.
+     */
+    private function assertNfcBadge(string $expected): void
+    {
+        $body = $this->actingAs($this->admin())->get('/admin')->assertOk()->getContent();
+
+        $this->assertStringContainsString($expected, $body);
+    }
+
+    public function test_dashboard_shows_active_for_a_configured_contact_card(): void
+    {
+        $this->cardInMode('contact', true);
+
+        $this->assertNfcBadge('Digital Contact Card &middot; Active');
+    }
+
+    public function test_dashboard_shows_active_for_a_configured_phone_card(): void
+    {
+        $this->cardInMode('phone', true);
+
+        $this->assertNfcBadge('Phone / Call &middot; Active');
+    }
+
+    public function test_dashboard_shows_active_for_a_configured_email_card(): void
+    {
+        $this->cardInMode('email', true);
+
+        $this->assertNfcBadge('Email &middot; Active');
+    }
+
+    public function test_dashboard_shows_unconfigured_for_an_empty_contact_card(): void
+    {
+        $this->cardInMode('contact', false);
+
+        $this->assertNfcBadge('Digital Contact Card &middot; Unconfigured');
+    }
+
+    public function test_dashboard_link_count_column_is_blank_outside_links_mode(): void
+    {
+        $this->cardInMode('contact', true);
+
+        $body = $this->actingAs($this->admin())->get('/admin')->assertOk()->getContent();
+
+        // A literal 0 next to a live contact card is what made the old
+        // dashboard read as broken.
+        $this->assertStringContainsString('data-label="NFC Links" class="mono muted">—<', $body);
+    }
 }

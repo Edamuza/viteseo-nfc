@@ -19,7 +19,13 @@ class DashboardController extends Controller
             '(select count(*) from nfc_links where nfc_links.card_id = cards.id and nfc_links.is_active = 1) as active_link_count'
         );
 
-        $query = Card::query()->select('cards.*')->addSelect($activeLinkCount);
+        $query = Card::query()
+            ->select('cards.*')
+            ->addSelect($activeLinkCount)
+            // Contact-mode status needs the name columns and nothing else.
+            // Selecting a subset keeps a 25-row page at a constant query count
+            // without hydrating whole profiles, including notes and addresses.
+            ->with(['contactProfile:id,card_id,first_name,middle_name,last_name,suffix,company']);
 
         $search = trim((string) $request->query('search', ''));
 
