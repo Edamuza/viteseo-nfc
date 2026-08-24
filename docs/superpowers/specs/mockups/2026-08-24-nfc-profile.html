@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <!--
   DESIGN MOCKUP ONLY — not wired to the app.
-  Proposed NFC Profile mode page. Revision 2: larger scale, Share modal,
-  two distinct QR codes, admin-editable welcome block, client Edit profile entry.
+  NFC Profile mode, revision 3.
 
-  The Share modal and every disclosure here use CSS :target / <details>, so the
-  whole page still works with JavaScript disabled. Open the modal by visiting
-  this file with #share appended.
+  Changes from r2: wider column, brand-coloured page background with a
+  translucent cover of the same colour, QR popover caption removed, Share modal
+  vertically centred, Report abuse removed, Copy link copies in place with a
+  status toast, and the three footer links open admin-authored modals.
+
+  Every overlay uses CSS :target, so the page works with JavaScript disabled.
+  The single script at the bottom only backs the clipboard + toast.
+
+  Open with #share, #about, #terms or #privacy to see each overlay.
 -->
 <html lang="en">
 <head>
@@ -16,199 +21,213 @@
 <title>Uriel Papa</title>
 <style>
 :root{
-  --page:#0c1411;
+  /* --brand is the client's chosen colour. --brand-soft and --on-brand are
+     DERIVED SERVER-SIDE: soft is the same hue at low alpha for the cover, and
+     on-brand flips between light and dark by relative luminance so footer text
+     stays legible whatever colour is picked. */
+  --brand:#1d5b45;
+  --brand-soft:rgba(29,91,69,.34);
+  --on-brand:#e8f1ec;
+  --on-brand-dim:#a9c2b6;
+
   --card:#fff;
   --text:#101418;
   --soft:#3f4854;
   --muted:#6b7480;
   --line:#e6e8eb;
   --pill:#e9edf0;
-  --onpage:#c9d3ce;
-  --onpage-dim:#8b968f;
   --ink:#1d2a22;
-  --radius:18px;
+  --radius:20px;
 }
 *{box-sizing:border-box}
 body{
-  margin:0;background:var(--page);color:var(--text);
+  margin:0;background:var(--brand);color:var(--text);
   font:17px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased;
-  padding:26px 18px calc(36px + env(safe-area-inset-bottom));
+  padding:26px 20px calc(38px + env(safe-area-inset-bottom));
 }
-.wrap{max-width:480px;margin:0 auto}
+.wrap{max-width:680px;margin:0 auto}
 
 /* ---- overflow menu ------------------------------------------------------ */
 .topbar{display:flex;justify-content:flex-end;margin-bottom:14px}
 details.menu{position:relative}
 details.menu>summary{
   list-style:none;cursor:pointer;width:40px;height:40px;border-radius:50%;
-  display:grid;place-items:center;background:rgba(255,255,255,.1);color:var(--onpage);
+  display:grid;place-items:center;background:rgba(255,255,255,.16);color:var(--on-brand);
 }
 details.menu>summary::-webkit-details-marker{display:none}
 .menu-panel{
   position:absolute;right:0;top:47px;z-index:30;min-width:238px;
   background:var(--card);border-radius:14px;padding:7px;
-  box-shadow:0 14px 38px rgba(0,0,0,.36);
+  box-shadow:0 14px 38px rgba(0,0,0,.34);
 }
-.menu-panel a{
+.menu-panel a,.menu-panel button{
   display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:10px;
-  color:var(--text);text-decoration:none;font-size:.94rem;
+  color:var(--text);text-decoration:none;font:inherit;font-size:.94rem;
+  width:100%;background:none;border:0;cursor:pointer;text-align:left;
 }
-.menu-panel a:hover{background:#f3f5f7}
+.menu-panel a:hover,.menu-panel button:hover{background:#f3f5f7}
 .menu-panel svg{width:16px;height:16px;fill:currentColor;flex:0 0 auto;color:var(--muted)}
-.menu-sep{height:1px;background:var(--line);margin:5px 8px}
 
 /* ---- profile card ------------------------------------------------------- */
 .card{background:var(--card);border-radius:var(--radius);overflow:hidden;
- box-shadow:0 1px 3px rgba(0,0,0,.28);margin-bottom:18px}
-.cover{
-  height:132px;
-  background:
-    radial-gradient(120% 150% at 18% 8%,#8fa48c 0%,transparent 60%),
-    radial-gradient(90% 120% at 82% 22%,#b9bfae 0%,transparent 62%),
-    linear-gradient(168deg,#2f4034 0%,#556b4e 46%,#9aa892 100%);
-}
-.idblock{padding:0 24px 24px}
-.avatar-row{margin-top:-52px;margin-bottom:16px}
-.avatar-slot{position:relative;width:104px;height:104px}
+ border:1px solid rgba(0,0,0,.06);margin-bottom:18px}
+/* Cover is the brand colour at low alpha — same hue, lighter. */
+.cover{height:150px;background:var(--brand-soft)}
+.idblock{padding:0 28px 26px}
+.avatar-row{margin-top:-54px;margin-bottom:16px}
+.avatar-slot{position:relative;width:110px;height:110px}
 .avatar-fallback{
-  width:104px;height:104px;border-radius:50%;border:4px solid var(--card);
-  display:grid;place-items:center;font-weight:640;font-size:2rem;color:#fff;
-  background:linear-gradient(150deg,#5c7264,#33463a);
+  width:110px;height:110px;border-radius:50%;border:4px solid var(--card);
+  display:grid;place-items:center;font-weight:640;font-size:2.1rem;color:#fff;
+  background:var(--brand);
 }
-/* Card-QR badge. Encodes the /q/ URL — the QR printed on the physical card. */
 details.qr{position:absolute;top:-2px;right:-2px}
 details.qr>summary{
-  list-style:none;cursor:pointer;width:33px;height:33px;border-radius:50%;
+  list-style:none;cursor:pointer;width:34px;height:34px;border-radius:50%;
   background:#141a17;color:#fff;display:grid;place-items:center;
   border:3px solid var(--card);
 }
 details.qr>summary::-webkit-details-marker{display:none}
 .qr-pop{
-  position:absolute;left:0;top:40px;z-index:25;background:var(--card);
-  border-radius:14px;padding:14px;box-shadow:0 14px 38px rgba(0,0,0,.32);
-  width:212px;text-align:center;
+  position:absolute;left:0;top:42px;z-index:25;background:var(--card);
+  border-radius:14px;padding:14px;box-shadow:0 14px 38px rgba(0,0,0,.3);
 }
-.qr-pop .cap{font-size:.75rem;color:var(--muted);margin-top:10px;line-height:1.4}
-.qr-pop .cap b{color:var(--soft)}
+.qr-pop svg{width:176px;height:176px;display:block}
 
-h1{font-size:1.85rem;font-weight:680;margin:0;letter-spacing:-.024em;overflow-wrap:anywhere}
-.headline{color:var(--soft);margin:7px 0 0;font-size:1rem;overflow-wrap:anywhere}
-.meta{color:var(--muted);margin:4px 0 0;font-size:.92rem}
+h1{font-size:1.95rem;font-weight:680;margin:0;letter-spacing:-.024em;overflow-wrap:anywhere}
+.headline{color:var(--soft);margin:7px 0 0;font-size:1.02rem;overflow-wrap:anywhere}
+.meta{color:var(--muted);margin:4px 0 0;font-size:.94rem}
 
-.iconrow{display:flex;align-items:center;gap:16px;margin:18px 0 0;flex-wrap:wrap}
+.iconrow{display:flex;align-items:center;gap:17px;margin:18px 0 0;flex-wrap:wrap}
 .iconrow a{color:#20262e;display:grid;place-items:center}
-.iconrow svg{width:18px;height:18px;fill:currentColor;display:block}
+.iconrow svg{width:19px;height:19px;fill:currentColor;display:block}
 
-.tagline{margin:20px 0 0;font-size:1rem;color:var(--soft);overflow-wrap:anywhere}
+.tagline{margin:20px 0 0;font-size:1.02rem;color:var(--soft);overflow-wrap:anywhere}
 
 .sharebtn{
-  display:flex;align-items:center;justify-content:center;margin-top:20px;
-  min-height:52px;border:1px solid #d9dde1;border-radius:13px;
-  font-weight:570;font-size:1.02rem;color:var(--text);text-decoration:none;
+  display:flex;align-items:center;justify-content:center;margin-top:22px;
+  min-height:54px;border:1px solid #d9dde1;border-radius:14px;
+  font-weight:570;font-size:1.04rem;color:var(--text);text-decoration:none;
 }
 .sharebtn:hover{background:#f7f8f9}
 
 /* ---- accounts card ------------------------------------------------------ */
-.card-pad{padding:22px 24px}
-h2{font-size:1.12rem;font-weight:650;margin:0 0 6px;letter-spacing:-.012em}
-.acct{display:flex;gap:14px;align-items:flex-start;padding:15px 0;border-bottom:1px solid var(--line)}
+.card-pad{padding:24px 28px}
+h2{font-size:1.14rem;font-weight:650;margin:0 0 6px;letter-spacing:-.012em}
+.acct{display:flex;gap:15px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--line)}
 .acct:last-child{border-bottom:0}
-.acct-ico{flex:0 0 auto;width:20px;padding-top:2px;color:#20262e}
-.acct-ico svg{width:20px;height:20px;fill:currentColor;display:block}
-.acct-name{font-size:.98rem;font-weight:610}
-.acct-url{font-size:.88rem;color:var(--muted);overflow-wrap:anywhere;text-decoration:none;display:block;margin-top:2px}
+.acct-ico{flex:0 0 auto;width:21px;padding-top:2px;color:#20262e}
+.acct-ico svg{width:21px;height:21px;fill:currentColor;display:block}
+.acct-name{font-size:1rem;font-weight:610}
+.acct-url{font-size:.9rem;color:var(--muted);overflow-wrap:anywhere;text-decoration:none;display:block;margin-top:2px}
 .acct-url:hover{text-decoration:underline}
 
 /* ---- advanced details + welcome block ----------------------------------- */
 details.adv{margin:6px 0 0;text-align:center}
 details.adv>summary{
   list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;
-  background:var(--pill);color:#2b333c;border-radius:999px;padding:10px 18px;
-  font-size:.9rem;font-weight:550;
+  background:var(--pill);color:#2b333c;border-radius:999px;padding:11px 19px;
+  font-size:.92rem;font-weight:550;
 }
 details.adv>summary::-webkit-details-marker{display:none}
 
-/* Admin-authored welcome panel. Heading, body, CTA label and CTA URL are all
-   editable; nothing here is hard-coded product copy. */
 .welcome{
   background:linear-gradient(158deg,#16211b,#0f1713);
-  border-radius:16px;margin-top:14px;padding:24px;text-align:left;color:#eaf0ec;
+  border-radius:18px;margin-top:14px;padding:28px;text-align:left;color:#eaf0ec;
 }
-.welcome .hey{font-size:.95rem;font-weight:600;margin:0 0 10px;color:#a8c0b0}
-.welcome h3{font-size:1.32rem;font-weight:680;margin:0;letter-spacing:-.02em;line-height:1.28}
-.welcome p{font-size:.94rem;color:#b8c4bc;margin:12px 0 0}
+.welcome .hey{font-size:.96rem;font-weight:600;margin:0 0 10px;color:#a8c0b0}
+.welcome h3{font-size:1.42rem;font-weight:680;margin:0;letter-spacing:-.02em;line-height:1.26}
+.welcome p{font-size:.96rem;color:#b8c4bc;margin:12px 0 0}
 .welcome a.cta{
-  display:inline-flex;align-items:center;gap:7px;margin-top:18px;
+  display:inline-flex;align-items:center;gap:7px;margin-top:20px;
   background:#fff;color:#12190f;text-decoration:none;
-  border-radius:10px;padding:11px 17px;font-weight:600;font-size:.94rem;
+  border-radius:11px;padding:12px 18px;font-weight:600;font-size:.96rem;
 }
 
-.adv-body{background:var(--card);border-radius:14px;margin-top:14px;padding:6px 20px;text-align:left}
-.kv{display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid var(--line);font-size:.92rem}
+.adv-body{background:var(--card);border:1px solid rgba(0,0,0,.06);border-radius:16px;
+ margin-top:14px;padding:6px 24px;text-align:left}
+.kv{display:flex;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--line);font-size:.94rem}
 .kv:last-child{border-bottom:0}
 .kv .k{color:var(--muted)}
 .kv .v{text-align:right;overflow-wrap:anywhere}
 
-footer{margin-top:30px;text-align:center}
-footer nav{display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
-footer a{color:var(--onpage);text-decoration:none;font-size:.84rem}
-.by{color:var(--onpage-dim);font-size:.76rem;margin-top:14px}
+footer{margin-top:32px;text-align:center}
+footer nav{display:flex;gap:20px;justify-content:center;flex-wrap:wrap}
+footer a{color:var(--on-brand);text-decoration:none;font-size:.86rem}
+footer a:hover{text-decoration:underline}
+.by{color:var(--on-brand-dim);font-size:.78rem;margin-top:14px}
 
-/* ---- Share modal (CSS :target, no JavaScript) --------------------------- */
+/* ---- overlays (CSS :target, no JavaScript) ------------------------------ */
 .modal{
   display:none;position:fixed;inset:0;z-index:60;
-  background:rgba(6,10,8,.62);padding:22px;
-  align-items:flex-start;justify-content:center;overflow:auto;
+  background:rgba(6,10,8,.62);padding:24px;
+  align-items:center;justify-content:center;overflow:auto;
 }
 .modal:target{display:flex}
 .modal-box{
-  background:var(--card);border-radius:20px;width:100%;max-width:470px;
-  margin-top:34px;padding:24px;box-shadow:0 26px 70px rgba(0,0,0,.5);
+  background:var(--card);border-radius:22px;width:100%;max-width:520px;
+  padding:26px;box-shadow:0 26px 70px rgba(0,0,0,.5);
+  max-height:calc(100dvh - 48px);overflow:auto;
 }
-.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-.modal-head h3{font-size:1.32rem;font-weight:670;margin:0;letter-spacing:-.018em}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}
+.modal-head h3{font-size:1.36rem;font-weight:670;margin:0;letter-spacing:-.018em}
 .modal-x{
   width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
-  color:var(--soft);text-decoration:none;font-size:1.15rem;
+  color:var(--soft);text-decoration:none;font-size:1.15rem;flex:0 0 auto;
 }
 .modal-x:hover{background:#f1f3f5}
+.prose p{margin:0 0 13px;font-size:1rem;color:var(--soft);line-height:1.62}
+.prose p:last-child{margin-bottom:0}
 
-.qr-stage{background:var(--ink);border-radius:14px;padding:22px;display:grid;place-items:center}
-.qr-card{background:#fff;border-radius:10px;overflow:hidden;width:214px}
-.qr-card .qr-img{position:relative;padding:16px;display:grid;place-items:center}
-.qr-card .qr-img svg{width:170px;height:170px;display:block}
-/* Avatar punched into the QR centre. Needs a higher ECC level to stay scannable. */
+.qr-stage{background:var(--ink);border-radius:16px;padding:24px;display:grid;place-items:center}
+.qr-card{background:#fff;border-radius:12px;overflow:hidden;width:232px}
+.qr-card .qr-img{position:relative;padding:18px;display:grid;place-items:center}
+.qr-card .qr-img svg{width:186px;height:186px;display:block}
 .qr-avatar{
-  position:absolute;width:52px;height:52px;border-radius:7px;border:3px solid #fff;
-  background:linear-gradient(150deg,#5c7264,#33463a);display:grid;place-items:center;
-  color:#fff;font-weight:640;font-size:.9rem;
+  position:absolute;width:56px;height:56px;border-radius:8px;border:3px solid #fff;
+  background:var(--brand);display:grid;place-items:center;
+  color:#fff;font-weight:640;font-size:.95rem;
 }
 .qr-card .dl{
   display:block;text-align:center;background:var(--pill);color:#2b333c;
-  padding:12px;font-size:.9rem;font-weight:560;text-decoration:none;
+  padding:13px;font-size:.92rem;font-weight:560;text-decoration:none;
 }
 .qr-card .dl:hover{background:#dfe5e9}
 
 .modal-row{
-  display:flex;align-items:center;gap:13px;padding:17px 2px;
-  border-bottom:1px solid var(--line);color:var(--text);text-decoration:none;font-size:1rem;
+  display:flex;align-items:center;gap:14px;padding:18px 2px;
+  border-bottom:1px solid var(--line);color:var(--text);text-decoration:none;font-size:1.02rem;
 }
 .modal-row:last-of-type{border-bottom:0}
-.modal-row .ri{width:20px;color:var(--muted);flex:0 0 auto}
-.modal-row .ri svg{width:20px;height:20px;fill:currentColor;display:block}
+.modal-row .ri{width:21px;color:var(--muted);flex:0 0 auto}
+.modal-row .ri svg{width:21px;height:21px;fill:currentColor;display:block}
 .modal-row .rt{font-weight:560;flex:1}
 .modal-row .rc{color:var(--muted)}
 
 .linkbar{
   display:flex;align-items:center;gap:12px;margin-top:8px;
-  border:1px solid var(--line);border-radius:13px;padding:15px 17px;
+  border:1px solid var(--line);border-radius:14px;padding:16px 18px;
 }
-.linkbar .u{flex:1;min-width:0;font-size:.98rem;overflow-wrap:anywhere}
-.linkbar button{
-  font:inherit;font-size:.94rem;font-weight:580;cursor:pointer;
+.linkbar .u{flex:1;min-width:0;font-size:1rem;overflow-wrap:anywhere}
+.copybtn{
+  font:inherit;font-size:.96rem;font-weight:580;cursor:pointer;
   background:none;border:0;color:var(--text);display:inline-flex;align-items:center;gap:7px;
+  flex:0 0 auto;
 }
+
+/* ---- copy toast --------------------------------------------------------- */
+.toast{
+  position:fixed;left:50%;bottom:30px;transform:translate(-50%,14px);
+  background:#111814;color:#fff;border-radius:999px;padding:12px 20px;
+  font-size:.92rem;font-weight:550;z-index:90;
+  display:flex;align-items:center;gap:9px;
+  opacity:0;visibility:hidden;transition:opacity .16s ease,transform .16s ease;
+}
+.toast.show{opacity:1;visibility:visible;transform:translate(-50%,0)}
+.toast svg{width:17px;height:17px;fill:none;stroke:#6ee7a8;stroke-width:2.6;
+ stroke-linecap:round;stroke-linejoin:round}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
 </head>
 <body>
@@ -220,11 +239,12 @@ footer a{color:var(--onpage);text-decoration:none;font-size:.84rem}
         <svg width="19" height="19" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
       </summary>
       <div class="menu-panel">
-        <!-- Client self-service. Gated by a PIN entered on the next screen. -->
         <a href="#"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Edit your profile</a>
-        <a href="#share"><svg viewBox="0 0 24 24"><path d="M18 16.08a2.9 2.9 0 0 0-1.93.74L9.9 13.23a3.2 3.2 0 0 0 0-1.46l6.1-3.56A2.94 2.94 0 1 0 15 6a3 3 0 0 0 .06.59L9 10.15a3 3 0 1 0 0 4.7l6.13 3.58a2.77 2.77 0 0 0-.08.65A2.92 2.92 0 1 0 18 16.08z"/></svg> Copy link</a>
-        <div class="menu-sep"></div>
-        <a href="#"><svg viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2zm1 15h-2v-2h2v2zm0-4h-2V8h2v5z"/></svg> Report abuse</a>
+        <!-- Copies in place and raises the toast. No modal: the Share modal is a
+             separate, heavier action and opening it here was redundant. -->
+        <button type="button" data-copy="https://nfc.viteseo.ph/n/X7K92LM4">
+          <svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg> Copy link
+        </button>
       </div>
     </details>
   </div>
@@ -242,8 +262,8 @@ footer a{color:var(--onpage);text-decoration:none;font-size:.84rem}
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h7v7H3V3zm2 2v3h3V5H5zm9-2h7v7h-7V3zm2 2v3h3V5h-3zM3 14h7v7H3v-7zm2 2v3h3v-3H5zm9-2h3v3h-3v-3zm5 0h2v2h-2v-2zm-5 5h3v2h-3v-2zm5-2h2v4h-4v-2h2v-2z"/></svg>
             </summary>
             <div class="qr-pop">
-              <!-- QrCodeService::svg($card->qrUrl()) — the /q/ URL -->
-              <svg viewBox="0 0 25 25" shape-rendering="crispEdges" style="width:168px;height:168px"><rect width="25" height="25" fill="#fff"/><g fill="#000">
+              <!-- QrCodeService::svgForCard($card) — the /q/ URL printed on the card -->
+              <svg viewBox="0 0 25 25" shape-rendering="crispEdges"><rect width="25" height="25" fill="#fff"/><g fill="#000">
               <rect x="1" y="1" width="7" height="7"/><rect x="2" y="2" width="5" height="5" fill="#fff"/><rect x="3" y="3" width="3" height="3"/>
               <rect x="17" y="1" width="7" height="7"/><rect x="18" y="2" width="5" height="5" fill="#fff"/><rect x="19" y="3" width="3" height="3"/>
               <rect x="1" y="17" width="7" height="7"/><rect x="2" y="18" width="5" height="5" fill="#fff"/><rect x="3" y="19" width="3" height="3"/>
@@ -252,7 +272,6 @@ footer a{color:var(--onpage);text-decoration:none;font-size:.84rem}
               <rect x="10" y="10" width="2" height="2"/><rect x="14" y="11" width="1" height="1"/><rect x="12" y="13" width="2" height="2"/><rect x="16" y="14" width="1" height="1"/><rect x="10" y="15" width="1" height="1"/><rect x="18" y="10" width="1" height="1"/><rect x="20" y="12" width="1" height="1"/><rect x="22" y="11" width="1" height="1"/><rect x="19" y="15" width="1" height="1"/><rect x="21" y="16" width="1" height="1"/><rect x="23" y="14" width="1" height="1"/>
               <rect x="10" y="18" width="1" height="1"/><rect x="13" y="19" width="1" height="1"/><rect x="11" y="21" width="1" height="1"/><rect x="15" y="20" width="1" height="1"/><rect x="18" y="18" width="1" height="1"/><rect x="21" y="19" width="1" height="1"/><rect x="23" y="21" width="1" height="1"/><rect x="19" y="22" width="1" height="1"/><rect x="16" y="23" width="1" height="1"/><rect x="12" y="23" width="1" height="1"/>
               </g></svg>
-              <div class="cap"><b>Card QR</b><br>The code printed on CARD-0049. Opens that card's QR destination.</div>
             </div>
           </details>
         </div>
@@ -334,7 +353,6 @@ footer a{color:var(--onpage);text-decoration:none;font-size:.84rem}
       <a class="cta" href="#">Book a free consultation &rsaquo;</a>
     </div>
 
-    <!-- card_number stays out: internal sequential ID, see spec section 10. -->
     <div class="adv-body">
       <div class="kv"><span class="k">Permanent URL</span><span class="v">nfc.viteseo.ph/n/X7K92LM4</span></div>
       <div class="kv"><span class="k">Last updated</span><span class="v">24 August 2026</span></div>
@@ -343,9 +361,9 @@ footer a{color:var(--onpage);text-decoration:none;font-size:.84rem}
 
   <footer>
     <nav>
-      <a href="#">What is this?</a>
-      <a href="#">Terms of Service</a>
-      <a href="#">Privacy Policy</a>
+      <a href="#about">What is this?</a>
+      <a href="#terms">Terms of Service</a>
+      <a href="#privacy">Privacy Policy</a>
     </nav>
     <div class="by">Powered by ViteSEO</div>
   </footer>
@@ -363,7 +381,7 @@ footer a{color:var(--onpage);text-decoration:none;font-size:.84rem}
     <div class="qr-stage">
       <div class="qr-card">
         <div class="qr-img">
-          <!-- QrCodeService::svg($card->nfcUrl()) — the /n/ profile URL -->
+          <!-- Profile QR: QrCodeService, level H, encodes the /n/ URL -->
           <svg viewBox="0 0 29 29" shape-rendering="crispEdges"><rect width="29" height="29" fill="#fff"/><g fill="#000">
           <rect x="2" y="2" width="7" height="7"/><rect x="3" y="3" width="5" height="5" fill="#fff"/><rect x="4" y="4" width="3" height="3"/>
           <rect x="20" y="2" width="7" height="7"/><rect x="21" y="3" width="5" height="5" fill="#fff"/><rect x="22" y="4" width="3" height="3"/>
@@ -393,12 +411,75 @@ footer a{color:var(--onpage);text-decoration:none;font-size:.84rem}
 
     <div class="linkbar">
       <span class="u">nfc.viteseo.ph/n/X7K92LM4</span>
-      <button type="button">Copy link
+      <button class="copybtn" type="button" data-copy="https://nfc.viteseo.ph/n/X7K92LM4">Copy link
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
       </button>
     </div>
   </div>
 </div>
 
+<!--
+  ============ ViteSEO-authored pages ============
+  These three are GLOBAL, not per-card, and editable only in the admin. A
+  cardholder using the client edit form can never reach them.
+-->
+<div class="modal" id="about">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>What is this?</h3>
+      <a class="modal-x" href="#" aria-label="Close">&#10005;</a>
+    </div>
+    <div class="prose">
+      <p>This page belongs to a ViteSEO NFC business card. Tapping the card on a phone, or scanning its printed QR code, opens this page.</p>
+      <p>The card itself holds only a permanent web address. Because the details live here rather than on the chip, the cardholder can update their links, photo and contact information at any time without reprinting anything.</p>
+      <p>ViteSEO Digital Advertising OPC produces and manages these cards.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="terms">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Terms of Service</h3>
+      <a class="modal-x" href="#" aria-label="Close">&#10005;</a>
+    </div>
+    <div class="prose">
+      <p>Placeholder copy for design review. The real text is authored in the admin and applies to every card at once.</p>
+      <p>Links shown on a card page are supplied by the cardholder. ViteSEO does not endorse or verify third-party destinations.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="privacy">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Privacy Policy</h3>
+      <a class="modal-x" href="#" aria-label="Close">&#10005;</a>
+    </div>
+    <div class="prose">
+      <p>Placeholder copy for design review. The real text is authored in the admin and applies to every card at once.</p>
+      <p>Card pages carry no analytics or advertising trackers, and are served with no-store and noindex headers.</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>
+  <span>Link copied</span>
+</div>
+
+<script>
+/* The only script on the page. Everything else works without it; without this,
+   the Share modal still shows the URL as selectable text. */
+document.querySelectorAll('[data-copy]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var toast = document.getElementById('toast');
+    navigator.clipboard.writeText(btn.dataset.copy).then(function () {
+      toast.classList.add('show');
+      setTimeout(function () { toast.classList.remove('show'); }, 1900);
+    });
+  });
+});
+</script>
 </body>
 </html>

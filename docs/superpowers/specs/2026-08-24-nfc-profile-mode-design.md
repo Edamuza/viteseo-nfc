@@ -6,9 +6,10 @@ Status: Approved for planning
 ## Goal
 
 Add a fifth NFC mode, `Profile`, that renders a rich Gravatar-style public profile
-page: cover image, circular avatar with a QR badge, name, headline, `username ·
-location`, a row of social icons, a tagline, a Share control, and an accounts
-panel listing each link with its platform icon and display URL.
+page: a brand-coloured cover band, a circular avatar with a QR badge, name,
+headline, `username · location`, a row of social icons, a tagline, a Share
+control, and an accounts panel listing each link with its platform icon and
+display URL.
 
 It also carries a Share modal with a scannable profile QR and a vCard download
 (sections 11–12), an admin-authored welcome panel inside Advanced details
@@ -27,10 +28,12 @@ These are deliberately out of scope for v1:
   account ownership. Nothing in this system proves that. Rendering a checkmark
   next to an admin-typed URL would assert a guarantee that does not exist, so the
   panel is titled "Accounts" and carries no badges.
-- Cover image cropping or repositioning UI.
+- Avatar cropping or repositioning UI.
 - Per-link click analytics.
-- Per-card theme colours.
-- A light variant of this page. Profile mode is dark-only (see Theme).
+- A separate uploaded cover image. The cover is a translucent wash of the brand
+  colour (section 15), not its own upload.
+- Rich text or HTML in any admin-authored copy. Plain text with paragraph breaks
+  only (section 16).
 
 ## Architecture
 
@@ -64,16 +67,16 @@ belong on the hot `cards` row.
 | `location` | string(100) nullable | "Philippines" |
 | `tagline` | string(200) nullable | "Say my name" |
 | `avatar_path` | string(255) nullable | server-generated relative path |
-| `cover_path` | string(255) nullable | server-generated relative path |
 | `welcome_eyebrow` | string(60) nullable | "Heya, partners!" |
 | `welcome_heading` | string(200) nullable | headline of the welcome panel |
 | `welcome_body` | text nullable | max 600 chars, enforced in validation |
 | `welcome_cta_label` | string(60) nullable | "Book a free consultation" |
 | `welcome_cta_url` | string(500) nullable | validated with `SafeExternalUrl` |
+| `brand_color` | string(7) nullable | `#RRGGBB`; drives the page background (section 15) |
 | `timestamps` | | `updated_at` backs the "Last updated" row |
 
 `App\Models\NfcProfile` mirrors `NfcContactProfile`: an explicit `$fillable`
-allow-list that omits `card_id`, `avatar_path` and `cover_path` (paths are set only
+allow-list that omits `card_id` and `avatar_path` (paths are set only
 by the controller from a server-generated name), a `belongsTo(Card::class)`, and:
 
 - `isMeaningful(): bool` — true when `display_name` is non-empty. A profile page
@@ -124,9 +127,9 @@ globe fallback.
 
 `CardController::storeContactPhoto()` currently holds the hardened upload path —
 decode with GD, cap dimensions, re-encode to strip EXIF and any smuggled payload,
-store under a random server-generated name. Profile mode adds two more uploads
-(avatar and cover), and copy-pasting security-critical code into three places is
-how one of the three eventually drifts.
+store under a random server-generated name. Profile mode adds another upload (the
+avatar), and copy-pasting security-critical code into a second place is how one of
+the two eventually drifts.
 
 Extract it as:
 
@@ -134,8 +137,9 @@ Extract it as:
 public function store(UploadedFile $file, string $directory, int $maxEdge): string
 ```
 
-Call sites: contact photo (`contact-photos`, 800), avatar (`profile-avatars`, 512),
-cover (`profile-covers`, 1600).
+Call sites: contact photo (`contact-photos`, 800) and profile avatar
+(`profile-avatars`, 512). There is no cover upload — the cover is a translucent
+wash of the brand colour, so the avatar is the only new image in this feature.
 
 One behavioural improvement while extracting: the current code calls `abort_if(...,
 422)`, which shows an admin a raw error page. The service throws a domain
@@ -173,9 +177,11 @@ entirely:
   `QrCodeService::svgForCard($card)`, which encodes the **`/q/` URL**. This is the
   code physically printed on the card, and it is deliberately *not* the profile
   URL — a card carries both an NFC tag and a printed QR, and the two resolve to
-  different things. The popover labels it "Card QR" so the distinction is visible
-  rather than implied. `SVG_SIZE` is 1000, so the markup needs a wrapper with an
-  explicit CSS width to render at badge scale.
+  different things. The popover shows the code alone, with no caption. Since
+  nothing on screen distinguishes the two QRs, the difference is pinned by a test
+  (see Testing) rather than by wording a visitor would have to read.
+  `SVG_SIZE` is 1000, so the markup needs a wrapper with an explicit CSS width to
+  render at badge scale.
 - **Share** — a modal, described in section 11.
 
 ### 7. Admin surface
@@ -192,12 +198,12 @@ Routes, nested inside the existing `cards/{card}` group:
 PATCH  /profile         → updateProfile
 DELETE /profile         → deleteProfile
 DELETE /profile/avatar  → deleteAvatar
-DELETE /profile/cover   → deleteCover
 ```
 
 Validation: `display_name` max 120, `headline` max 200, `username` max 60,
-`location` max 100, `tagline` max 200, and `avatar`/`cover` using the same rules as
-the existing contact photo (`image`, `mimes:jpeg,png,webp`, `max:2048`,
+`location` max 100, `tagline` max 200, `brand_color` matching `/^#[0-9a-f]{6}$/i`,
+and `avatar` using the same rules as the existing contact photo (`image`,
+`mimes:jpeg,png,webp`, `max:2048`,
 `dimensions:max_width=4000,max_height=4000`).
 
 Every text value passes through the same control-character strip already used for
@@ -212,7 +218,7 @@ Shipping a fifth mode on top of the reset bugs found in the code review would gi
 the new mode the same data leak on day one, so both are in scope here.
 
 **`resetNfc` becomes "clear the whole NFC side."** It deletes links, the contact
-profile and its photo, the profile and its avatar/cover, clears
+profile and its photo, the profile and its avatar, clears
 `nfc_phone_number` and the three `nfc_email_*` columns, clears the branding
 columns, and resets `nfc_mode` to `Links`. The surgical case is already served by
 the existing per-mode delete actions, so making this one unambiguous removes the
@@ -233,11 +239,13 @@ counters are likewise rewritten to count against each card's current mode.
 
 ### 9. Theme
 
-"Dark" here means a **dark page frame with light content cards**, not a fully dark
-page. The reference design uses a near-black, slightly green-tinted background
-with white cards and dark text on them; only the background, the footer links and
-the overflow-menu trigger are light-on-dark. Reproducing this faithfully was
-confirmed against a rendered mockup.
+The structure is a **coloured page frame with light content cards** — never a
+fully dark page. The cards are white with dark text; only the background, the
+footer links and the overflow-menu trigger sit on the coloured field.
+
+The frame colour itself is not fixed. It comes from the client's `brand_color`,
+with contrast handled as described in section 15. The near-black used in the first
+mockup is now only the fallback when no colour has been chosen.
 
 This is the first public page that is not light-first, so the palette lives in this
 view's own `:root` block rather than being pushed into a shared layout. The
@@ -245,9 +253,9 @@ existing pages stay untouched.
 
 A rendered mockup of the approved design lives at
 `docs/superpowers/specs/mockups/2026-08-24-nfc-profile.html`, with screenshots in
-`shots/profile-v2.png` and `shots/profile-v2-share.png`. Its CSS is intended to
-transfer into the Blade view directly. Append `#share` to the mockup URL to see
-the Share modal.
+`shots/profile-v3*.png`. Its CSS is intended to transfer into the Blade view
+directly. Append `#share`, `#about`, `#terms` or `#privacy` to the mockup URL to
+see each overlay.
 
 ### 10. Public-facing copy and disclosure
 
@@ -258,9 +266,15 @@ theirs falls in that sequence. `routes/web.php` already states that public route
 expose "no card inventory, no admin surface and no internal IDs", and printing the
 card number would contradict that for no user benefit.
 
-The `...` overflow menu carries **Edit your profile** (section 13), **Copy link**
-and **Report abuse**. Gravatar's remaining items (Gravatar.com, Developer API) are
-product-specific and have no equivalent here.
+The `...` overflow menu carries exactly two items: **Edit your profile**
+(section 13) and **Copy link**.
+
+Copy link copies the URL in place and raises a short "Link copied" toast. It does
+*not* open the Share modal — routing a one-tap action through a modal that
+contains its own copy button was redundant.
+
+There is no "Report abuse". Gravatar's remaining items (Gravatar.com, Developer
+API) are product-specific and have no equivalent here.
 
 ## Testing
 
@@ -273,7 +287,7 @@ Feature tests:
 - Profile fields are HTML-escaped; a `<script>` in any field does not execute.
 - The page carries no-store and noindex headers.
 - `resetNfc` and `resetCard` clear every mode's payload, reset the mode, and delete
-  the stored avatar, cover and contact photo files.
+  the stored avatar and contact photo files.
 - Dashboard status and all five counters are correct for a card in each of the five
   modes.
 
@@ -314,6 +328,23 @@ For client self-service editing:
   containing the pre-edit snapshot.
 - The admin revert action restores the snapshot exactly.
 - The edit form is reachable only for cards in Profile mode.
+- The client edit form cannot write `site_pages` content or any other card's data.
+
+For brand colour:
+
+- `brand_color` accepts `#1d5b45` and rejects `red`, `#xyz`, `javascript:` and a
+  bare `1d5b45`, so nothing unparseable can reach a `style` attribute.
+- A dark brand colour yields light `--on-brand`; a pale one yields dark. This is
+  asserted at the luminance boundary, since getting it backwards makes the footer
+  unreadable without erroring.
+- A null `brand_color` falls back to the default without emitting an empty
+  custom property.
+
+For the global pages:
+
+- All three modals render their seeded content.
+- `body` is escaped: a `<script>` in the admin-authored text does not execute.
+- An unauthenticated request to `/admin/site-pages` is rejected.
 
 ### 11. Share modal
 
@@ -322,12 +353,16 @@ Tapping Share opens a modal containing, top to bottom: a QR of the **profile URL
 row, an "Add to contacts (vCard)" row, and a link bar showing the URL with a Copy
 button.
 
+The overlay is **centred both horizontally and vertically** (`align-items:center`),
+with `max-height:calc(100dvh - 48px)` and internal scrolling so a long modal still
+fits a short screen.
+
 **Implemented with CSS `:target`, not JavaScript.** The Share control is
 `<a href="#share">`, the overlay is `#share` with `display:none` flipped by
 `.modal:target`, and the close button is `<a href="#">`. This keeps the page
 script-free and means the modal survives with JS disabled. The only remaining
-script on the page is the clipboard call behind "Copy link"; its base state is the
-URL rendered as selectable text, so nothing is lost without it.
+script on the page is the clipboard call behind the two "Copy link" controls; its
+base state is the URL rendered as selectable text, so nothing is lost without it.
 
 Endpoint notes:
 
@@ -367,8 +402,9 @@ one place.
 ### 13. Client self-service editing
 
 The `...` menu links to `GET /n/{card}/edit`, which asks for the activation PIN
-and then allows the cardholder to change their own profile text, links, avatar and
-cover.
+and then allows the cardholder to change their own profile text, links and avatar.
+The brand colour and the global ViteSEO pages are **not** on this form — those stay
+admin-only.
 
 **This is gated by the universal PIN `000000`, at the product owner's explicit
 direction.** The consequence is recorded here so it is not rediscovered later:
@@ -397,17 +433,76 @@ from the approved revision-2 render:
 
 | Token | Value |
 |---|---|
-| column max-width | 480px (was 420) |
-| base font | 17px (was 16) |
-| `h1` | 1.85rem (was 1.4) |
-| avatar | 104px (was 78) |
-| cover height | 132px |
-| card radius | 18px |
-| account row icon | 20px |
+| column max-width | 680px |
+| base font | 17px |
+| `h1` | 1.95rem |
+| avatar | 110px |
+| cover height | 150px |
+| card radius | 20px |
+| card padding | 28px |
+| account row icon | 21px |
+| modal max-width | 520px |
+
+The column was widened from 480px to 680px specifically to stop the page reading
+as a narrow strip inside a large field of background colour on desktop. On a phone
+it is full-bleed either way.
+
+### 15. Brand colour
+
+The page background is **not** a fixed near-black. It is the client's chosen
+colour, stored per profile in `brand_color` as `#RRGGBB` and validated against
+that exact pattern. The cover is the same colour at low alpha, so it reads as a
+lighter wash of the same hue rather than a separate decoration. The avatar
+placeholder uses the solid colour.
+
+Three CSS custom properties are emitted; only the first is stored:
+
+| Property | Source |
+|---|---|
+| `--brand` | `brand_color`, or a default when null |
+| `--brand-soft` | same RGB at ~34% alpha, for the cover |
+| `--on-brand` | light or dark, chosen by relative luminance |
+
+**`--on-brand` must be computed, not hard-coded.** The footer links and the `...`
+trigger sit directly on the brand colour. If a client picks a pale colour and the
+text stays light, those elements become invisible. The view computes the WCAG
+relative luminance of `brand_color` in PHP and emits light text below the
+threshold and dark text above it. This is why the colour is stored as a strict
+hex string rather than free-form CSS: the value has to be parseable to be safe.
+
+For the same reason the white cards gain a hairline `rgba(0,0,0,.06)` border, so
+they remain distinguishable when the brand colour is near-white.
+
+### 16. Global ViteSEO pages
+
+"What is this?", "Terms of Service" and "Privacy Policy" open `:target` modals
+whose content is authored by ViteSEO and **applies to every card at once**. They
+are not per-card fields and a cardholder can never edit them.
+
+A new table, `site_pages`, holds one row per page:
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | id | |
+| `key` | string(40) unique | `about`, `terms`, `privacy` |
+| `title` | string(120) | modal heading |
+| `body` | text | plain text; blank lines become paragraphs |
+| `timestamps` | | |
+
+A migration seeds the three rows so the modals are never empty. Editing lives in a
+new admin section at `/admin/site-pages`, behind the existing `auth` middleware —
+deliberately *not* under `cards/{card}`, because this content is global and
+attaching it to a card route would imply otherwise.
+
+**`body` is plain text, not HTML.** It is escaped on output and split on blank
+lines into paragraphs. Accepting HTML here would put a stored-XSS sink on every
+public card page in the system for the sake of formatting that nobody has asked
+for yet. If rich formatting is needed later, Markdown rendered through a
+sanitiser is the way in, and that is a separate decision.
 
 ## Delivery order
 
-Five increments, each independently shippable and testable. The first does not
+Six increments, each independently shippable and testable. The first does not
 depend on any of the others and fixes live bugs, so it lands first.
 
 1. **Reset and dashboard correctness** (section 8, minus the Profile-specific
@@ -420,9 +515,13 @@ depend on any of the others and fixes live bugs, so it lands first.
 3. **Share modal, QR split and vCard** (sections 11–12). The `:target` modal, the
    level-H avatar QR method on `QrCodeService`, the public QR download route, and
    the profile vCard.
-4. **Admin surface** (section 7), including the welcome-block fields, plus wiring
-   Profile into the reset and dashboard logic delivered in step 1.
-5. **Client self-service editing** (section 13). The PIN-gated edit form, rate
+4. **Global ViteSEO pages** (section 16). The `site_pages` table with seeded rows,
+   the three footer modals, and the `/admin/site-pages` editor. Self-contained and
+   touches no card data.
+5. **Admin surface** (section 7), including the welcome-block and `brand_color`
+   fields, plus wiring Profile into the reset and dashboard logic delivered in
+   step 1.
+6. **Client self-service editing** (section 13). The PIN-gated edit form, rate
    limiting, the `nfc_profile_edits` audit table and the admin revert action.
    Deliberately last: it is the only increment that lets an unauthenticated
    visitor write to an already-configured card, so it ships once everything it
@@ -435,9 +534,13 @@ depend on any of the others and fixes live bugs, so it lands first.
 - `resetNfc` is more destructive than it is today. It is already labelled as a
   reset and sits behind a confirmation, and the per-mode deletes cover the
   narrower case.
-- A card's two QR codes now both appear in the UI and encode different URLs. The
-  avatar badge is labelled "Card QR" specifically so this is not mistaken for a
-  bug.
+- A card's two QR codes now both appear in the UI and encode different URLs, with
+  nothing on screen saying which is which. A test is the only thing keeping them
+  from being swapped.
+- The page's background colour is client-controlled, which makes text contrast a
+  computed property rather than a fixed design choice. Section 15 covers it.
+- `site_pages` content is global. One bad edit there is visible on every card in
+  the system at once, so that editor is admin-only and its output is escaped.
 - Profile mode becomes the only mode where a visitor can edit an
   already-configured card. Section 13 records the accepted risk and the three
   mitigations that bound it.
