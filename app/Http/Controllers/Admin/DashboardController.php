@@ -67,16 +67,18 @@ class DashboardController extends Controller
     {
         $total = Card::count();
 
-        $qrConfigured = Card::whereNotNull('qr_destination')->count();
+        $qrConfigured = Card::query()->whereQrConfigured()->count();
 
-        $nfcConfigured = Card::whereHas('nfcLinks', fn ($q) => $q->where('is_active', true))->count();
+        $nfcConfigured = Card::query()->whereNfcModeConfigured()->count();
 
-        $fullyConfigured = Card::whereNotNull('qr_destination')
-            ->whereHas('nfcLinks', fn ($q) => $q->where('is_active', true))
+        $fullyConfigured = Card::query()
+            ->whereQrConfigured()
+            ->whereNfcModeConfigured()
             ->count();
 
-        $fullyUnconfigured = Card::whereNull('qr_destination')
-            ->whereDoesntHave('nfcLinks', fn ($q) => $q->where('is_active', true))
+        $fullyUnconfigured = Card::query()
+            ->whereQrConfigured(false)
+            ->whereNfcModeConfigured(false)
             ->count();
 
         return compact('total', 'qrConfigured', 'nfcConfigured', 'fullyConfigured', 'fullyUnconfigured');

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Admin\DashboardController;
 use App\Models\Card;
 use App\Models\NfcContactProfile;
 use App\Models\User;
@@ -304,5 +305,101 @@ class DashboardStatusTest extends TestCase
         $this->cardInMode('links', true);
 
         $this->assertSame('1', $this->linkCountCell());
+    }
+
+    private function cardWithQrDestination(?string $destination): Card
+    {
+        $card = $this->card();
+        $card->forceFill(['qr_destination' => $destination])->save();
+
+        return $card->fresh();
+    }
+
+    /** @return array<string, array{?string, bool}> */
+    public static function qrDestinationFixtures(): array
+    {
+        return [
+            'null destination'  => [null, false],
+            'empty string'      => ['', false],
+            'real url'          => ['https://example.com/qr', true],
+            // qrIsConfigured() compares against '' without trimming, so a
+            // whitespace-only destination counts as configured. The SQL twin
+            // must not trim either.
+            'whitespace only'   => [' ', true],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('qrDestinationFixtures')]
+    public function test_qr_configured_scope_agrees_with_qr_is_configured(?string $destination, bool $expected): void
+    {
+        $card = $this->cardWithQrDestination($destination);
+
+        $this->assertSame($expected, $card->qrIsConfigured(), 'PHP method');
+
+        $this->assertSame(
+            $expected,
+            Card::query()->whereQrConfigured()->whereKey($card->getKey())->exists(),
+            'the SQL scope and the PHP method must not disagree'
+        );
+
+        $this->assertSame(
+            ! $expected,
+            Card::query()->whereQrConfigured(false)->whereKey($card->getKey())->exists(),
+            'the inverted scope must be the exact complement'
+        );
+    }
+
+    /**
+     * A nullable column is where a naive negation loses rows: in SQL
+     * NULL != '' is UNKNOWN, so the NULL card would fall out of both branches
+     * and the two counts would no longer add up to the table.
+     */
+    public function test_qr_configured_scope_and_its_complement_partition_the_table(): void
+    {
+        $this->cardWithQrDestination(null);
+        $this->cardWithQrDestination('');
+        $this->cardWithQrDestination('https://example.com/qr');
+
+        $configured = Card::query()->whereQrConfigured()->count();
+        $unconfigured = Card::query()->whereQrConfigured(false)->count();
+
+        $this->assertSame(1, $configured);
+        $this->assertSame(2, $unconfigured, 'both the NULL and the blank destination are unconfigured');
+        $this->assertSame(Card::count(), $configured + $unconfigured, 'no card may fall out of both branches');
+    }
+
+    public function test_stats_count_every_mode_as_configured(): void
+    {
+        // One configured card per mode, QR set on all of them.
+        foreach (['links', 'contact', 'phone', 'email'] as $mode) {
+            $this->cardInMode($mode, true);
+        }
+
+        // Two unconfigured: one in contact mode, one left at the links default.
+        $this->cardInMode('contact', false);
+        $this->card();
+
+        $stats = app(DashboardController::class)->stats();
+
+        $this->assertSame(6, $stats['total']);
+        $this->assertSame(4, $stats['qrConfigured']);
+        $this->assertSame(4, $stats['nfcConfigured'], 'all four modes count as configured');
+        $this->assertSame(4, $stats['fullyConfigured']);
+        $this->assertSame(2, $stats['fullyUnconfigured']);
+    }
+
+    public function test_a_card_with_qr_only_is_not_fully_configured_or_fully_unconfigured(): void
+    {
+        $card = $this->card();
+        $card->forceFill([
+            'qr_destination' => 'https://example.com/qr', 'qr_configured_at' => now(),
+        ])->save();
+
+        $stats = app(DashboardController::class)->stats();
+
+        $this->assertSame(1, $stats['qrConfigured']);
+        $this->assertSame(0, $stats['nfcConfigured']);
+        $this->assertSame(0, $stats['fullyConfigured']);
+        $this->assertSame(0, $stats['fullyUnconfigured']);
     }
 }

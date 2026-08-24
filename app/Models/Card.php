@@ -113,6 +113,23 @@ class Card extends Model
         return $configured ? $query->where($matches) : $query->whereNot($matches);
     }
 
+    /**
+     * SQL twin of qrIsConfigured(). Mirrors it exactly, including treating an
+     * empty string as unconfigured — the previous stats() used a bare
+     * whereNotNull and so counted a blank destination as active.
+     *
+     * qr_destination is nullable, and `NULL != ''` is UNKNOWN in SQL, so a
+     * naive negation would drop every NULL row from both branches. coalesce
+     * collapses NULL to '' first, which makes the predicate two-valued and the
+     * two branches an exact partition of the table.
+     */
+    public function scopeWhereQrConfigured(Builder $query, bool $configured = true): Builder
+    {
+        return $configured
+            ? $query->whereRaw("coalesce(qr_destination, '') != ''")
+            : $query->whereRaw("coalesce(qr_destination, '') = ''");
+    }
+
     // --- Permanent URLs (never change for the life of the card) --------------
 
     public function qrUrl(): string
