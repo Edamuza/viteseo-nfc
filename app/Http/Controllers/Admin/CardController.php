@@ -402,7 +402,7 @@ class CardController extends Controller
     {
         $this->reset->resetEverything($card);
 
-        return back()->with('status', 'Card fully reset. Card number, public ID and both permanent URLs are unchanged.');
+        return back()->with('status', 'Card reset. Both sides are blank. Card number, public ID, both permanent URLs and the activation PIN are unchanged.');
     }
 
     // --- Activation PIN ------------------------------------------------------

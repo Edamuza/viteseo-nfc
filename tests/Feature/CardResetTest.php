@@ -232,7 +232,11 @@ class CardResetTest extends TestCase
 
         $this->actingAs($this->admin())
             ->delete('/admin/cards/'.$card->public_id.'/nfc')
-            ->assertRedirect();
+            ->assertRedirect()
+            // The message is the promise the admin acts on when re-issuing a
+            // card, so it is asserted here: it must not drift ahead of what
+            // the service clears.
+            ->assertSessionHas('status', 'NFC reset. Every mode has been cleared and the next tap will show the setup page.');
 
         $this->assertNfcSideIsClear($card);
         $this->assertSame('https://example.com/qr', $card->qr_destination, 'QR is not part of an NFC reset');
@@ -243,14 +247,20 @@ class CardResetTest extends TestCase
     {
         Storage::fake('public');
         $card = $this->fullyPopulatedCard();
+        $pinHash = $card->activation_pin_hash;
 
         $this->actingAs($this->admin())
             ->delete('/admin/cards/'.$card->public_id.'/reset')
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Card reset. Both sides are blank. Card number, public ID, both permanent URLs and the activation PIN are unchanged.');
 
         $this->assertNfcSideIsClear($card);
         $this->assertNull($card->qr_destination);
         $this->assertNull($card->qr_configured_at);
+
+        // The message names the PIN as surviving, so the claim is asserted
+        // rather than left to the reader of the docblock.
+        $this->assertSame($pinHash, $card->activation_pin_hash, 'activation PIN survives a full reset');
     }
 
     public function test_reset_endpoints_require_authentication(): void

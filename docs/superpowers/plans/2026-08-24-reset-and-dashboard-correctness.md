@@ -961,7 +961,7 @@ Replace `resetCard()`:
     {
         $this->reset->resetEverything($card);
 
-        return back()->with('status', 'Card fully reset. Card number, public ID and both permanent URLs are unchanged.');
+        return back()->with('status', 'Card reset. Both sides are blank. Card number, public ID, both permanent URLs and the activation PIN are unchanged.');
     }
 ```
 
@@ -970,7 +970,9 @@ Keep the `use Illuminate\Support\Facades\DB;` import — the link reordering met
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `php artisan test --filter=CardResetTest`
-Expected: PASS, 9 tests.
+Expected: PASS, 11 tests.
+
+Both endpoint tests assert the exact status message string. The message is the promise the admin acts on when re-issuing a card, so it is held by a test rather than left to drift. The full-reset message names the activation PIN as surviving, and that test asserts `activation_pin_hash` is unchanged, so the message and the behaviour cannot diverge.
 
 Run: `php artisan test`
 Expected: PASS. `AdminTest::test_nfc_reset_does_not_affect_qr` and `AdminTest::test_full_reset_preserves_permanent_identity` both already pass under the new behaviour — they assert on links, branding, QR and identity, all of which are unchanged — and neither asserts on the status message text. No edits to `AdminTest.php` are expected.

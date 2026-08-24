@@ -229,10 +229,12 @@ columns, and resets `nfc_mode` to `Links`. The surgical case is already served b
 the existing per-mode delete actions, so making this one unambiguous removes the
 current situation where the success message is only true in Links mode.
 
-**`resetCard` becomes `resetNfc` plus the QR reset**, and its "Card fully reset"
-message becomes true. Today it leaves the contact profile, phone, email and mode
+**`resetCard` becomes `resetNfc` plus the QR reset**, and its confirmation message
+becomes a true statement. Today it leaves the contact profile, phone, email and mode
 untouched, so a reset card in Contact mode still serves the previous holder's name
-and still returns their `.vcf` with a 200.
+and still returns their `.vcf` with a 200. The message also stops saying "fully
+reset": the activation PIN deliberately survives, so it names what is kept — card
+number, public ID, both permanent URLs and the PIN.
 
 **The dashboard becomes mode-aware.** It currently derives NFC status purely from
 active link count, so a card actively serving a contact card, phone, email or
