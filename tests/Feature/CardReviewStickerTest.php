@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Card;
+use App\Models\StickerTemplate;
 use App\Models\User;
 use App\Services\CardReviewStickerService;
 use App\Services\QrCodeService;
@@ -16,6 +17,12 @@ use ZipArchive;
 class CardReviewStickerTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        StickerTemplate::restoreBundledFiles();
+    }
 
     public function test_the_sticker_composer_exists(): void
     {
@@ -237,7 +244,7 @@ class CardReviewStickerTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString(
-            '<form method="POST" action="'.url('/admin/export/sticker-templates').'">',
+            'action="'.url('/admin/export/sticker-templates').'"',
             $body
         );
         $this->assertStringContainsString('Download all templates (PNG)', $body);
@@ -246,8 +253,14 @@ class CardReviewStickerTest extends TestCase
     public function test_the_bulk_template_export_returns_not_found_when_there_are_no_cards(): void
     {
         $this->actingAs($this->admin())
-            ->post('/admin/export/sticker-templates')
-            ->assertNotFound();
+            ->from('/admin')
+            ->post('/admin/export/sticker-templates', [
+                'from' => 1,
+                'to' => 10,
+                'template_id' => \App\Models\StickerTemplate::active()->id,
+            ])
+            ->assertRedirect('/admin')
+            ->assertSessionHasErrors('from');
     }
 
     public function test_the_bulk_template_export_downloads_every_card_pair_as_a_private_zip(): void
@@ -262,7 +275,11 @@ class CardReviewStickerTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-08-24 15:52:03'));
         try {
             $response = $this->actingAs($this->admin())
-                ->post('/admin/export/sticker-templates')
+                ->post('/admin/export/sticker-templates', [
+                    'from' => 50,
+                    'to' => 51,
+                    'template_id' => \App\Models\StickerTemplate::active()->id,
+                ])
                 ->assertOk()
                 ->assertHeader('Content-Type', 'application/zip');
         } finally {

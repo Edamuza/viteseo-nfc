@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Card;
+use App\Models\StickerTemplate;
 use App\Services\CardReviewStickerService;
 use App\Services\QrCodeService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use RuntimeException;
@@ -97,15 +99,39 @@ class ExportController extends Controller
             ->deleteFileAfterSend(true);
     }
 
-    public function stickerTemplates(): Response
+    public function stickerTemplates(Request $request): Response|RedirectResponse
     {
-        $cards = Card::query()->orderBy('id')->get();
+        $data = $request->validate([
+            'from' => ['required', 'integer', 'min:1'],
+            'to' => ['required', 'integer', 'gte:from', function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+                if ((int) $value - (int) $request->input('from') + 1 > 200) {
+                    $fail('Download at most 200 card numbers at a time.');
+                }
+            }],
+            'template_id' => ['required', 'exists:sticker_templates,id'],
+        ]);
+
+        $cards = Card::query()
+            ->get()
+            ->filter(function (Card $card) use ($data) {
+                if (preg_match('/^CARD-0*(\d+)$/i', $card->card_number, $matches) !== 1) {
+                    return false;
+                }
+
+                $number = (int) $matches[1];
+
+                return $number >= $data['from'] && $number <= $data['to'];
+            })
+            ->sortBy(fn (Card $card) => (int) preg_replace('/\D+/', '', $card->card_number))
+            ->values();
 
         if ($cards->isEmpty()) {
-            abort(404, 'No cards are available for template export.');
+            return back()->withErrors(['from' => 'No cards exist in that number range.']);
         }
 
-        return response($this->stickers->zipForCards($cards), 200, [
+        $template = StickerTemplate::query()->findOrFail($data['template_id']);
+
+        return response($this->stickers->zipForCards($cards, $template), 200, [
             'Content-Type'        => 'application/zip',
             'Content-Disposition' => 'attachment; filename="nfc-card-templates-'.now()->format('Ymd-His').'.zip"',
             'Cache-Control'       => 'no-store, private',

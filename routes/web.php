@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\NfcToolsController;
 use App\Http\Controllers\Admin\SitePageController;
+use App\Http\Controllers\Admin\StickerTemplateController;
 use App\Http\Controllers\Public\NfcController;
 use App\Http\Controllers\Public\NfcProfileEditController;
 use App\Http\Controllers\Public\QrController;
@@ -70,6 +71,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/nfc-tools', [NfcToolsController::class, 'index'])->name('nfc-tools');
         Route::get('/site-pages', [SitePageController::class, 'index'])->name('site-pages.index');
         Route::patch('/site-pages/{sitePage:key}', [SitePageController::class, 'update'])->name('site-pages.update');
+
+        Route::get('/sticker-templates', [StickerTemplateController::class, 'index'])->name('sticker-templates.index');
+        Route::post('/sticker-templates', [StickerTemplateController::class, 'store'])->name('sticker-templates.store');
+        Route::patch('/sticker-templates/{template}', [StickerTemplateController::class, 'update'])->name('sticker-templates.update');
+        Route::post('/sticker-templates/{template}/activate', [StickerTemplateController::class, 'activate'])->name('sticker-templates.activate');
+        Route::delete('/sticker-templates/{template}', [StickerTemplateController::class, 'destroy'])->name('sticker-templates.destroy');
 
         Route::post('/export/qr-zip',              [ExportController::class, 'qrZip'])->name('export.qr-zip');
         Route::post('/export/sticker-templates',   [ExportController::class, 'stickerTemplates'])->name('export.sticker-templates');

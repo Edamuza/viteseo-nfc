@@ -176,6 +176,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
     <a href="{{ route('admin.dashboard') }}" @class(['on' => request()->routeIs('admin.dashboard') || request()->routeIs('admin.cards.*')])>Cards</a>
     <a href="{{ route('admin.nfc-tools') }}" @class(['on' => request()->routeIs('admin.nfc-tools')])>NFC Tools</a>
     <a href="{{ route('admin.site-pages.index') }}" @class(['on' => request()->routeIs('admin.site-pages.*')])>Site Pages</a>
+    <a href="{{ route('admin.sticker-templates.index') }}" @class(['on' => request()->routeIs('admin.sticker-templates.*')])>Sticker templates</a>
   </nav>
   <form method="POST" action="{{ route('admin.logout') }}">@csrf
     <button class="btn btn-sm" type="submit">Sign out</button>

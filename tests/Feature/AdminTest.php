@@ -35,7 +35,7 @@ class AdminTest extends TestCase
 
     public static function adminGetRoutes(): array
     {
-        return [['/admin'], ['/admin/nfc-tools'], ['/admin/site-pages']];
+        return [['/admin'], ['/admin/nfc-tools'], ['/admin/site-pages'], ['/admin/sticker-templates']];
     }
 
     public function test_unauthenticated_state_changing_actions_are_blocked(): void

@@ -56,6 +56,9 @@
         <a class="btn btn-sm" href="{{ route('admin.cards.qr.png', $card->public_id) }}">Download PNG</a>
         <a class="btn btn-sm" href="{{ route('admin.cards.sticker.download', $card->public_id) }}">Download sticker template</a>
       </div>
+      @if ($activeStickerTemplate)
+        <p class="small muted" style="margin:-12px 0 18px">Uses {{ $activeStickerTemplate->name }}. <a href="{{ route('admin.sticker-templates.index') }}">Change the active template</a></p>
+      @endif
 
       <label class="fld">Current destination</label>
       @if ($qrOn)

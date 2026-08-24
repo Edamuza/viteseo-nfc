@@ -6,6 +6,7 @@ use App\Enums\NfcMode;
 use App\Exceptions\UnreadableImageException;
 use App\Http\Controllers\Controller;
 use App\Models\Card;
+use App\Models\StickerTemplate;
 use App\Models\NfcLink;
 use App\Rules\SafeExternalUrl;
 use App\Rules\SafePhoneNumber;
@@ -43,6 +44,7 @@ class CardController extends Controller
             'card' => $card,
             'qrSvg' => $this->qr->svgForCard($card),
             'latestProfileEdit' => $card->profileEdits()->first(),
+            'activeStickerTemplate' => StickerTemplate::active(),
         ])->header('Cache-Control', 'no-store, private, no-cache, must-revalidate, max-age=0');
     }
 

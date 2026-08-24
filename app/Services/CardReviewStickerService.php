@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Card;
+use App\Models\StickerTemplate;
 use GdImage;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use ZipArchive;
 
@@ -13,21 +15,13 @@ class CardReviewStickerService
 
     public const HEIGHT = 1011;
 
-    private const QR_CLEAR_X = 106;
-
-    private const QR_CLEAR_Y = 77;
-
-    private const QR_CLEAR_SIZE = 426;
-
-    private const QR_MAX_SIZE = 410;
-
     private const CORNER_RADIUS = 14;
 
     public function __construct(private readonly QrCodeService $qr) {}
 
-    public function frontPng(): string
+    public function frontPng(?StickerTemplate $template = null): string
     {
-        $image = $this->artwork('front.png');
+        $image = $this->artwork($this->resolve($template)->front_path);
 
         try {
             return $this->encode($image);
@@ -36,10 +30,11 @@ class CardReviewStickerService
         }
     }
 
-    public function backPng(Card $card): string
+    public function backPng(Card $card, ?StickerTemplate $template = null): string
     {
-        $back = $this->artwork('back.png');
-        $qr   = imagecreatefromstring($this->qr->pngForCard($card, self::QR_MAX_SIZE));
+        $template = $this->resolve($template);
+        $back = $this->artwork($template->back_path);
+        $qr = imagecreatefromstring($this->qr->pngForCard($card, max(1, $template->qr_size - 16)));
 
         if (! $qr instanceof GdImage) {
             unset($back);
@@ -51,15 +46,15 @@ class CardReviewStickerService
             $white = imagecolorallocate($back, 255, 255, 255);
             imagefilledrectangle(
                 $back,
-                self::QR_CLEAR_X,
-                self::QR_CLEAR_Y,
-                self::QR_CLEAR_X + self::QR_CLEAR_SIZE - 1,
-                self::QR_CLEAR_Y + self::QR_CLEAR_SIZE - 1,
+                $template->qr_x,
+                $template->qr_y,
+                $template->qr_x + $template->qr_size - 1,
+                $template->qr_y + $template->qr_size - 1,
                 $white
             );
 
-            $x = self::QR_CLEAR_X + intdiv(self::QR_CLEAR_SIZE - imagesx($qr), 2);
-            $y = self::QR_CLEAR_Y + intdiv(self::QR_CLEAR_SIZE - imagesy($qr), 2);
+            $x = $template->qr_x + intdiv($template->qr_size - imagesx($qr), 2);
+            $y = $template->qr_y + intdiv($template->qr_size - imagesy($qr), 2);
             imagecopy($back, $qr, $x, $y, 0, 0, imagesx($qr), imagesy($qr));
 
             return $this->encode($back);
@@ -77,20 +72,23 @@ class CardReviewStickerService
         return 'card-'.(int) $matches[1];
     }
 
-    public function zipFor(Card $card): string
+    public function zipFor(Card $card, ?StickerTemplate $template = null): string
     {
-        return $this->archive('sticker-template-', function (ZipArchive $zip) use ($card): void {
+        $template = $this->resolve($template);
+
+        return $this->archive('sticker-template-', function (ZipArchive $zip) use ($card, $template): void {
             $base = $this->downloadBasename($card);
-            $this->addEntry($zip, $base.'-front.png', $this->frontPng());
-            $this->addEntry($zip, $base.'-back.png', $this->backPng($card));
+            $this->addEntry($zip, $base.'-front.png', $this->frontPng($template));
+            $this->addEntry($zip, $base.'-back.png', $this->backPng($card, $template));
         });
     }
 
-    public function zipForCards(iterable $cards): string
+    public function zipForCards(iterable $cards, ?StickerTemplate $template = null): string
     {
-        $front = $this->frontPng();
+        $template = $this->resolve($template);
+        $front = $this->frontPng($template);
 
-        return $this->archive('sticker-templates-', function (ZipArchive $zip) use ($cards, $front): void {
+        return $this->archive('sticker-templates-', function (ZipArchive $zip) use ($cards, $front, $template): void {
             foreach ($cards as $card) {
                 if (! $card instanceof Card) {
                     throw new RuntimeException('Sticker exports require Card models.');
@@ -98,7 +96,7 @@ class CardReviewStickerService
 
                 $base = $this->downloadBasename($card);
                 $this->addEntry($zip, $base.'-front.png', $front);
-                $this->addEntry($zip, $base.'-back.png', $this->backPng($card));
+                $this->addEntry($zip, $base.'-back.png', $this->backPng($card, $template));
             }
         });
     }
@@ -150,11 +148,23 @@ class CardReviewStickerService
         }
     }
 
-    private function artwork(string $filename): GdImage
+    private function resolve(?StickerTemplate $template): StickerTemplate
     {
-        $source = @imagecreatefrompng(resource_path('images/card-review-sticker/'.$filename));
+        $template ??= StickerTemplate::active();
+
+        if ($template === null) {
+            throw new RuntimeException('No active sticker template is available.');
+        }
+
+        return $template;
+    }
+
+    private function artwork(string $path): GdImage
+    {
+        $bytes = Storage::disk('public')->get($path);
+        $source = is_string($bytes) ? @imagecreatefromstring($bytes) : false;
         if (! $source instanceof GdImage) {
-            throw new RuntimeException('Could not decode sticker artwork: '.$filename);
+            throw new RuntimeException('Could not decode sticker artwork: '.$path);
         }
 
         $canvas = imagecreatetruecolor(self::WIDTH, self::HEIGHT);

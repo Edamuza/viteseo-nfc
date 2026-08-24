@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Card;
+use App\Models\StickerTemplate;
 use App\Services\CardGenerationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,10 +44,21 @@ class DashboardController extends Controller
 
         $cards = $query->orderByDesc('id')->paginate(25)->withQueryString();
 
+        $numbers = Card::query()->pluck('card_number')
+            ->map(function (string $number) {
+                return preg_match('/^CARD-0*(\d+)$/i', $number, $matches) === 1 ? (int) $matches[1] : null;
+            })
+            ->filter()
+            ->sort()
+            ->values();
+
         return response()->view('admin.dashboard', [
             'cards'  => $cards,
             'search' => $search,
             'stats'  => $this->stats(),
+            'stickerTemplates' => StickerTemplate::query()->orderByDesc('is_active')->orderBy('name')->get(),
+            'stickerFrom' => $numbers->first() ?? 1,
+            'stickerTo' => $numbers->last() ?? 1,
         ])->header('Cache-Control', 'no-store, private, no-cache, must-revalidate, max-age=0');
     }
 

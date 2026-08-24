@@ -37,7 +37,14 @@
         <input type="hidden" name="format" value="svg">
         <button class="btn btn-sm" type="submit">Download QR codes (SVG)</button>
       </form>
-      <form method="POST" action="{{ route('admin.export.sticker-templates') }}">@csrf
+      <form method="POST" action="{{ route('admin.export.sticker-templates') }}" class="row row-tight">@csrf
+        <input type="number" name="from" min="1" value="{{ $stickerFrom }}" aria-label="From card number" style="width:72px" required>
+        <input type="number" name="to" min="1" value="{{ $stickerTo }}" aria-label="To card number" style="width:72px" required>
+        <select name="template_id" aria-label="Sticker template" style="min-width:140px">
+          @foreach ($stickerTemplates as $template)
+            <option value="{{ $template->id }}" @selected($template->is_active)>{{ $template->name }}</option>
+          @endforeach
+        </select>
         <button class="btn btn-sm" type="submit">Download all templates (PNG)</button>
       </form>
       <form method="POST" action="{{ route('admin.export.activation') }}"
