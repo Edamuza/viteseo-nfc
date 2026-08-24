@@ -110,12 +110,13 @@ class CardResetTest extends TestCase
     {
         Storage::fake('public');
         $card = $this->fullyPopulatedCard();
+        $originalQrConfiguredAt = $card->qr_configured_at->format('Y-m-d H:i:s');
 
         app(CardResetService::class)->resetNfcSide($card);
         $card->refresh();
 
         $this->assertSame('https://example.com/qr', $card->qr_destination);
-        $this->assertNotNull($card->qr_configured_at);
+        $this->assertSame($originalQrConfiguredAt, $card->qr_configured_at->format('Y-m-d H:i:s'));
     }
 
     public function test_resetting_the_nfc_side_keeps_the_permanent_identity(): void
@@ -134,5 +135,33 @@ class CardResetTest extends TestCase
         $this->assertSame($publicId, $card->public_id);
         $this->assertSame($nfcUrl, $card->nfcUrl());
         $this->assertSame($qrUrl, $card->qrUrl());
+    }
+
+    public function test_contact_photo_survives_when_the_reset_transaction_rolls_back(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        Storage::disk('public')->assertExists('contact-photos/old.jpg');
+
+        $listener = function () {
+            throw new \RuntimeException('forced rollback');
+        };
+
+        Card::saving($listener);
+
+        try {
+            app(CardResetService::class)->resetNfcSide($card);
+            $this->fail('Expected reset to abort when the card save fails.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('forced rollback', $e->getMessage());
+        } finally {
+            Card::getEventDispatcher()?->forget('eloquent.saving: '.Card::class);
+        }
+
+        Storage::disk('public')->assertExists('contact-photos/old.jpg');
+        $card->refresh();
+        $this->assertNotNull($card->contactProfile);
+        $this->assertSame('contact-photos/old.jpg', $card->contactProfile->photo_path);
     }
 }

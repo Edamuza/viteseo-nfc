@@ -31,13 +31,12 @@ class CardResetService
      */
     public function resetNfcSide(Card $card): void
     {
+        $photoPath = $card->contactProfile?->photo_path;
+
         DB::transaction(function () use ($card) {
             $card->nfcLinks()->delete();
 
             if ($profile = $card->contactProfile) {
-                if ($profile->photo_path) {
-                    Storage::disk('public')->delete($profile->photo_path);
-                }
                 $profile->delete();
             }
 
@@ -53,6 +52,14 @@ class CardResetService
                 'nfc_logo_path'     => null,
             ])->save();
         });
+
+        // Delete the photo only after the transaction commits. Filesystem
+        // deletes do not roll back; a file removed while the profile row
+        // survives would show a broken image on a live contact page. An
+        // orphaned file after a successful reset costs disk space only.
+        if ($photoPath) {
+            Storage::disk('public')->delete($photoPath);
+        }
 
         // The in-memory model may still hold the profile we just deleted.
         $card->unsetRelation('contactProfile');
