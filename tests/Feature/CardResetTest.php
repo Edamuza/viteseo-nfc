@@ -31,8 +31,9 @@ class CardResetTest extends TestCase
 
     /**
      * A card carrying data for every mode at once, plus branding, a QR
-     * destination and a stored contact photo. Mode switching is lossless by
-     * design, so this is a realistic state for a re-issued card.
+     * destination, a stored contact photo, a profile row and its avatar.
+     * Mode switching is lossless by design, so this is a realistic state
+     * for a re-issued card.
      */
     private function fullyPopulatedCard(): Card
     {

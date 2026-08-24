@@ -35,7 +35,7 @@ class PublicImageStorage
             // Logged rather than thrown: the database change has already been
             // committed by every caller, so failing here would report a reset
             // that did happen as an error. An operator needs the path.
-            Log::error('Contact photo survived deletion and is still publicly reachable.', [
+            Log::error('Public image survived deletion and is still publicly reachable while the database says it is gone.', [
                 'card' => $card->public_id,
                 'path' => $path,
             ]);

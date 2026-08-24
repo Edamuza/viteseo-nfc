@@ -20,8 +20,9 @@ use Illuminate\Support\Facades\DB;
  * needed exactly these four lines.
  *
  * Each public method delegates to a private helper that runs exactly one
- * database transaction, then deletes the contact photo and unsets the in-memory
- * relation. File deletion is deliberately post-commit for both entry points:
+ * database transaction, then deletes the contact photo and the profile avatar
+ * and unsets both in-memory relations. File deletion is deliberately post-commit
+ * for both entry points:
  * filesystem deletes do not roll back, and a file removed while the profile
  * row survives would show a broken image on a live contact page.
  */
@@ -59,8 +60,8 @@ class CardResetService
 
     /**
      * Clears the NFC payload (and any extra columns the caller supplies) in one
-     * transaction, then removes the contact photo from disk and drops the
-     * loaded relation from the in-memory model.
+     * transaction, then removes the contact photo and the profile avatar from
+     * disk and drops both loaded relations from the in-memory model.
      *
      * @param  array<string, mixed>  $extraColumns  Additional card columns to null out
      */
