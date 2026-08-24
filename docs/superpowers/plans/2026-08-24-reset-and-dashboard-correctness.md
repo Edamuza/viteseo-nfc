@@ -368,6 +368,15 @@ Add to `tests/Feature/DashboardStatusTest.php`:
         $this->assertFalse(Card::query()->whereNfcModeConfigured()->whereKey($card->getKey())->exists());
     }
 
+    // As delivered, the two tests below were generalised into a data provider
+    // covering every branch, not just contact-on-phone: an active link on a
+    // contact-mode card, a phone number on an email-mode card, an email address
+    // on a links-mode card, and empty-string (not just NULL) phone and email
+    // columns. Each case was mutation-tested by deleting the corresponding
+    // `where('nfc_mode', ...)` predicate and confirming a failure. Do not
+    // narrow this back to one case — the mode predicates are what stop another
+    // mode's leftover data from reading as configured, and only these fixtures
+    // hold them in place.
     public function test_another_modes_data_does_not_configure_the_current_mode(): void
     {
         // A phone-mode card holding only contact details is not configured: the
@@ -414,15 +423,17 @@ In `app/Models/Card.php`, add `use Illuminate\Database\Eloquent\Builder;` to the
                     ->whereHas('contactProfile', fn ($p) => $p->meaningful()))
               ->orWhere(fn (Builder $w) => $w
                     ->where('nfc_mode', NfcMode::Phone->value)
-                    ->where('nfc_phone_number', '!=', ''))
+                    ->whereRaw("coalesce(nfc_phone_number, '') != ''"))
               ->orWhere(fn (Builder $w) => $w
                     ->where('nfc_mode', NfcMode::Email->value)
-                    ->where('nfc_email_address', '!=', ''));
+                    ->whereRaw("coalesce(nfc_email_address, '') != ''"));
         };
 
         return $configured ? $query->where($matches) : $query->whereNot($matches);
     }
 ```
+
+`nfc_phone_number` and `nfc_email_address` are nullable, and `coalesce` is load-bearing rather than defensive. A bare `where('nfc_phone_number', '!=', '')` gets the positive case right by accident — SQL evaluates `NULL != ''` to UNKNOWN, and a WHERE clause drops UNKNOWN rows, which happens to match the PHP method. But `NOT UNKNOWN` is still UNKNOWN, so the negated form drops the same rows instead of selecting them, and `whereNfcModeConfigured(false)` stops being the complement of `whereNfcModeConfigured()`. Coercing NULL to `''` first makes the predicate two-valued, so the negation is exact. This mirrors the PHP side's `(string) $this->nfc_phone_number !== ''` cast, and it is the same reason Task 2's scope wraps its columns in `coalesce`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
