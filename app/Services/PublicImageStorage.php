@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Removing a contact photo from the public disk.
+ * Removing a publicly served image from the public disk.
  *
  * A contact photo is served from a guessable /storage/... URL. Once the row
  * pointing at it is gone the app can no longer render it, but the file itself is
@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Storage;
  * file that was already absent, which is a success for our purposes, so the
  * check is whether the file is still there afterwards.
  */
-class ContactPhotoStorage
+class PublicImageStorage
 {
     public function forget(?string $path, Card $card): void
     {

@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\Card;
 use App\Services\CardResetService;
 use App\Services\CardGenerationService;
-use App\Services\ContactPhotoStorage;
+use App\Services\PublicImageStorage;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -18,7 +18,7 @@ use Tests\TestCase;
  * while the card was live. On a re-issued card that is the previous holder's
  * face. These tests pin that such a failure is recorded rather than swallowed.
  */
-class ContactPhotoStorageTest extends TestCase
+class PublicImageStorageTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -43,7 +43,7 @@ class ContactPhotoStorageTest extends TestCase
         Storage::disk('public')->put('contact-photos/old.jpg', 'x');
         Log::spy();
 
-        app(ContactPhotoStorage::class)->forget('contact-photos/old.jpg', $this->card());
+        app(PublicImageStorage::class)->forget('contact-photos/old.jpg', $this->card());
 
         Storage::disk('public')->assertMissing('contact-photos/old.jpg');
         Log::shouldNotHaveReceived('error');
@@ -55,7 +55,7 @@ class ContactPhotoStorageTest extends TestCase
         $this->fakeUndeletableDisk();
         Log::spy();
 
-        app(ContactPhotoStorage::class)->forget('contact-photos/old.jpg', $card);
+        app(PublicImageStorage::class)->forget('contact-photos/old.jpg', $card);
 
         Log::shouldHaveReceived('error')->once()->withArgs(
             fn (string $message, array $context) => str_contains($message, 'publicly reachable')
@@ -68,8 +68,8 @@ class ContactPhotoStorageTest extends TestCase
     {
         $this->fakeUndeletableDiskIsNotUsed();
 
-        app(ContactPhotoStorage::class)->forget(null, $this->card());
-        app(ContactPhotoStorage::class)->forget('', $this->card());
+        app(PublicImageStorage::class)->forget(null, $this->card());
+        app(PublicImageStorage::class)->forget('', $this->card());
 
         $this->addToAssertionCount(1);
     }

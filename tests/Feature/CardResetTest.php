@@ -64,6 +64,12 @@ class CardResetTest extends TestCase
             'qr_configured_at'  => '2024-06-15 09:30:00',
         ])->save();
 
+        Storage::disk('public')->put('profile-avatars/old.jpg', 'not-really-a-jpeg');
+
+        $profile = $card->profile()->make(['display_name' => 'John Doe', 'headline' => 'CEO, Acme Ltd']);
+        $profile->avatar_path = 'profile-avatars/old.jpg';
+        $card->profile()->save($profile);
+
         return $card->fresh();
     }
 
@@ -73,6 +79,7 @@ class CardResetTest extends TestCase
 
         $this->assertSame(0, $card->nfcLinks()->count(), 'links');
         $this->assertNull($card->contactProfile, 'contact profile');
+        $this->assertNull($card->profile, 'profile');
         $this->assertNull($card->nfc_phone_number, 'phone');
         $this->assertNull($card->nfc_email_address, 'email address');
         $this->assertNull($card->nfc_email_subject, 'email subject');
@@ -104,6 +111,30 @@ class CardResetTest extends TestCase
         app(CardResetService::class)->resetNfcSide($card);
 
         Storage::disk('public')->assertMissing('contact-photos/old.jpg');
+    }
+
+    public function test_resetting_the_nfc_side_deletes_the_profile_avatar_file(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        Storage::disk('public')->assertExists('profile-avatars/old.jpg');
+
+        app(CardResetService::class)->resetNfcSide($card);
+
+        Storage::disk('public')->assertMissing('profile-avatars/old.jpg');
+    }
+
+    public function test_resetting_the_nfc_side_clears_the_profile_row(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        $this->assertNotNull($card->profile, 'the fixture has a profile to clear');
+
+        app(CardResetService::class)->resetNfcSide($card);
+
+        $this->assertNull($card->fresh()->profile);
     }
 
     public function test_resetting_the_nfc_side_leaves_the_qr_alone(): void

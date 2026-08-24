@@ -11,7 +11,7 @@ use App\Rules\SafeExternalUrl;
 use App\Rules\SafePhoneNumber;
 use App\Services\CardGenerationService;
 use App\Services\CardResetService;
-use App\Services\ContactPhotoStorage;
+use App\Services\PublicImageStorage;
 use App\Services\ImageIngest;
 use App\Services\QrCodeService;
 use Illuminate\Http\JsonResponse;
@@ -29,7 +29,7 @@ class CardController extends Controller
         private readonly CardGenerationService $cards,
         private readonly QrCodeService $qr,
         private readonly CardResetService $reset,
-        private readonly ContactPhotoStorage $photos,
+        private readonly PublicImageStorage $photos,
         private readonly ImageIngest $images,
     ) {}
 

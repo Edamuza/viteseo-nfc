@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\DB;
  *
  * When a mode is added, this file is the single place that has to learn about
  * it. A mode missed here means a card the admin was told is blank still
- * answers with someone else's data.
+ * answers with someone else's data. Profile mode was added in increment 2 and
+ * needed exactly these four lines.
  *
  * Each public method delegates to a private helper that runs exactly one
  * database transaction, then deletes the contact photo and unsets the in-memory
@@ -26,7 +27,7 @@ use Illuminate\Support\Facades\DB;
  */
 class CardResetService
 {
-    public function __construct(private readonly ContactPhotoStorage $photos) {}
+    public function __construct(private readonly PublicImageStorage $photos) {}
 
     /**
      * Clears everything the permanent NFC URL can serve, in every mode, and
@@ -65,12 +66,17 @@ class CardResetService
      */
     private function reset(Card $card, array $extraColumns = []): void
     {
-        $photoPath = $card->contactProfile?->photo_path;
+        $photoPath  = $card->contactProfile?->photo_path;
+        $avatarPath = $card->profile?->avatar_path;
 
         DB::transaction(function () use ($card, $extraColumns) {
             $card->nfcLinks()->delete();
 
-            if ($profile = $card->contactProfile) {
+            if ($contact = $card->contactProfile) {
+                $contact->delete();
+            }
+
+            if ($profile = $card->profile) {
                 $profile->delete();
             }
 
@@ -93,8 +99,10 @@ class CardResetService
         // that outlives the row is the worse-kept secret, so the storage helper
         // logs it rather than letting it pass unnoticed.
         $this->photos->forget($photoPath, $card);
+        $this->photos->forget($avatarPath, $card);
 
         // The in-memory model may still hold the profile we just deleted.
         $card->unsetRelation('contactProfile');
+        $card->unsetRelation('profile');
     }
 }
