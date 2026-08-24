@@ -774,21 +774,57 @@ Add to `app/Services/CardResetService.php`:
     /**
      * resetNfcSide() plus the QR destination.
      *
-     * Expressed as a composition rather than its own column list, so a mode
-     * added to resetNfcSide() is automatically covered here too.
+     * Passes the two QR columns to the shared reset helper so they are cleared
+     * in the same transaction as the NFC payload — no nested transactions,
+     * no duplicated NFC column list.
      */
     public function resetEverything(Card $card): void
     {
-        DB::transaction(function () use ($card) {
-            $this->resetNfcSide($card);
-
-            $card->forceFill([
-                'qr_destination'   => null,
-                'qr_configured_at' => null,
-            ])->save();
-        });
+        $this->reset($card, [
+            'qr_destination'   => null,
+            'qr_configured_at' => null,
+        ]);
     }
 ```
+
+This requires restructuring Task 4's method rather than wrapping it. Wrapping does not work: `resetNfcSide()` deletes the photo file straight after its own transaction, and under nesting that inner commit is only a savepoint release, so a failing QR save would roll the profile row back with the file already gone — reinstating the bug Task 4 exists to fix, one level up.
+
+So both public methods become one-line delegations to a private helper that takes the extra columns:
+
+```php
+    private function reset(Card $card, array $extraColumns = []): void
+    {
+        $photoPath = $card->contactProfile?->photo_path;
+
+        DB::transaction(function () use ($card, $extraColumns) {
+            $card->nfcLinks()->delete();
+
+            if ($profile = $card->contactProfile) {
+                $profile->delete();
+            }
+
+            $card->forceFill(array_merge([
+                'nfc_mode'          => NfcMode::Links,
+                'nfc_configured_at' => null,
+                'nfc_phone_number'  => null,
+                'nfc_email_address' => null,
+                'nfc_email_subject' => null,
+                'nfc_email_body'    => null,
+                'nfc_page_title'    => null,
+                'nfc_page_subtitle' => null,
+                'nfc_logo_path'     => null,
+            ], $extraColumns))->save();
+        });
+
+        if ($photoPath) {
+            Storage::disk('public')->delete($photoPath);
+        }
+
+        $card->unsetRelation('contactProfile');
+    }
+```
+
+One transaction, one post-commit file deletion, and the NFC column list written once — which is the property that matters when a fifth mode is added, since one edit then covers both entry points.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1423,7 +1459,7 @@ Out of scope for this increment, by design: `NfcMode::Profile`, the `nfc_profile
 
 ## Notes for the implementer
 
-- `resetEverything()` opens a transaction and calls `resetNfcSide()`, which opens another. Laravel implements the inner one as a savepoint, so this is safe and intentional — it keeps the QR clear atomic with the NFC clear.
+- Both reset methods delegate to a single private helper with one transaction. Do not reintroduce nesting: see Task 5 for why wrapping `resetNfcSide()` puts the photo file at risk of a rollback it cannot undo.
 - `Storage::fake('public')` must be called before `fullyPopulatedCard()`, because that helper writes the fake contact photo.
 - The `AdminTest.php` updates named in Tasks 6, 8 and 9 are conditional. Read the file first; if it makes no assertion on those strings or numbers, drop it from the `git add`.
 - `bootstrap/cache/routes-v7.php` exists in this repo. If a route change ever seems not to take effect, `php artisan route:clear`. No task here changes routes, so it should not come up.
