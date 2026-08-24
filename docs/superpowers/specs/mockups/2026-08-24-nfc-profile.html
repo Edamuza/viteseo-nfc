@@ -21,10 +21,10 @@
 <title>Uriel Papa</title>
 <style>
 :root{
-  /* --brand is the client's chosen colour. --brand-soft and --on-brand are
-     DERIVED SERVER-SIDE: soft is the same hue at low alpha for the cover, and
-     on-brand flips between light and dark by relative luminance so footer text
-     stays legible whatever colour is picked. */
+  /* --brand is EXTRACTED FROM THE UPLOADED AVATAR by DominantColor, then
+     normalised into a dark lightness band so light text is always legible.
+     --brand-soft is the same RGB at low alpha, used for the cover. Nobody picks
+     these; there is no colour input anywhere in the admin. */
   --brand:#1d5b45;
   --brand-soft:rgba(29,91,69,.34);
   --on-brand:#e8f1ec;

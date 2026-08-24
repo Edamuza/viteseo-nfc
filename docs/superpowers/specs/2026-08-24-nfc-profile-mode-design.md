@@ -72,11 +72,11 @@ belong on the hot `cards` row.
 | `welcome_body` | text nullable | max 600 chars, enforced in validation |
 | `welcome_cta_label` | string(60) nullable | "Book a free consultation" |
 | `welcome_cta_url` | string(500) nullable | validated with `SafeExternalUrl` |
-| `brand_color` | string(7) nullable | `#RRGGBB`; drives the page background (section 15) |
+| `brand_color` | string(7) nullable | `#RRGGBB`; **derived from the avatar**, not user input (section 15) |
 | `timestamps` | | `updated_at` backs the "Last updated" row |
 
 `App\Models\NfcProfile` mirrors `NfcContactProfile`: an explicit `$fillable`
-allow-list that omits `card_id` and `avatar_path` (paths are set only
+allow-list that omits `card_id`, `avatar_path` and `brand_color` (these are set only
 by the controller from a server-generated name), a `belongsTo(Card::class)`, and:
 
 - `isMeaningful(): bool` — true when `display_name` is non-empty. A profile page
@@ -141,6 +141,10 @@ Call sites: contact photo (`contact-photos`, 800) and profile avatar
 (`profile-avatars`, 512). There is no cover upload — the cover is a translucent
 wash of the brand colour, so the avatar is the only new image in this feature.
 
+The avatar path additionally hands the decoded GD resource to
+`DominantColor` (section 15) before it is freed, so the page's brand colour is
+computed from the same decode rather than by reopening the stored file.
+
 One behavioural improvement while extracting: the current code calls `abort_if(...,
 422)`, which shows an admin a raw error page. The service throws a domain
 exception instead, and the calling controller converts it into a normal validation
@@ -201,10 +205,11 @@ DELETE /profile/avatar  → deleteAvatar
 ```
 
 Validation: `display_name` max 120, `headline` max 200, `username` max 60,
-`location` max 100, `tagline` max 200, `brand_color` matching `/^#[0-9a-f]{6}$/i`,
-and `avatar` using the same rules as the existing contact photo (`image`,
-`mimes:jpeg,png,webp`, `max:2048`,
+`location` max 100, `tagline` max 200, and `avatar` using the same rules as the
+existing contact photo (`image`, `mimes:jpeg,png,webp`, `max:2048`,
 `dimensions:max_width=4000,max_height=4000`).
+
+There is no `brand_color` input. It is derived from the avatar (section 15).
 
 Every text value passes through the same control-character strip already used for
 contact fields, so nothing can smuggle a CR/LF into stored data.
@@ -243,9 +248,9 @@ The structure is a **coloured page frame with light content cards** — never a
 fully dark page. The cards are white with dark text; only the background, the
 footer links and the overflow-menu trigger sit on the coloured field.
 
-The frame colour itself is not fixed. It comes from the client's `brand_color`,
-with contrast handled as described in section 15. The near-black used in the first
-mockup is now only the fallback when no colour has been chosen.
+The frame colour itself is not fixed. It is extracted from the uploaded avatar and
+normalised into a dark band, as described in section 15. The near-black used in the
+first mockup is now only the fallback for cards without a usable photo.
 
 This is the first public page that is not light-first, so the palette lives in this
 view's own `:root` block rather than being pushed into a shared layout. The
@@ -332,13 +337,20 @@ For client self-service editing:
 
 For brand colour:
 
-- `brand_color` accepts `#1d5b45` and rejects `red`, `#xyz`, `javascript:` and a
-  bare `1d5b45`, so nothing unparseable can reach a `style` attribute.
-- A dark brand colour yields light `--on-brand`; a pale one yields dark. This is
-  asserted at the luminance boundary, since getting it backwards makes the footer
-  unreadable without erroring.
-- A null `brand_color` falls back to the default without emitting an empty
-  custom property.
+- `DominantColor` on a fixture that is mostly one strong hue returns that hue.
+- Every colour it returns is inside the dark band. This is the assertion the whole
+  feature rests on: a value outside it makes the footer text unreadable, and a
+  neon page is not something a test would otherwise catch.
+- A grayscale fixture and a fully transparent fixture both fall back to the
+  default rather than inventing a hue.
+- A pale fixture and a neon fixture both return a colour whose hue matches the
+  input but whose lightness has been pulled into the band.
+- `brand_color` is not mass-assignable: posting it to the admin and client update
+  endpoints leaves the stored value untouched.
+- Replacing the avatar recomputes the colour; deleting the avatar clears it and
+  the page falls back to the default without emitting an empty custom property.
+- Whatever ends up stored, it always matches `/^#[0-9a-f]{6}$/`, since the value
+  is interpolated into a `style` attribute.
 
 For the global pages:
 
@@ -449,29 +461,74 @@ it is full-bleed either way.
 
 ### 15. Brand colour
 
-The page background is **not** a fixed near-black. It is the client's chosen
-colour, stored per profile in `brand_color` as `#RRGGBB` and validated against
-that exact pattern. The cover is the same colour at low alpha, so it reads as a
-lighter wash of the same hue rather than a separate decoration. The avatar
-placeholder uses the solid colour.
+The page background is **not** a fixed near-black. It is derived from the
+cardholder's uploaded avatar, so the page automatically dresses itself in the
+colours of the photo on it. Nobody picks a colour: there is no colour picker in
+the admin and none on the client edit form.
 
-Three CSS custom properties are emitted; only the first is stored:
+`brand_color` is therefore a **derived, cached column**, not user input. Like
+`avatar_path` it is omitted from `$fillable` and written only by the service
+below, so no request can set it directly. It is recomputed whenever the avatar is
+uploaded or replaced, and cleared when the avatar is deleted. It is never computed
+per request — decoding an image on every public page view would be absurd for a
+value that changes only when the photo does.
+
+#### Extraction: `App\Services\DominantColor`
+
+A separate service from `ImageIngest`, because finding a colour and safely
+storing an upload are unrelated concerns. It runs on the already-decoded GD
+resource that `ImageIngest` produces, so the file is never read twice.
+
+1. Downscale to 32×32. Sampling every pixel of a 512px avatar buys no accuracy.
+2. Discard near-white, near-black and very low-saturation pixels. Studio photos
+   are mostly backdrop and skin; without this step the "dominant" colour of
+   almost every portrait is beige.
+3. Bucket the survivors into a coarse histogram (4 bits per channel), take the
+   most populous bucket, then average the actual pixels inside it for a precise
+   value rather than the bucket's centre.
+4. **Normalise lightness into a dark band.** Keep the hue and most of the
+   saturation; force HSL lightness to roughly 18–24%.
+
+Step 4 is the one that makes this feature safe. A colour lifted straight out of a
+photo is frequently pale, neon, or both — a bright yellow shirt would yield a
+neon yellow page with invisible white footer text and white cards dissolving into
+the background. Normalising the lightness means the extracted hue is honoured
+while the page stays in the same tonal family as the mockup no matter what photo
+is uploaded. A pale pink avatar produces a deep rose page, not a pink one.
+
+It also means **contrast is correct by construction rather than by calculation.**
+Because every stored `brand_color` is guaranteed dark, `--on-brand` is a fixed
+light value and no luminance branch is needed. The luminance check that an
+arbitrary user-chosen colour would have required disappears along with the
+colour picker.
+
+Fallbacks, all resolving to the default near-black `#0f1713`:
+
+- No avatar uploaded.
+- Grayscale or near-grayscale avatar, where step 2 leaves too few pixels to be
+  meaningful. Forcing a hue out of a black-and-white photo invents information.
+- Any GD failure during extraction. A page that renders in the default colour is
+  a much better outcome than a page that does not render.
+
+#### Emitted properties
 
 | Property | Source |
 |---|---|
-| `--brand` | `brand_color`, or a default when null |
+| `--brand` | `brand_color`, or the default when null |
 | `--brand-soft` | same RGB at ~34% alpha, for the cover |
-| `--on-brand` | light or dark, chosen by relative luminance |
+| `--on-brand` | fixed light value, safe because `--brand` is always dark |
 
-**`--on-brand` must be computed, not hard-coded.** The footer links and the `...`
-trigger sit directly on the brand colour. If a client picks a pale colour and the
-text stays light, those elements become invisible. The view computes the WCAG
-relative luminance of `brand_color` in PHP and emits light text below the
-threshold and dark text above it. This is why the colour is stored as a strict
-hex string rather than free-form CSS: the value has to be parseable to be safe.
+The cover is `--brand-soft`, so it reads as a lighter wash of the same hue rather
+than a separate decoration. The avatar placeholder shown when there is no photo
+uses the solid colour.
 
-For the same reason the white cards gain a hairline `rgba(0,0,0,.06)` border, so
-they remain distinguishable when the brand colour is near-white.
+The white cards still carry a hairline `rgba(0,0,0,.06)` border. It is not
+strictly required now that the background is guaranteed dark, but it keeps the
+card edges crisp against a saturated colour.
+
+If a client ever ends up with an extracted colour they dislike, the recovery is a
+single nullable override column and one admin field. That is deliberately not
+built now — the point of this design is that it needs no input.
 
 ### 16. Global ViteSEO pages
 
@@ -518,9 +575,9 @@ depend on any of the others and fixes live bugs, so it lands first.
 4. **Global ViteSEO pages** (section 16). The `site_pages` table with seeded rows,
    the three footer modals, and the `/admin/site-pages` editor. Self-contained and
    touches no card data.
-5. **Admin surface** (section 7), including the welcome-block and `brand_color`
-   fields, plus wiring Profile into the reset and dashboard logic delivered in
-   step 1.
+5. **Admin surface** (section 7), including the welcome-block fields and the
+   `DominantColor` extraction wired into avatar upload, plus wiring Profile into
+   the reset and dashboard logic delivered in step 1.
 6. **Client self-service editing** (section 13). The PIN-gated edit form, rate
    limiting, the `nfc_profile_edits` audit table and the admin revert action.
    Deliberately last: it is the only increment that lets an unauthenticated
@@ -537,8 +594,10 @@ depend on any of the others and fixes live bugs, so it lands first.
 - A card's two QR codes now both appear in the UI and encode different URLs, with
   nothing on screen saying which is which. A test is the only thing keeping them
   from being swapped.
-- The page's background colour is client-controlled, which makes text contrast a
-  computed property rather than a fixed design choice. Section 15 covers it.
+- The page's background colour is now a function of an uploaded photo, so a bad
+  avatar produces a bad page with nobody having made a choice. The lightness
+  normalisation in section 15 is what keeps that from being a visual failure, and
+  there is no manual override by design.
 - `site_pages` content is global. One bad edit there is visible on every card in
   the system at once, so that editor is admin-only and its output is escaped.
 - Profile mode becomes the only mode where a visitor can edit an
