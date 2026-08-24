@@ -402,4 +402,55 @@ class DashboardStatusTest extends TestCase
         $this->assertSame(0, $stats['fullyConfigured']);
         $this->assertSame(0, $stats['fullyUnconfigured']);
     }
+
+    /**
+     * Uses the query log rather than DB::listen: this helper runs twice in one
+     * test, and a listener registered on the first call would still be attached
+     * on the second, double-counting every query.
+     */
+    private function dashboardQueryCount(User $admin): int
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $this->actingAs($admin)->get('/admin')->assertOk();
+
+        $count = count(DB::getQueryLog());
+
+        DB::disableQueryLog();
+        DB::flushQueryLog();
+
+        return $count;
+    }
+
+    /**
+     * Every row calls nfcModeIsConfigured(), which reads links and the contact
+     * profile. Both are meant to be free - the link count arrives as a
+     * correlated subquery and the profile is eager-loaded - but nothing else
+     * proves it, and an N+1 on the admin's landing page stays invisible until
+     * the table is large.
+     */
+    public function test_dashboard_query_count_does_not_grow_with_the_number_of_cards(): void
+    {
+        $admin = $this->admin();
+
+        foreach (['links', 'contact', 'phone', 'email'] as $mode) {
+            $this->cardInMode($mode, true);
+        }
+        $small = $this->dashboardQueryCount($admin);
+
+        // 20 rows: still one page, so pagination is not the variable here.
+        for ($i = 0; $i < 4; $i++) {
+            foreach (['links', 'contact', 'phone', 'email'] as $mode) {
+                $this->cardInMode($mode, true);
+            }
+        }
+        $large = $this->dashboardQueryCount($admin);
+
+        $this->assertSame(
+            $small,
+            $large,
+            'the dashboard issued more queries for more rows: an N+1 has been introduced'
+        );
+    }
 }
