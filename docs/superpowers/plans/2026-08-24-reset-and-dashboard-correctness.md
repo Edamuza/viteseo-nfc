@@ -531,9 +531,14 @@ class CardResetTest extends TestCase
             'nfc_page_title'    => 'Acme',
             'nfc_page_subtitle' => 'Links',
             'nfc_logo_path'     => 'logos/acme.png',
-            'nfc_configured_at' => now(),
+            // Fixed, historical, and deliberately not now(): a fixture value
+            // that coincides with what a bug would write proves nothing. If the
+            // service ever overwrote qr_configured_at with now(), a now()
+            // fixture would match it to the second and the guard below would
+            // pass while the QR side had in fact been touched.
+            'nfc_configured_at' => '2024-06-15 09:30:00',
             'qr_destination'    => 'https://example.com/qr',
-            'qr_configured_at'  => now(),
+            'qr_configured_at'  => '2024-06-15 09:30:00',
         ])->save();
 
         return $card->fresh();
@@ -582,12 +587,16 @@ class CardResetTest extends TestCase
     {
         Storage::fake('public');
         $card = $this->fullyPopulatedCard();
+        $originalQrConfiguredAt = $card->qr_configured_at->format('Y-m-d H:i:s');
 
         app(CardResetService::class)->resetNfcSide($card);
         $card->refresh();
 
         $this->assertSame('https://example.com/qr', $card->qr_destination);
-        $this->assertNotNull($card->qr_configured_at);
+
+        // Exact equality, not assertNotNull: "untouched" has to mean untouched,
+        // and a service that rewrote this to now() would satisfy a null check.
+        $this->assertSame($originalQrConfiguredAt, $card->qr_configured_at->format('Y-m-d H:i:s'));
     }
 
     public function test_resetting_the_nfc_side_keeps_the_permanent_identity(): void
@@ -653,13 +662,13 @@ class CardResetService
      */
     public function resetNfcSide(Card $card): void
     {
+        // Read before the transaction: the model is gone by the time it commits.
+        $photoPath = $card->contactProfile?->photo_path;
+
         DB::transaction(function () use ($card) {
             $card->nfcLinks()->delete();
 
             if ($profile = $card->contactProfile) {
-                if ($profile->photo_path) {
-                    Storage::disk('public')->delete($profile->photo_path);
-                }
                 $profile->delete();
             }
 
@@ -675,6 +684,14 @@ class CardResetService
                 'nfc_logo_path'     => null,
             ])->save();
         });
+
+        // Delete the photo only after the transaction commits. Filesystem
+        // deletes do not roll back; a file removed while the profile row
+        // survives would show a broken image on a live contact page. An
+        // orphaned file after a successful reset costs disk space only.
+        if ($photoPath) {
+            Storage::disk('public')->delete($photoPath);
+        }
 
         // The in-memory model may still hold the profile we just deleted.
         $card->unsetRelation('contactProfile');
