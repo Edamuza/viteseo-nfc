@@ -127,7 +127,6 @@
 
   {{-- ================= LINKS MODE ================= --}}
   @if ($mode === $M::Links)
-    @php $links = $card->nfcLinks; $active = $links->where('is_active', true); @endphp
     <div class="section-sep">
       <label class="fld">Status</label>
       <p class="small" style="margin:0 0 4px">
@@ -180,8 +179,13 @@
         </p>
       </form>
       @if ($nfcProfile)
+        {{-- The dialog names the scope, not the fields. deleteProfile() deletes
+             the whole nfc_profiles row, so a list of the columns that row holds
+             today ("display name, profile avatar") is a promise that gets
+             quietly shorter than the truth with every field a later increment
+             adds — exactly how the two reset dialogs above went stale. --}}
         <form id="del-profile" method="POST" action="{{ route('admin.cards.profile.delete', $card->public_id) }}"
-              onsubmit="return confirm('Delete ALL profile details for this card?\n\nCLEARED: display name, profile avatar.\nKEPT: NFC links, QR destination, contact / phone / email data.\n\nThis is permanent. Switching modes does not do this — only this button does.')">
+              onsubmit="return confirm('Delete the profile page for this card?\n\nCLEARED: every profile page field, and the uploaded image if there is one. Nothing of the profile is kept.\nKEPT: all NFC links, the QR destination, and the contact / phone / email data.\n\nThis is permanent. Switching modes does not do this — only this button does.')">
           @csrf @method('DELETE')
         </form>
       @endif
@@ -382,18 +386,40 @@
        names everything CardResetService::resetEverything() actually clears. It
        listed only links and landing-page details for two increments after the
        service grew the contact profile, its photo, the profile row and the
-       avatar. --}}
+       avatar.
+
+       Both buttons are here rather than beside the fields they clear. Reset NFC
+       used to sit in the shared link editor's "Add link" row, gated on the card
+       having at least one link — so a Profile card with a finished profile and
+       no links was offered nothing, and adding one link made a
+       profile-destroying control appear next to "Add link". Neither action is
+       scoped to a mode, so neither belongs inside one. --}}
   <p class="small" style="margin:0 0 14px;color:var(--text-soft)">
-    Clears the QR destination, all NFC links and the landing page details, the contact card and its photo,
-    the profile page and its avatar, and any saved phone number or email action.
-    <strong>Keeps</strong> the card number, public ID, both permanent URLs and the activation PIN,
+    <strong>Reset NFC</strong> clears everything the NFC URL can serve in every mode — all NFC links
+    and the landing page details, the contact card and its photo, the profile page and its avatar,
+    and any saved phone number or email action — and returns the card to Links mode.
+    The QR destination survives. <strong>Reset entire card</strong> does all of that and clears the
+    QR destination too.
+    Both <strong>keep</strong> the card number, public ID, both permanent URLs and the activation PIN,
     so the physical card stays usable.
   </p>
-  <form method="POST" action="{{ route('admin.cards.reset', $card->public_id) }}"
-        onsubmit="return confirm('Reset the ENTIRE card?\n\nCLEARED: QR destination, all NFC links, landing page details, contact card and photo, profile page and avatar, saved phone number, saved email action.\nKEPT: card number, public ID, both permanent URLs, activation PIN.\n\nThis cannot be undone.')">
-    @csrf @method('DELETE')
-    <button class="btn btn-d" type="submit">Reset entire card</button>
-  </form>
+  <div class="row row-tight">
+    {{-- The dialog lists every mode, because resetNfcSide() clears every mode.
+         It used to promise that "saved contact/phone/email data are NOT
+         affected", which was true when the action only knew about links and
+         false from the moment reset was centralised - an admin who read it and
+         pressed the button lost the contact card it said would survive. --}}
+    <form method="POST" action="{{ route('admin.cards.nfc.reset', $card->public_id) }}"
+          onsubmit="return confirm('Reset the ENTIRE NFC side?\n\nCLEARED: all links, landing page details, contact card and photo, profile page and avatar, saved phone number, saved email action. The mode returns to Links.\nKEPT: the QR destination and both permanent URLs.\n\nThis cannot be undone.')">
+      @csrf @method('DELETE')
+      <button class="btn btn-d" type="submit">Reset NFC</button>
+    </form>
+    <form method="POST" action="{{ route('admin.cards.reset', $card->public_id) }}"
+          onsubmit="return confirm('Reset the ENTIRE card?\n\nCLEARED: QR destination, all NFC links, landing page details, contact card and photo, profile page and avatar, saved phone number, saved email action. The mode returns to Links.\nKEPT: card number, public ID, both permanent URLs, activation PIN.\n\nThis cannot be undone.')">
+      @csrf @method('DELETE')
+      <button class="btn btn-d" type="submit">Reset entire card</button>
+    </form>
+  </div>
 </div>
 
 <style>

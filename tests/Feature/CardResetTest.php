@@ -470,6 +470,7 @@ class CardResetTest extends TestCase
             'the profile page'      => ['profile page and avatar'],
             'the saved phone'       => ['phone number'],
             'the saved email'       => ['email action'],
+            'the mode it returns to' => ['mode returns to Links'],
         ];
     }
 
@@ -508,8 +509,9 @@ class CardResetTest extends TestCase
     #[\PHPUnit\Framework\Attributes\DataProvider('everythingAnNfcResetDestroys')]
     public function test_the_nfc_reset_dialog_names_what_it_destroys(string $promise): void
     {
+        // No mode is forced: the button is card-wide, so it is reachable in
+        // every mode. The fixture is a Contact-mode card.
         $card = $this->fullyPopulatedCard();
-        $card->forceFill(['nfc_mode' => 'links'])->save();
 
         $confirm = $this->confirmTextFor($card, route('admin.cards.nfc.reset', $card->public_id));
 
@@ -522,8 +524,9 @@ class CardResetTest extends TestCase
 
     public function test_the_nfc_reset_dialog_promises_only_the_qr_survives(): void
     {
+        // No mode is forced: the button is card-wide, so it is reachable in
+        // every mode. The fixture is a Contact-mode card.
         $card = $this->fullyPopulatedCard();
-        $card->forceFill(['nfc_mode' => 'links'])->save();
 
         $confirm = $this->confirmTextFor($card, route('admin.cards.nfc.reset', $card->public_id));
 
@@ -547,6 +550,133 @@ class CardResetTest extends TestCase
         // The paragraph above the button, which is read before the dialog.
         $this->assertStringContainsString('contact card and its photo', $body);
         $this->assertStringContainsString('profile page and its avatar', $body);
+    }
+
+    // --- Where the Reset NFC button lives ------------------------------------
+
+    /**
+     * Reset NFC used to sit in the shared link editor's "Add link" row, gated on
+     * the card having at least one link. Two consequences, both of them the
+     * gate's fault as much as the placement's:
+     *
+     * A Profile card with a finished profile and no links had no way to clear
+     * the NFC side at all, short of "Reset entire card" - which also destroys
+     * the QR destination the printed card still points at. And adding a single
+     * link made a control appear, in the Add link row, that deletes the profile
+     * and returns the card to Links mode.
+     *
+     * The control does not depend on links, so it is not gated on links.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('everyNfcMode')]
+    public function test_reset_nfc_is_offered_on_a_card_with_no_links(string $mode): void
+    {
+        $card = $this->card();
+        $card->forceFill(['nfc_mode' => $mode])->save();
+
+        $this->assertSame(0, $card->nfcLinks()->count(), 'the fixture must have no links');
+
+        $confirm = $this->confirmTextFor($card, route('admin.cards.nfc.reset', $card->public_id));
+
+        $this->assertStringContainsString('ENTIRE NFC side', $confirm);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function everyNfcMode(): array
+    {
+        return collect(NfcMode::cases())
+            ->mapWithKeys(fn (NfcMode $m) => [$m->value => [$m->value]])
+            ->all();
+    }
+
+    /**
+     * An action that deletes the contact card, the profile and every link, in
+     * every mode, does not belong in the row where an admin adds one link. The
+     * Danger zone is where the card's other card-wide destructive action already
+     * lives, and its heading is the warning.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('everyNfcMode')]
+    public function test_reset_nfc_lives_in_the_danger_zone(string $mode): void
+    {
+        $card = $this->fullyPopulatedCard();
+        $card->forceFill(['nfc_mode' => $mode])->save();
+
+        $body = $this->actingAs($this->admin())
+            ->get('/admin/cards/'.$card->public_id)
+            ->assertOk()
+            ->getContent();
+
+        // Both needles are anchored, having each borrowed something on the
+        // first attempt: a stylesheet comment reading "/* Danger zone: ... */"
+        // sits 11kB above the heading, and the reset URL /nfc is a prefix of
+        // the mode form's /nfc-mode, which is the earliest match on the page.
+        $dangerZone = strpos($body, '<h2>Danger zone</h2>');
+        $resetNfc   = strpos($body, 'action="'.route('admin.cards.nfc.reset', $card->public_id).'"');
+
+        $this->assertNotFalse($dangerZone, 'the page has a Danger zone');
+        $this->assertNotFalse($resetNfc, 'the page offers Reset NFC');
+        $this->assertGreaterThan(
+            $dangerZone,
+            $resetNfc,
+            'Reset NFC appears before the Danger zone heading, so it is somewhere it does not belong'
+        );
+    }
+
+    /**
+     * The shared link editor is the table and the add form, nothing else. This
+     * is what stops the button drifting back in: the partial is included by two
+     * modes, so anything card-wide inside it is card-wide destruction shown
+     * twice, in a place scoped to links.
+     */
+    public function test_the_shared_link_editor_holds_nothing_card_wide(): void
+    {
+        $partial = file_get_contents(resource_path('views/admin/partials/nfc-links.blade.php'));
+
+        $this->assertStringContainsString('admin.cards.nfc.add', $partial, 'the add form is the point of it');
+        $this->assertStringNotContainsString('admin.cards.nfc.reset', $partial, 'card-wide reset is not link editing');
+        $this->assertStringNotContainsString('admin.cards.reset', $partial, 'card-wide reset is not link editing');
+        $this->assertStringNotContainsString('admin.cards.profile.delete', $partial);
+        $this->assertStringNotContainsString('admin.cards.contact.delete', $partial);
+    }
+
+    /**
+     * The state the increment-2 walkthrough never visited: the admin presses the
+     * door next to the safe one. Reset NFC from Profile mode is card-wide, so it
+     * takes the profile with it and hands the card back in Links mode - and the
+     * public URL must stop serving the profile.
+     */
+    public function test_reset_nfc_from_profile_mode_clears_the_profile_and_returns_to_links(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+        $card->forceFill(['nfc_mode' => 'profile'])->save();
+
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('John Doe');
+
+        $this->actingAs($this->admin())
+            ->delete('/admin/cards/'.$card->public_id.'/nfc')
+            ->assertRedirect();
+
+        $card->refresh();
+
+        $this->assertNull($card->profile, 'the profile row survived a card-wide NFC reset');
+        $this->assertSame(NfcMode::Links, $card->nfcMode(), 'the mode did not return to Links');
+        Storage::disk('public')->assertMissing('profile-avatars/old.jpg');
+
+        $this->assertStringNotContainsString(
+            'John Doe',
+            $this->get('/n/'.$card->public_id)->assertOk()->getContent()
+        );
+    }
+
+    public function test_reset_nfc_from_profile_mode_leaves_the_qr_destination_alone(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+        $card->forceFill(['nfc_mode' => 'profile'])->save();
+
+        $this->actingAs($this->admin())->delete('/admin/cards/'.$card->public_id.'/nfc');
+
+        $this->assertSame('https://example.com/qr', $card->fresh()->qr_destination);
     }
 
     public function test_a_reset_card_no_longer_serves_the_previous_holders_profile_page(): void

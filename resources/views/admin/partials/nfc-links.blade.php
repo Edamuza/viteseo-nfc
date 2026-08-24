@@ -7,6 +7,11 @@
      reach the table, which would change what the live public URL serves while
      they work.
 
+     The table and the add form, and nothing else. "Reset NFC" used to sit in
+     the Add link row here; it clears every mode and returns the card to Links,
+     which is card-wide destruction shown in a place scoped to links, twice over
+     now that two modes include this file. It lives in the Danger zone.
+
      Expects $card and $links (all of them, active and not - the table shows
      both, with a checkbox for the state). --}}
 
@@ -68,20 +73,6 @@
       <input type="text" name="title" placeholder="Label (e.g. Instagram)" maxlength="120" style="width:170px" required>
       <input type="url" name="url" placeholder="https://…" style="flex:1;min-width:200px" required>
       <button class="btn btn-sm btn-p" type="submit">Add link</button>
-      @if ($links->count())
-        <button class="btn btn-sm btn-d" type="submit" form="reset-nfc">Reset NFC</button>
-      @endif
     </div>
   </form>
-  @if ($links->count())
-    {{-- The dialog lists every mode, because resetNfcSide() clears every mode.
-         It used to promise that "saved contact/phone/email data are NOT
-         affected", which was true when the action only knew about links and
-         false from the moment reset was centralised - an admin who read it and
-         pressed the button lost the contact card it said would survive. --}}
-    <form id="reset-nfc" method="POST" action="{{ route('admin.cards.nfc.reset', $card->public_id) }}"
-          onsubmit="return confirm('Reset the ENTIRE NFC side?\n\nCLEARED: all links, landing page details, contact card and photo, profile page and avatar, saved phone number, saved email action. The mode returns to Links.\nKEPT: the QR destination and both permanent URLs.\n\nThis cannot be undone.')">
-      @csrf @method('DELETE')
-    </form>
-  @endif
 </div>

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\NfcMode;
 use App\Models\Card;
 use App\Models\NfcLink;
+use App\Models\NfcProfile;
 use App\Models\User;
 use App\Services\CardGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -99,6 +100,22 @@ class AdminProfilePanelTest extends TestCase
         }
 
         $this->assertMatchesRegularExpression('#'.$pattern.'#s', $body, $because);
+    }
+
+    /**
+     * The confirm() text of the form that submits to exactly this URL.
+     *
+     * Read out of the form's own onsubmit rather than searched for across the
+     * page, so an assertion cannot be satisfied by unrelated prose elsewhere.
+     */
+    private function confirmTextFor(Card $card, string $action): string
+    {
+        $pattern = '#<form[^>]*action="'.preg_quote($action, '#').'"[^>]*onsubmit="return confirm\((.*?)\)"#s';
+
+        $this->assertMatchesRegularExpression($pattern, $this->page($card), 'no confirmed form posts to '.$action);
+        preg_match($pattern, $this->page($card), $m);
+
+        return $m[1];
     }
 
     private function assertHasNoForm(string $body, string $action, ?string $method, string $because): void
@@ -268,6 +285,41 @@ class AdminProfilePanelTest extends TestCase
             'DELETE',
             'the button needs a DELETE form to submit'
         );
+    }
+
+    /**
+     * deleteProfile() deletes the whole nfc_profiles row, so the dialog has to
+     * describe the row. Enumerating the fields it happens to hold today - "display
+     * name, profile avatar" - is a promise scheduled to become false: increment 5
+     * adds the writers for headline, username, location, tagline, welcome_* and
+     * brand_color, and each one silently makes the list shorter than the truth.
+     * That is precisely how the two reset dialogs went stale.
+     *
+     * Driven from $fillable so a new field cannot be added without either the
+     * dialog staying scope-shaped or this test objecting.
+     */
+    public function test_the_delete_dialog_describes_the_row_rather_than_listing_its_fields(): void
+    {
+        $card    = $this->profileCard();
+        $confirm = $this->confirmTextFor($card, route('admin.cards.profile.delete', $card->public_id));
+
+        foreach ((new NfcProfile)->getFillable() as $column) {
+            $this->assertStringNotContainsStringIgnoringCase(
+                str_replace('_', ' ', $column),
+                $confirm,
+                "the dialog enumerates $column, so it will under-state the delete as soon as another field is added"
+            );
+        }
+    }
+
+    public function test_the_delete_dialog_says_the_links_and_the_qr_survive(): void
+    {
+        $card    = $this->profileCard();
+        $confirm = $this->confirmTextFor($card, route('admin.cards.profile.delete', $card->public_id));
+
+        $this->assertStringContainsString('KEPT', $confirm);
+        $this->assertStringContainsString('QR', $confirm, 'the per-mode delete exists precisely because it spares the QR');
+        $this->assertStringContainsStringIgnoringCase('links', $confirm);
     }
 
     public function test_there_is_nothing_to_delete_when_no_profile_row_exists(): void
