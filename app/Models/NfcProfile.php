@@ -74,7 +74,7 @@ class NfcProfile extends Model
             ? [$words[0]]
             : [$words[0], $words[count($words) - 1]];
 
-        return strtoupper(implode('', array_map(fn (string $w) => mb_substr($w, 0, 1), $letters)));
+        return mb_strtoupper(implode('', array_map(fn (string $w) => mb_substr($w, 0, 1), $letters)));
     }
 
     /**

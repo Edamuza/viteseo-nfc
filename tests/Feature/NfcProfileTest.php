@@ -252,11 +252,13 @@ class NfcProfileTest extends TestCase
     public static function initialsFixtures(): array
     {
         return [
-            'two words'    => ['Uriel Papa', 'UP'],
-            'one word'     => ['Uriel', 'U'],
-            'three words'  => ['Uriel Q Papa', 'UP'],
-            'lowercase'    => ['uriel papa', 'UP'],
-            'extra spaces' => ['  Uriel   Papa  ', 'UP'],
+            'two words'            => ['Uriel Papa', 'UP'],
+            'one word'             => ['Uriel', 'U'],
+            'three words'          => ['Uriel Q Papa', 'UP'],
+            'lowercase'            => ['uriel papa', 'UP'],
+            'extra spaces'         => ['  Uriel   Papa  ', 'UP'],
+            'lowercase non-ascii'  => ['ñigo pérez', 'ÑP'],
+            'mixed non-ascii'      => ['Ñigo cruz', 'ÑC'],
         ];
     }
 
@@ -280,6 +282,7 @@ class NfcProfileTest extends TestCase
 
         $this->assertStringNotContainsString('<script>alert(1)</script>', $body);
         $this->assertStringNotContainsString('<img src=x onerror=alert(2)>', $body);
+        $this->assertStringNotContainsString('"><b>u</b>', $body);
         $this->assertStringNotContainsString('<svg onload', $body);
         $this->assertStringNotContainsString('<iframe', $body);
         $this->assertStringContainsString('&lt;script&gt;', $body);
