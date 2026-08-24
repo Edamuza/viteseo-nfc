@@ -59,9 +59,9 @@ class CardResetTest extends TestCase
             'nfc_page_title'    => 'Acme',
             'nfc_page_subtitle' => 'Links',
             'nfc_logo_path'     => 'logos/acme.png',
-            'nfc_configured_at' => now(),
+            'nfc_configured_at' => '2024-06-15 09:30:00',
             'qr_destination'    => 'https://example.com/qr',
-            'qr_configured_at'  => now(),
+            'qr_configured_at'  => '2024-06-15 09:30:00',
         ])->save();
 
         return $card->fresh();
@@ -156,6 +156,8 @@ class CardResetTest extends TestCase
         } catch (\RuntimeException $e) {
             $this->assertSame('forced rollback', $e->getMessage());
         } finally {
+            // Blanket forget is safe only because this app registers no other
+            // Card saving listeners; re-check if that ever changes.
             Card::getEventDispatcher()?->forget('eloquent.saving: '.Card::class);
         }
 
