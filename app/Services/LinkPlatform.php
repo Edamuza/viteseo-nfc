@@ -36,8 +36,22 @@ class LinkPlatform
         'web'       => 'Website',
     ];
 
+    /**
+     * The platform key whose mark and label this URL has earned.
+     *
+     * A brand mark is a trust signal, so only a URL the visitor can actually
+     * follow may earn one. parse_url reports a host of x.com for
+     * "javascript://x.com/%0aalert(1)", so without the safeHref gate the row
+     * would wear the X mark and read "X" while leading nowhere real — the same
+     * borrowing the suffix anchoring below exists to stop, arriving through
+     * the scheme instead of the host.
+     */
     public static function forUrl(string $url): string
     {
+        if (self::safeHref($url) === '#') {
+            return 'web';
+        }
+
         $host = self::host($url);
 
         if ($host === '') {
@@ -75,15 +89,30 @@ class LinkPlatform
      *
      * Anything without an explicit http(s) scheme fails closed, including a
      * scheme-relative "//evil.tld" and input parse_url cannot read at all.
+     *
+     * A host is required as well as a scheme. Browsers treat "\" as "/" after
+     * a special scheme, so "https:/\/\x.com@evil.tld/pay" navigates to
+     * evil.tld while parse_url reports a scheme and no host — a live link
+     * whose authority nothing here ever saw. Demanding both matches
+     * SafeExternalUrl, which already requires scheme and host, so this can
+     * never reject something a validated write produced.
      */
     public static function safeHref(string $url): string
     {
         $trimmed = trim($url);
-        $scheme  = parse_url($trimmed, PHP_URL_SCHEME);
+        $parts   = parse_url($trimmed);
 
-        return is_string($scheme) && in_array(strtolower($scheme), SafeExternalUrl::ALLOWED_SCHEMES, true)
-            ? $trimmed
-            : '#';
+        if (! is_array($parts)) {
+            return '#';
+        }
+
+        $scheme = $parts['scheme'] ?? null;
+
+        return is_string($scheme)
+            && in_array(strtolower($scheme), SafeExternalUrl::ALLOWED_SCHEMES, true)
+            && (string) ($parts['host'] ?? '') !== ''
+                ? $trimmed
+                : '#';
     }
 
     /**
@@ -93,43 +122,70 @@ class LinkPlatform
      * Rebuilt from parse_url's components rather than stripped with a prefix
      * regex. A strip only removes what it recognises at the front and leaves
      * the rest, so "https://x.com@attacker.tld/pay" would read as though it
-     * led to x.com — and this line is the most-read thing in the panel. Taking
-     * the host parse_url reports means only the real authority can lead.
+     * led to x.com — and this line is the most-read thing in the panel.
+     *
+     * Only a URL safeHref would let through earns that short, host-leading
+     * form; everything else is returned verbatim, scheme included. The short
+     * form is an implicit claim that the row leads somewhere, and a dead row
+     * must not be able to make it. That gate is also what makes "only the real
+     * authority can lead" true rather than aspirational: safeHref guarantees a
+     * host, so there is no fallback path where an unparsed authority survives.
      *
      * The query is kept: it frequently *is* the destination (youtube.com/watch
-     * ?v=... is a different video per value). The fragment is dropped: it never
-     * reaches a server, so it cannot change which origin answers, and it is the
-     * one component an author can stuff with brand-shaped padding for free. The
-     * href keeps the whole URL either way, so nothing is lost by following it.
+     * ?v=... is a different video per value). The fragment is dropped when
+     * there is a real path, because there it is an in-page anchor that cannot
+     * change which resource is served — but kept when the path is empty or
+     * "/", because a hash-routed app puts its whole route there and
+     * "example.com/#/dashboard" and "example.com/#/settings" would otherwise
+     * render as two byte-identical rows leading to different places.
+     *
+     * Known limits, all inherent to showing a hostname at all and all
+     * mitigated by the row still reading "Website" under a globe rather than
+     * under a borrowed brand:
+     *
+     *  - "https://x.com.attacker.tld/pay" displays as "x.com.attacker.tld/pay".
+     *    The brand is genuinely in the host; only the suffix anchoring in
+     *    forUrl() stops it also collecting the mark.
+     *  - A unicode homograph ("аpple.com" with a Cyrillic а) renders as the
+     *    lookalike it is. Not reachable today, since SafeExternalUrl restricts
+     *    stored hosts to [a-zA-Z0-9.-], so only punycode can be written.
      */
     public static function displayUrl(string $url): string
     {
         $trimmed = trim($url);
-        $parts   = parse_url($trimmed);
-        $host    = is_array($parts) ? (string) ($parts['host'] ?? '') : '';
 
-        if ($host === '') {
-            // No authority to misread. Fall back to the cosmetic strip so a
-            // scheme-less or unparseable value still reads as it was typed.
-            $short = preg_replace('#^https?://#i', '', $trimmed) ?? $trimmed;
-
-            return rtrim(preg_replace('#^www\.#i', '', $short) ?? $short, '/');
+        if (self::safeHref($trimmed) === '#') {
+            return $trimmed;
         }
 
-        $short = preg_replace('#^www\.#i', '', strtolower($host)) ?? '';
+        // safeHref guarantees a parseable http(s) URL with a non-empty host.
+        $parts = (array) parse_url($trimmed);
+        $short = preg_replace('#^www\.#i', '', strtolower((string) ($parts['host'] ?? ''))) ?? '';
 
         if (isset($parts['port'])) {
             $short .= ':'.$parts['port'];
         }
 
         // The path keeps its case; only the host is case-insensitive.
-        $short .= (string) ($parts['path'] ?? '');
+        $path   = (string) ($parts['path'] ?? '');
+        $short .= $path;
 
         if ((string) ($parts['query'] ?? '') !== '') {
             $short .= '?'.$parts['query'];
         }
 
-        return rtrim($short, '/');
+        $short = rtrim($short, '/');
+
+        if ((string) ($parts['fragment'] ?? '') !== '' && ($path === '' || $path === '/')) {
+            $short .= '#'.$parts['fragment'];
+        }
+
+        // parse_url replaces C1 bytes (0x80-0x9F) in the host with "_", which
+        // shreds any UTF-8 character whose encoding contains one and leaves a
+        // lone lead byte behind. htmlspecialchars — what Blade's e() calls —
+        // returns "" for invalid UTF-8, so the row would render an icon and a
+        // label with no URL at all. The untouched input is still valid.
+        return mb_check_encoding($short, 'UTF-8') ? $short : $trimmed;
     }
 
     /**

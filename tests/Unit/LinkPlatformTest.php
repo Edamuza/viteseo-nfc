@@ -62,6 +62,35 @@ class LinkPlatformTest extends TestCase
         $this->assertSame('web', LinkPlatform::forUrl(''));
     }
 
+    /** @return array<string, array{string}> */
+    public static function hostileSchemes(): array
+    {
+        return [
+            'javascript with a brand host' => ['javascript://x.com/%0aalert(1)'],
+            'javascript with linkedin'     => ['javascript://linkedin.com/in/uriel'],
+            'data with a brand host'       => ['data://x.com/x'],
+            'vbscript with a brand host'   => ['vbscript://github.com/x'],
+            'blob with a brand host'       => ['blob://facebook.com/x'],
+            'scheme relative brand'        => ['//x.com/its_uriel26'],
+            'no authority at all'          => ['https:/\/\x.com@evil.tld/pay'],
+        ];
+    }
+
+    /**
+     * A brand mark is a trust signal, so it may only be earned by a link the
+     * visitor can actually follow. parse_url reports a host of x.com for
+     * "javascript://x.com/%0aalert(1)", so without a scheme check the row
+     * wears the X mark and the X label while leading nowhere real — the exact
+     * borrowing the suffix anchoring exists to stop.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('hostileSchemes')]
+    public function test_a_url_that_cannot_be_followed_never_earns_a_brand(string $url): void
+    {
+        $this->assertSame('web', LinkPlatform::forUrl($url));
+        $this->assertSame('Website', LinkPlatform::label(LinkPlatform::forUrl($url)));
+        $this->assertSame('#', LinkPlatform::safeHref($url), 'the fixture must actually be defused');
+    }
+
     /** @return array<string, array{string, string}> */
     public static function labels(): array
     {
@@ -102,10 +131,49 @@ class LinkPlatformTest extends TestCase
             'userinfo with a password' => ['https://x.com:tok@attacker.tld/pay', 'attacker.tld/pay'],
             'keeps a port'             => ['https://viteseo.ph:8443/x', 'viteseo.ph:8443/x'],
             'drops a fragment'         => ['https://viteseo.ph/s?ref=card#pricing', 'viteseo.ph/s?ref=card'],
+            'drops a fragment on a path' => ['https://example.com/x#frag', 'example.com/x'],
             'lowercases the host only' => ['https://WWW.X.COM/Path', 'x.com/Path'],
-            'scheme relative'          => ['//viteseo.ph/x', 'viteseo.ph/x'],
             'empty'                    => ['', ''],
+
+            // Hash routing: with no real path the fragment is the only thing
+            // telling two destinations apart, so it is kept rather than
+            // collapsing both rows into one identical line.
+            'keeps a routing fragment' => ['https://example.com/#/dashboard', 'example.com#/dashboard'],
+            'keeps it without a slash' => ['https://example.com#/settings', 'example.com#/settings'],
+
+            // Anything safeHref would defuse shows verbatim, scheme and all.
+            // The short host-leading form is a claim that the row leads
+            // somewhere; a dead row must not be able to make it.
+            'scheme relative'          => ['//viteseo.ph/x', '//viteseo.ph/x'],
+            'hostile scheme verbatim'  => ['javascript://x.com/%0aalert(1)', 'javascript://x.com/%0aalert(1)'],
+            'backslash authority'      => ['https:/\/\x.com@evil.tld/pay', 'https:/\/\x.com@evil.tld/pay'],
+
+            // parse_url replaces C1 bytes (0x80-0x9F) in the host with "_",
+            // which shreds any UTF-8 character containing one and leaves a
+            // lone lead byte. Blade's e() renders such a string as "", so the
+            // row would show an icon and a label and no URL whatsoever.
+            'non-ascii host'           => ['https://х.com/pay', 'https://х.com/pay'],
+            'emoji host'               => ['https://ex😀mple.com/pay', 'https://ex😀mple.com/pay'],
         ];
+    }
+
+    /**
+     * Whatever displayUrl returns is handed straight to Blade, which drops any
+     * string that is not valid UTF-8. A row with no visible URL at all is the
+     * one outcome this method must never produce.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('displayUrls')]
+    public function test_display_url_is_always_renderable(string $url, string $expected): void
+    {
+        $display = LinkPlatform::displayUrl($url);
+
+        $this->assertTrue(mb_check_encoding($display, 'UTF-8'), 'Blade would render this as an empty string');
+
+        if ($expected !== '') {
+            // htmlspecialchars is what Blade's e() calls, and it returns ""
+            // for invalid UTF-8 rather than failing loudly.
+            $this->assertNotSame('', htmlspecialchars($display, ENT_QUOTES, 'UTF-8'), 'the visible URL vanished');
+        }
     }
 
     /**
@@ -135,6 +203,15 @@ class LinkPlatformTest extends TestCase
             'mailto'               => ['mailto:someone@example.com', '#'],
             'unparseable'          => ['not a url at all', '#'],
             'empty'                => ['', '#'],
+
+            // A scheme alone is not enough. Browsers treat "\" as "/" after a
+            // special scheme, so "https:/\/\x.com@evil.tld/pay" navigates to
+            // evil.tld while parse_url reports no host at all. Requiring one
+            // matches SafeExternalUrl, which already demands scheme AND host,
+            // so nothing a validated write produced can be rejected here.
+            'backslash authority'  => ['https:/\/\x.com@evil.tld/pay', '#'],
+            'scheme with no host'  => ['https://', '#'],
+            'empty authority'      => ['https:///pay', '#'],
         ];
     }
 

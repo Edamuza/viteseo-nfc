@@ -67,6 +67,10 @@ h2{font-size:1.14rem;font-weight:650;margin:0 0 6px;letter-spacing:-.012em}
 .acct-name{font-size:1rem;font-weight:610}
 .acct-url{font-size:.9rem;color:var(--muted);overflow-wrap:anywhere;text-decoration:none;display:block;margin-top:2px}
 .acct-url:hover{text-decoration:underline}
+/* A destination that cannot be followed. Struck through and never underlined
+   on hover, so it does not read as a link that simply failed to respond. */
+.acct-dead{font-size:.9rem;color:var(--muted);overflow-wrap:anywhere;display:block;margin-top:2px;
+ text-decoration:line-through}
 
 details.adv{margin:6px 0 0;text-align:center}
 details.adv>summary{
@@ -110,7 +114,15 @@ footer{margin-top:32px;text-align:center}
       @endif
 
       {{-- Brand links only. A row of six identical globes is noise rather than
-           navigation, so unrecognised hosts appear in the panel below instead. --}}
+           navigation, so unrecognised hosts appear in the panel below instead.
+
+           This same filter is what keeps a defused link out of the row, and
+           deliberately so: LinkPlatform::forUrl() returns 'web' for anything
+           safeHref() would defuse, and the row carries no 'web' links. A bare
+           mark has no text to explain that it leads nowhere, so the row has no
+           dead state and needs none. The two rules are coupled;
+           test_the_icon_row_never_carries_a_defused_link pins the consequence
+           so a change to either is caught rather than shipping a dead mark. --}}
       @php
         $branded = $links->filter(fn ($l) => \App\Services\LinkPlatform::forUrl($l->url) !== 'web');
       @endphp
@@ -137,12 +149,25 @@ footer{margin-top:32px;text-align:center}
            ownership, and a checkmark would assert a guarantee that does not
            exist. Hence the plain heading rather than a verified-profile framing. --}}
       @foreach ($links as $link)
-        @php $platform = \App\Services\LinkPlatform::forUrl($link->url); @endphp
+        @php
+          $platform = \App\Services\LinkPlatform::forUrl($link->url);
+          $href     = \App\Services\LinkPlatform::safeHref($link->url);
+          $display  = \App\Services\LinkPlatform::displayUrl($link->url);
+        @endphp
         <div class="acct">
           <span class="acct-ico"><x-platform-icon :platform="$platform" /></span>
           <div>
             <div class="acct-name">{{ \App\Services\LinkPlatform::label($platform) }}</div>
-            <a class="acct-url" href="{{ \App\Services\LinkPlatform::safeHref($link->url) }}" rel="noopener noreferrer nofollow ugc" target="_blank">{{ \App\Services\LinkPlatform::displayUrl($link->url) }}</a>
+            @if ($href === '#')
+              {{-- Defused, so not an anchor at all. href="#" resolves to this
+                   page, which with target="_blank" would open a second copy of
+                   the profile and read as a link that worked. The row is kept
+                   rather than dropped — silently discarding an administrator's
+                   row hides the problem instead of showing it. --}}
+              <span class="acct-dead">{{ $display }}</span>
+            @else
+              <a class="acct-url" href="{{ $href }}" rel="noopener noreferrer nofollow ugc" target="_blank">{{ $display }}</a>
+            @endif
           </div>
         </div>
       @endforeach

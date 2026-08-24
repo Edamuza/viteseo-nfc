@@ -469,11 +469,16 @@ class NfcProfileTest extends TestCase
     {
         $card = $this->profileCard();
         $this->link($card, 'https://x.com/its_uriel26', 'X', true, 0);
+        // Two distinct brands, not one. With a single brand in the fixture any
+        // assertion is satisfied by hardcoding that same platform for every
+        // mark; two mean no single hardcoded value can pass.
+        $this->link($card, 'https://github.com/urielpapa', 'GitHub', true, 1);
 
         $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
 
         foreach (['icon row' => $this->iconRow($body), 'accounts panel' => $this->accountsPanel($body)] as $where => $html) {
             $this->assertStringContainsString($this->mark('x'), $html, "the {$where} does not wear the X mark");
+            $this->assertStringContainsString($this->mark('github'), $html, "the {$where} does not wear the GitHub mark");
             $this->assertStringNotContainsString($this->mark('web'), $html, "the {$where} fell back to the globe");
         }
     }
@@ -623,7 +628,7 @@ class NfcProfileTest extends TestCase
         $panel = $this->accountsPanel($body);
 
         $this->assertStringNotContainsString('href="javascript:', $body);
-        $this->assertStringContainsString('href="#"', $panel, 'the row stays, defused');
+        $this->assertStringContainsString('class="acct-dead"', $panel, 'the row stays, defused');
     }
 
     public function test_a_stored_data_url_never_becomes_a_live_href(): void
@@ -634,7 +639,105 @@ class NfcProfileTest extends TestCase
         $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
 
         $this->assertStringNotContainsString('href="data:', $body);
-        $this->assertStringContainsString('href="#"', $this->accountsPanel($body));
+        $this->assertStringContainsString('class="acct-dead"', $this->accountsPanel($body));
+    }
+
+    /**
+     * A defused row must not be an anchor at all.
+     *
+     * href="#" resolves to the current document, so target="_blank" would open
+     * a second copy of this very profile page — a link that looks like it
+     * worked. The row keeps its data (dropping an administrator's row silently
+     * is worse) but stops pretending to lead anywhere.
+     */
+    public function test_a_defused_row_is_not_a_link_at_all(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'javascript:alert(1)');
+
+        $panel = $this->accountsPanel($this->get('/n/'.$card->public_id)->assertOk()->getContent());
+
+        $this->assertStringContainsString('class="acct-dead"', $panel);
+        $this->assertStringNotContainsString('<a', $panel, 'a dead destination must not render as an anchor');
+        $this->assertStringNotContainsString('href=', $panel);
+        $this->assertStringNotContainsString('target="_blank"', $panel, 'href="#" plus _blank opens a duplicate tab');
+    }
+
+    /**
+     * parse_url reports a host of x.com for "javascript://x.com/...", so
+     * without a scheme check the row wears the X mark and the X label while
+     * leading nowhere. safeHref defuses the href, but the borrowed brand is
+     * the whole trust signal.
+     */
+    public function test_a_hostile_scheme_row_does_not_borrow_the_brand_in_its_host(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'javascript://x.com/%0aalert(1)');
+
+        $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $panel = $this->accountsPanel($body);
+
+        $this->assertStringContainsString('<div class="acct-name">Website</div>', $panel);
+        $this->assertStringNotContainsString('<div class="acct-name">X</div>', $panel);
+        $this->assertStringNotContainsString($this->mark('x'), $body, 'a hostile scheme must not wear the X mark');
+        $this->assertStringContainsString($this->mark('web'), $panel);
+    }
+
+    /**
+     * Browsers treat "\" as "/" after a special scheme, so this navigates to
+     * evil.tld. parse_url reports a scheme but no host, which is why safeHref
+     * requires both.
+     */
+    public function test_a_backslash_authority_is_defused_rather_than_live(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https:/\/\x.com@evil.tld/pay');
+
+        $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $panel = $this->accountsPanel($body);
+
+        $this->assertStringNotContainsString('href=', $panel, 'the tap must not be live');
+        $this->assertStringContainsString('class="acct-dead"', $panel);
+        $this->assertStringNotContainsString($this->mark('x'), $body);
+    }
+
+    /**
+     * The icon row is bare marks with no text, so a mark that goes nowhere is
+     * a button that lies with no room to explain itself. Nothing defused can
+     * reach the row because every defused URL classifies as `web` and the row
+     * carries no `web` links — this pins that consequence, so a change to
+     * either rule is caught here rather than shipping a dead mark.
+     */
+    public function test_the_icon_row_never_carries_a_defused_link(): void
+    {
+        $card = $this->profileCard();
+
+        foreach (['javascript://x.com/a', 'data://github.com/b', '//x.com/c', 'https:/\/\x.com@evil.tld/pay'] as $i => $url) {
+            $this->link($card, $url, 'L', true, $i);
+        }
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('class="iconrow"', $body, 'a mark that goes nowhere is a button that lies');
+        $this->assertStringNotContainsString($this->mark('x'), $body);
+        $this->assertStringNotContainsString($this->mark('github'), $body);
+        $this->assertSame(4, substr_count($this->accountsPanel($body), 'class="acct-dead"'), 'every row is listed, all inert');
+    }
+
+    /**
+     * parse_url mangles a non-ASCII host into invalid UTF-8, and Blade renders
+     * invalid UTF-8 as nothing at all — an icon and a label with no URL beside
+     * them. Unreachable while SafeExternalUrl restricts hosts to ASCII, but it
+     * is a trap laid for whichever increment adds IDN support.
+     */
+    public function test_a_non_ascii_host_still_renders_a_visible_url(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://х.com/pay');
+
+        $panel = $this->accountsPanel($this->get('/n/'.$card->public_id)->assertOk()->getContent());
+
+        $this->assertStringContainsString('>https://х.com/pay</a>', $panel, 'the row lost its visible URL');
     }
 
     public function test_an_ordinary_link_still_reaches_its_href_untouched(): void
