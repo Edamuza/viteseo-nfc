@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\NfcMode;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -78,6 +79,38 @@ class Card extends Model
             NfcMode::Phone   => (string) $this->nfc_phone_number !== '',
             NfcMode::Email   => (string) $this->nfc_email_address !== '',
         };
+    }
+
+    /**
+     * SQL twin of nfcModeIsConfigured().
+     *
+     * The dashboard needs this as a countable query, and each mode stores its
+     * payload somewhere different, so the branch has to be reproduced in SQL.
+     * test_configured_scope_agrees_with_nfc_mode_is_configured is what keeps
+     * the two implementations honest.
+     *
+     * When a mode is added, both this scope and nfcModeIsConfigured() must
+     * learn about it, or a card actively serving that mode reads as
+     * "Unconfigured" on the dashboard.
+     */
+    public function scopeWhereNfcModeConfigured(Builder $query, bool $configured = true): Builder
+    {
+        $matches = function (Builder $q) {
+            $q->where(fn (Builder $w) => $w
+                    ->where('nfc_mode', NfcMode::Links->value)
+                    ->whereHas('nfcLinks', fn ($l) => $l->where('is_active', true)))
+              ->orWhere(fn (Builder $w) => $w
+                    ->where('nfc_mode', NfcMode::Contact->value)
+                    ->whereHas('contactProfile', fn ($p) => $p->meaningful()))
+              ->orWhere(fn (Builder $w) => $w
+                    ->where('nfc_mode', NfcMode::Phone->value)
+                    ->whereRaw("coalesce(nfc_phone_number, '') != ''"))
+              ->orWhere(fn (Builder $w) => $w
+                    ->where('nfc_mode', NfcMode::Email->value)
+                    ->whereRaw("coalesce(nfc_email_address, '') != ''"));
+        };
+
+        return $configured ? $query->where($matches) : $query->whereNot($matches);
     }
 
     // --- Permanent URLs (never change for the life of the card) --------------

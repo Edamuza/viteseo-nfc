@@ -106,4 +106,96 @@ class DashboardStatusTest extends TestCase
             'the SQL scope and the PHP method must not disagree'
         );
     }
+
+    /**
+     * Builds a card in the given mode, either configured for that mode or not.
+     * Every mode's "configured" shape is different, which is the whole reason
+     * the dashboard could not derive status from link count alone.
+     *
+     * A configured card also gets a QR destination, so that later tests can
+     * distinguish "this row's NFC is unconfigured" from "this row's QR is".
+     */
+    private function cardInMode(string $mode, bool $configured): Card
+    {
+        $card = $this->card();
+        $card->forceFill(['nfc_mode' => $mode])->save();
+
+        if (! $configured) {
+            return $card->fresh();
+        }
+
+        match ($mode) {
+            'links' => $card->nfcLinks()->create([
+                'title' => 'A', 'url' => 'https://example.com/a', 'sort_order' => 0, 'is_active' => true,
+            ]),
+            'contact' => $card->contactProfile()->save($card->contactProfile()->make(['first_name' => 'John'])),
+            'phone' => $card->forceFill(['nfc_phone_number' => '+639171234567'])->save(),
+            'email' => $card->forceFill(['nfc_email_address' => 'hi@example.com'])->save(),
+        };
+
+        $card->forceFill([
+            'qr_destination'   => 'https://example.com/qr',
+            'qr_configured_at' => now(),
+        ])->save();
+
+        return $card->fresh();
+    }
+
+    /** @return array<string, array{string, bool}> */
+    public static function modeStates(): array
+    {
+        return [
+            'links configured'      => ['links', true],
+            'links unconfigured'    => ['links', false],
+            'contact configured'    => ['contact', true],
+            'contact unconfigured'  => ['contact', false],
+            'phone configured'      => ['phone', true],
+            'phone unconfigured'    => ['phone', false],
+            'email configured'      => ['email', true],
+            'email unconfigured'    => ['email', false],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('modeStates')]
+    public function test_configured_scope_agrees_with_nfc_mode_is_configured(string $mode, bool $expected): void
+    {
+        $card = $this->cardInMode($mode, $expected);
+
+        $this->assertSame($expected, $card->nfcModeIsConfigured(), 'PHP method');
+
+        $this->assertSame(
+            $expected,
+            Card::query()->whereNfcModeConfigured()->whereKey($card->getKey())->exists(),
+            'the SQL scope and the PHP method must not disagree'
+        );
+
+        $this->assertSame(
+            ! $expected,
+            Card::query()->whereNfcModeConfigured(false)->whereKey($card->getKey())->exists(),
+            'the inverted scope must be the exact complement'
+        );
+    }
+
+    public function test_an_inactive_link_does_not_configure_links_mode(): void
+    {
+        $card = $this->card();
+        $card->nfcLinks()->create([
+            'title' => 'A', 'url' => 'https://example.com/a', 'sort_order' => 0, 'is_active' => false,
+        ]);
+
+        $this->assertFalse($card->fresh()->nfcModeIsConfigured());
+        $this->assertFalse(Card::query()->whereNfcModeConfigured()->whereKey($card->getKey())->exists());
+    }
+
+    public function test_another_modes_data_does_not_configure_the_current_mode(): void
+    {
+        // A phone-mode card holding only contact details is not configured: the
+        // permanent URL serves the phone action, and there is no phone number.
+        $card = $this->card();
+        $card->contactProfile()->save($card->contactProfile()->make(['first_name' => 'John']));
+        $card->forceFill(['nfc_mode' => 'phone'])->save();
+
+        $this->assertFalse($card->fresh()->nfcModeIsConfigured());
+        $this->assertFalse(Card::query()->whereNfcModeConfigured()->whereKey($card->getKey())->exists());
+    }
 }
