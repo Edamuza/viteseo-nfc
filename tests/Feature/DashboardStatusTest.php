@@ -187,15 +187,62 @@ class DashboardStatusTest extends TestCase
         $this->assertFalse(Card::query()->whereNfcModeConfigured()->whereKey($card->getKey())->exists());
     }
 
-    public function test_another_modes_data_does_not_configure_the_current_mode(): void
+    /** @return array<string, array{string, string}> */
+    public static function driftGuardFixtures(): array
     {
-        // A phone-mode card holding only contact details is not configured: the
-        // permanent URL serves the phone action, and there is no phone number.
-        $card = $this->card();
-        $card->contactProfile()->save($card->contactProfile()->make(['first_name' => 'John']));
-        $card->forceFill(['nfc_mode' => 'phone'])->save();
+        return [
+            'active link on contact mode' => ['contact', 'active_link'],
+            'phone number on email mode' => ['email', 'phone'],
+            'email address on links mode' => ['links', 'email'],
+            'contact profile on phone mode' => ['phone', 'contact'],
+            'phone mode with empty phone number' => ['phone', 'empty_phone'],
+            'email mode with empty email address' => ['email', 'empty_email'],
+        ];
+    }
 
-        $this->assertFalse($card->fresh()->nfcModeIsConfigured());
-        $this->assertFalse(Card::query()->whereNfcModeConfigured()->whereKey($card->getKey())->exists());
+    private function cardForDriftGuardFixture(string $mode, string $payload): Card
+    {
+        $card = $this->card();
+        $card->forceFill(['nfc_mode' => $mode])->save();
+
+        match ($payload) {
+            'active_link' => $card->nfcLinks()->create([
+                'title' => 'A', 'url' => 'https://example.com/a', 'sort_order' => 0, 'is_active' => true,
+            ]),
+            'contact' => $card->contactProfile()->save(
+                $card->contactProfile()->make(['first_name' => 'John'])
+            ),
+            'phone' => $card->forceFill(['nfc_phone_number' => '+639171234567'])->save(),
+            'email' => $card->forceFill(['nfc_email_address' => 'hi@example.com'])->save(),
+            'empty_phone' => $card->forceFill(['nfc_phone_number' => ''])->save(),
+            'empty_email' => $card->forceFill(['nfc_email_address' => ''])->save(),
+        };
+
+        return $card->fresh();
+    }
+
+    private function assertConfiguredScopeAgreement(Card $card, bool $expected): void
+    {
+        $this->assertSame($expected, $card->nfcModeIsConfigured(), 'PHP method');
+
+        $this->assertSame(
+            $expected,
+            Card::query()->whereNfcModeConfigured()->whereKey($card->getKey())->exists(),
+            'the SQL scope and the PHP method must not disagree'
+        );
+
+        $this->assertSame(
+            ! $expected,
+            Card::query()->whereNfcModeConfigured(false)->whereKey($card->getKey())->exists(),
+            'the inverted scope must be the exact complement'
+        );
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('driftGuardFixtures')]
+    public function test_drift_guards_keep_php_and_sql_agreement(string $mode, string $payload): void
+    {
+        $card = $this->cardForDriftGuardFixture($mode, $payload);
+
+        $this->assertConfiguredScopeAgreement($card, false);
     }
 }
