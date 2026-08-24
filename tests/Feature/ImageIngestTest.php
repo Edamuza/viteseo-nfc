@@ -26,6 +26,30 @@ class ImageIngestTest extends TestCase
         return new UploadedFile($path, 'photo.png', 'image/png', null, true);
     }
 
+    /**
+     * A PNG that passes Laravel's image/mimes/dimensions rules but fails GD decode.
+     *
+     * getimagesize() only needs the 8-byte signature and the IHDR chunk;
+     * imagecreatefromstring() needs the full pixel data. 100 bytes is enough
+     * for the header on a 40×40 PNG and short of a complete image (full file
+     * is ~129 bytes).
+     */
+    private function truncatedPng(): UploadedFile
+    {
+        $image = imagecreatetruecolor(40, 40);
+        imagefill($image, 0, 0, imagecolorallocate($image, 20, 90, 70));
+
+        $full = tempnam(sys_get_temp_dir(), 'ingest').'.png';
+        imagepng($image, $full);
+        imagedestroy($image);
+
+        $path = tempnam(sys_get_temp_dir(), 'ingest').'.png';
+        file_put_contents($path, substr((string) file_get_contents($full), 0, 100));
+        unlink($full);
+
+        return new UploadedFile($path, 'payload.png', 'image/png', null, true);
+    }
+
     public function test_the_stored_file_is_a_jpeg_whatever_was_uploaded(): void
     {
         Storage::fake('public');
@@ -103,7 +127,7 @@ class ImageIngestTest extends TestCase
         $this->assertSame([], Storage::disk('public')->allFiles());
     }
 
-    public function test_a_bad_contact_photo_upload_is_a_validation_error_not_an_error_page(): void
+    public function test_a_plainly_bogus_contact_photo_is_rejected_by_validation(): void
     {
         Storage::fake('public');
 
@@ -123,5 +147,32 @@ class ImageIngestTest extends TestCase
             ])
             ->assertRedirect()
             ->assertSessionHasErrors('photo');
+    }
+
+    public function test_a_truncated_contact_photo_is_a_validation_error_from_the_decoder(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('contact-photos/existing.jpg', 'kept');
+
+        $card = app(\App\Services\CardGenerationService::class)->generate(1)->first();
+        $profile = $card->contactProfile()->make(['first_name' => 'John']);
+        $profile->photo_path = 'contact-photos/existing.jpg';
+        $card->contactProfile()->save($profile);
+
+        $admin = \App\Models\User::firstOrCreate(
+            ['email' => 'a@example.com'],
+            ['name' => 'A', 'password' => \Illuminate\Support\Facades\Hash::make('correct-horse-1')]
+        );
+
+        $this->actingAs($admin)
+            ->patch('/admin/cards/'.$card->public_id.'/contact', [
+                'first_name' => 'John',
+                'photo'      => $this->truncatedPng(),
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors(['photo' => 'That file is not a readable image.']);
+
+        $this->assertSame('contact-photos/existing.jpg', $card->fresh()->contactProfile->photo_path);
+        $this->assertTrue(Storage::disk('public')->exists('contact-photos/existing.jpg'));
     }
 }
