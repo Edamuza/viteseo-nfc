@@ -58,6 +58,11 @@ class Card extends Model
         return $this->hasOne(NfcContactProfile::class);
     }
 
+    public function profile(): HasOne
+    {
+        return $this->hasOne(NfcProfile::class);
+    }
+
     // --- NFC mode -----------------------------------------------------------
 
     public function nfcMode(): NfcMode
