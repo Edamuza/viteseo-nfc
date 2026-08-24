@@ -17,6 +17,7 @@
 - Columns outside `Card::$fillable` are written with `forceFill([...])->save()`, matching every existing call site.
 - `nfc_mode` is `string(20) not null default 'links'` and indexed. It is never NULL, so no null-handling is needed when querying it.
 - `nfc_logo_path` is nulled by the reset actions but is never written by any upload path in the codebase. There is no file to delete for it; do not invent one.
+  > **Overridden during the increment-2 review.** This constraint made the landing page logo the one publicly served image of three whose file outlived a reset at a guessable `/storage/...` URL — the exact leak `PublicImageStorage` was written to close. "No writer yet, so no deletion" does not survive its own precedent: nothing wrote profile avatars either when the avatar's `forget()` was added, and it was covered by planting a path and a file with `forceFill` and `Storage::put`, which is how the logo is covered now. `reset()` therefore reads `nfc_logo_path` before nulling it and pairs it with `forget()`. Nothing was invented: the column already existed, `nfc-landing.blade.php` already served it from the public disk, and the reset already claimed to have cleared it.
 - Admin routes already exist and do not change: `DELETE /admin/cards/{card}/nfc` → `resetNfc`, `DELETE /admin/cards/{card}/reset` → `resetCard`.
 - Run the full suite before the final commit of each task, not just the filtered test.
 

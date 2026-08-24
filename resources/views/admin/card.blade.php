@@ -395,8 +395,8 @@
        profile-destroying control appear next to "Add link". Neither action is
        scoped to a mode, so neither belongs inside one. --}}
   <p class="small" style="margin:0 0 14px;color:var(--text-soft)">
-    <strong>Reset NFC</strong> clears everything the NFC URL can serve in every mode — all NFC links
-    and the landing page details, the contact card and its photo, the profile page and its avatar,
+    <strong>Reset NFC</strong> clears everything the NFC URL can serve in every mode — all NFC links,
+    the landing page details and its logo, the contact card and its photo, the profile page and its avatar,
     and any saved phone number or email action — and returns the card to Links mode.
     The QR destination survives. <strong>Reset entire card</strong> does all of that and clears the
     QR destination too.

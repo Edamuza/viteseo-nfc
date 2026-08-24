@@ -19,13 +19,19 @@ use Illuminate\Support\Facades\DB;
  * answers with someone else's data. Profile mode was added in increment 2 and
  * needed exactly these four lines.
  *
- * Each public method delegates to a private helper that runs exactly one
- * database transaction, then deletes the contact photo and the profile avatar
- * and unsets both in-memory relations. File deletion is deliberately post-commit
- * for both entry points:
- * filesystem deletes do not roll back, and a file removed while the profile
- * row survives would show a broken image on a live contact page.
- */
+     * Each public method delegates to a private helper that runs exactly one
+     * database transaction, then deletes every publicly served image the reset
+     * orphaned - the contact photo, the profile avatar and the landing page logo
+     * - and unsets both in-memory relations. File deletion is deliberately
+     * post-commit for both entry points:
+     * filesystem deletes do not roll back, and a file removed while the profile
+     * row survives would show a broken image on a live contact page.
+     *
+     * Every column here that names a file is paired with a forget(). An unpaired
+     * one is not a tidy-up problem: the file stays fetchable at a guessable
+     * /storage/... URL after a reset the admin was told succeeded, which on a
+     * re-issued card means the previous holder's image served to its new owner.
+     */
 class CardResetService
 {
     public function __construct(private readonly PublicImageStorage $photos) {}
@@ -102,14 +108,20 @@ class CardResetService
 
     /**
      * Clears the NFC payload (and any extra columns the caller supplies) in one
-     * transaction, then removes the contact photo and the profile avatar from
-     * disk and drops both loaded relations from the in-memory model.
+     * transaction, then removes the contact photo, the profile avatar and the
+     * landing page logo from disk and drops both loaded relations from the
+     * in-memory model.
+     *
+     * The two paths that survive the transaction are read before it: the logo
+     * lives in a card column this method is about to null, so reading it
+     * afterwards would always find the null it just wrote.
      *
      * @param  array<string, mixed>  $extraColumns  Additional card columns to null out
      */
     private function reset(Card $card, array $extraColumns = []): void
     {
         $photoPath  = $card->contactProfile?->photo_path;
+        $logoPath   = $card->nfc_logo_path;
         $avatarPath = null;
 
         DB::transaction(function () use ($card, $extraColumns, &$avatarPath) {
@@ -134,13 +146,14 @@ class CardResetService
             ], $extraColumns))->save();
         });
 
-        // Delete the photo only after the transaction commits. Filesystem
+        // Delete the files only after the transaction commits. Filesystem
         // deletes do not roll back; a file removed while the profile row
         // survives would show a broken image on a live contact page. A file
         // that outlives the row is the worse-kept secret, so the storage helper
         // logs it rather than letting it pass unnoticed.
         $this->photos->forget($photoPath, $card);
         $this->photos->forget($avatarPath, $card);
+        $this->photos->forget($logoPath, $card);
 
         // The in-memory model may still hold the profile we just deleted.
         $card->unsetRelation('contactProfile');

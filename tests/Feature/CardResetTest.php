@@ -44,6 +44,7 @@ class CardResetTest extends TestCase
         ]);
 
         Storage::disk('public')->put('contact-photos/old.jpg', 'not-really-a-jpeg');
+        Storage::disk('public')->put('logos/acme.png', 'not-really-a-png');
 
         $profile = $card->contactProfile()->make([
             'first_name' => 'John', 'last_name' => 'Doe', 'company' => 'Acme Ltd',
@@ -124,6 +125,60 @@ class CardResetTest extends TestCase
         app(CardResetService::class)->resetNfcSide($card);
 
         Storage::disk('public')->assertMissing('profile-avatars/old.jpg');
+    }
+
+    /**
+     * The landing page logo is the third publicly served image, and it was the
+     * only one whose column was nulled with no matching forget(). That leaves
+     * the file at its guessable /storage/... URL after a reset that reported
+     * success - the exact leak PublicImageStorage exists to close, and the one
+     * the contact photo and the profile avatar are already protected from.
+     *
+     * Increment 1 recorded a constraint saying not to delete a file for this
+     * column because no upload path writes it. That reasoning does not survive
+     * its own precedent: no upload path wrote profile avatars either when the
+     * avatar's forget() was added and tested this same way. A column the reset
+     * bothers to null is a column something is expected to write, and the
+     * cheapest moment to make the file behave like the other two is before,
+     * not after, the writer exists.
+     */
+    public function test_resetting_the_nfc_side_deletes_the_landing_page_logo_file(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        Storage::disk('public')->assertExists('logos/acme.png');
+
+        app(CardResetService::class)->resetNfcSide($card);
+
+        Storage::disk('public')->assertMissing('logos/acme.png');
+    }
+
+    public function test_resetting_everything_deletes_the_landing_page_logo_file(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        app(CardResetService::class)->resetEverything($card);
+
+        Storage::disk('public')->assertMissing('logos/acme.png');
+    }
+
+    /**
+     * Every publicly served image the reset nulls a column for is removed from
+     * disk. Written as one list so a fourth image cannot be added with a column
+     * and no file deletion, which is how the logo came to be the odd one out.
+     */
+    public function test_the_reset_leaves_no_publicly_served_image_behind(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+
+        app(CardResetService::class)->resetEverything($card);
+
+        foreach (['contact-photos/old.jpg', 'profile-avatars/old.jpg', 'logos/acme.png'] as $path) {
+            Storage::disk('public')->assertMissing($path);
+        }
     }
 
     public function test_resetting_the_nfc_side_clears_the_profile_row(): void
