@@ -101,6 +101,13 @@ class Card extends Model
 
     public function activeNfcLinkCount(): int
     {
+        // The dashboard selects this aggregate once for the whole page as a
+        // correlated subquery. Honouring it here is what keeps a 25-row table at
+        // a constant query count instead of one count per row.
+        if (array_key_exists('active_link_count', $this->attributes)) {
+            return (int) $this->attributes['active_link_count'];
+        }
+
         return $this->relationLoaded('activeNfcLinks')
             ? $this->activeNfcLinks->count()
             : $this->activeNfcLinks()->count();
