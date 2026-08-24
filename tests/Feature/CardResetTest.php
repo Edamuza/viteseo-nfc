@@ -717,6 +717,12 @@ class CardResetTest extends TestCase
         $this->assertSame(NfcMode::Links, $card->nfcMode(), 'the mode did not return to Links');
         Storage::disk('public')->assertMissing('profile-avatars/old.jpg');
 
+        // The contrast with "Delete profile details", which is the door beside
+        // this one and keeps all three: this button is not scoped to the mode.
+        $this->assertSame(0, $card->nfcLinks()->count(), 'links');
+        $this->assertNull($card->contactProfile, 'contact card');
+        $this->assertNull($card->nfc_phone_number, 'saved phone');
+
         $this->assertStringNotContainsString(
             'John Doe',
             $this->get('/n/'.$card->public_id)->assertOk()->getContent()

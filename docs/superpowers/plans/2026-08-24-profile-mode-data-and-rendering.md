@@ -39,6 +39,17 @@ Each of these has a later increment and must not be built here. If a task tempts
   > Headline, username, location, tagline, the welcome fields, the avatar upload
   > and `DominantColor` remain increment 5; the avatar has no ingest path yet, so
   > there is nothing for a form to write.
+  >
+  > **Follow-up from the same review.** Sharing the link editor between two modes
+  > exposed something the Links-only version had hidden: "Reset NFC" was rendered
+  > inside that editor, in the "Add link" row, gated on `$links->count()`. It
+  > clears every mode and returns the card to Links, so a Profile card with a
+  > finished profile and no links was offered nothing, and adding one link made a
+  > profile-destroying control appear beside "Add link". It now sits in the Danger
+  > zone next to "Reset entire card", ungated. The shared partial is the table and
+  > the add form only — anything card-wide inside it is card-wide destruction
+  > rendered once per mode that includes it. Increment 5 must add its fields to the
+  > panel, not to the partial.
 - Client PIN-gated self-service editing and the `nfc_profile_edits` audit table — **increment 6**.
 
 ### Increment-1 guards this work must satisfy
