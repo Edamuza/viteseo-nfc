@@ -261,42 +261,48 @@ class DashboardStatusTest extends TestCase
         $this->assertStringContainsString($expected, $body);
     }
 
-    public function test_dashboard_shows_active_for_a_configured_contact_card(): void
+    /**
+     * Every mode in both states, so neither half of the badge can be wrong
+     * while the suite stays green: a hard-coded label is caught by the other
+     * three modes, and a state stuck on Active is caught by the unconfigured
+     * half of each pair.
+     *
+     * @param  'links'|'contact'|'phone'|'email'  $mode
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('modeStates')]
+    public function test_dashboard_badge_names_the_mode_and_its_state(string $mode, bool $configured): void
     {
-        $this->cardInMode('contact', true);
+        $card = $this->cardInMode($mode, $configured);
 
-        $this->assertNfcBadge('Digital Contact Card &middot; Active');
+        $this->assertNfcBadge(
+            $card->nfcMode()->label().' &middot; '.($configured ? 'Active' : 'Unconfigured')
+        );
     }
 
-    public function test_dashboard_shows_active_for_a_configured_phone_card(): void
+    /** The NFC Links cell's text, whatever attribute order the markup uses. */
+    private function linkCountCell(): string
     {
-        $this->cardInMode('phone', true);
-
-        $this->assertNfcBadge('Phone / Call &middot; Active');
-    }
-
-    public function test_dashboard_shows_active_for_a_configured_email_card(): void
-    {
-        $this->cardInMode('email', true);
-
-        $this->assertNfcBadge('Email &middot; Active');
-    }
-
-    public function test_dashboard_shows_unconfigured_for_an_empty_contact_card(): void
-    {
-        $this->cardInMode('contact', false);
-
-        $this->assertNfcBadge('Digital Contact Card &middot; Unconfigured');
-    }
-
-    public function test_dashboard_link_count_column_is_blank_outside_links_mode(): void
-    {
-        $this->cardInMode('contact', true);
-
         $body = $this->actingAs($this->admin())->get('/admin')->assertOk()->getContent();
 
+        $this->assertMatchesRegularExpression('/<td[^>]*data-label="NFC Links"[^>]*>(.*?)<\/td>/s', $body);
+        preg_match('/<td[^>]*data-label="NFC Links"[^>]*>(.*?)<\/td>/s', $body, $m);
+
+        return trim($m[1]);
+    }
+
+    public function test_dashboard_link_count_column_shows_an_em_dash_outside_links_mode(): void
+    {
+        $this->cardInMode('contact', true);
+
         // A literal 0 next to a live contact card is what made the old
-        // dashboard read as broken.
-        $this->assertStringContainsString('data-label="NFC Links" class="mono muted">—<', $body);
+        // dashboard read as broken: the count means nothing outside Links mode.
+        $this->assertSame('—', $this->linkCountCell());
+    }
+
+    public function test_dashboard_link_count_column_still_counts_in_links_mode(): void
+    {
+        $this->cardInMode('links', true);
+
+        $this->assertSame('1', $this->linkCountCell());
     }
 }
