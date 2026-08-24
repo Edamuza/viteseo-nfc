@@ -10,6 +10,7 @@ use App\Rules\SafeExternalUrl;
 use App\Rules\SafePhoneNumber;
 use App\Services\CardGenerationService;
 use App\Services\CardResetService;
+use App\Services\ContactPhotoStorage;
 use App\Services\QrCodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -28,6 +29,7 @@ class CardController extends Controller
         private readonly CardGenerationService $cards,
         private readonly QrCodeService $qr,
         private readonly CardResetService $reset,
+        private readonly ContactPhotoStorage $photos,
     ) {}
 
     public function show(Card $card): Response
@@ -237,9 +239,7 @@ class CardController extends Controller
         if ($file = $request->file('photo')) {
             $old = $profile->photo_path;
             $profile->photo_path = $this->storeContactPhoto($file);
-            if ($old) {
-                Storage::disk('public')->delete($old);
-            }
+            $this->photos->forget($old, $card);
         }
 
         if (! $profile->exists) {
@@ -261,8 +261,9 @@ class CardController extends Controller
         $profile = $card->contactProfile;
 
         if ($profile && $profile->photo_path) {
-            Storage::disk('public')->delete($profile->photo_path);
+            $path = $profile->photo_path;
             $profile->forceFill(['photo_path' => null])->save();
+            $this->photos->forget($path, $card);
         }
 
         return back()->with('status', 'Contact photo removed.');
@@ -277,10 +278,9 @@ class CardController extends Controller
         $profile = $card->contactProfile;
 
         if ($profile) {
-            if ($profile->photo_path) {
-                Storage::disk('public')->delete($profile->photo_path);
-            }
+            $path = $profile->photo_path;
             $profile->delete();
+            $this->photos->forget($path, $card);
         }
 
         return back()->with('status', 'Contact details deleted.');

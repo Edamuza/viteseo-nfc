@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Enums\NfcMode;
 use App\Models\Card;
 use App\Models\NfcContactProfile;
 use App\Models\User;
@@ -155,6 +156,28 @@ class DashboardStatusTest extends TestCase
             'email configured'      => ['email', true],
             'email unconfigured'    => ['email', false],
         ];
+    }
+
+    /**
+     * modeStates() is the fixture set behind the agreement test and the badge
+     * matrix, and it is written out by hand. A fifth mode added to the enum
+     * without being added here would inherit both guards silently: the SQL twin
+     * could disagree with the PHP method, and the dashboard could mislabel it,
+     * with every test still green. So the list is pinned to the enum itself.
+     */
+    public function test_the_mode_fixtures_cover_every_mode_in_the_enum(): void
+    {
+        $covered = array_unique(array_map(fn (array $case) => $case[0], self::modeStates()));
+        sort($covered);
+
+        $modes = array_map(fn (NfcMode $m) => $m->value, NfcMode::cases());
+        sort($modes);
+
+        $this->assertSame(
+            $modes,
+            $covered,
+            'a mode exists that modeStates() does not cover: extend the fixtures, the SQL twin and cardInMode() together'
+        );
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('modeStates')]

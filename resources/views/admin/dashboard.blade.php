@@ -69,13 +69,17 @@
         $mode    = $card->nfcMode();
         $nfcOn   = $card->nfcModeIsConfigured();
         $isLinks = $mode === \App\Enums\NfcMode::Links;
+        $qrOn    = $card->qrIsConfigured();
       @endphp
       <tr>
         <td data-label="Card Number"><strong>{{ $card->card_number }}</strong></td>
         <td data-label="Public ID"><code>{{ $card->public_id }}</code></td>
+        {{-- qrIsConfigured(), not raw truthiness: the counters above use its SQL
+             twin, and a destination of "0" would otherwise read as Unconfigured
+             here while counting as configured up there. --}}
         <td data-label="QR Status">
-          <span class="badge {{ $card->qr_destination ? 'b-ok' : 'b-off' }}">
-            {{ $card->qr_destination ? 'Active' : 'Unconfigured' }}
+          <span class="badge {{ $qrOn ? 'b-ok' : 'b-off' }}">
+            {{ $qrOn ? 'Active' : 'Unconfigured' }}
           </span>
         </td>
         {{-- Badge text stays on ONE line: the tests assert the whole

@@ -148,6 +148,13 @@ class NfcContactProfile extends Model
      *
      * A NULL column does not satisfy the checks, which is exactly the wanted
      * behaviour: unset is not meaningful.
+     *
+     * One known limit: SQL trim() removes spaces, while PHP trim() also removes
+     * tabs and newlines. A name of "\t" would therefore be meaningful here and
+     * not in PHP. It is unreachable today because every write path strips
+     * control characters first (see CardController::stripControl), so it is
+     * documented rather than worked around — a portable fix needs per-driver
+     * SQL. Revisit if a write path ever stops stripping.
      */
     public function scopeMeaningful(Builder $query): Builder
     {

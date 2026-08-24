@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Enums\NfcMode;
 use App\Models\Card;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Clearing a card's configuration.
@@ -27,6 +26,8 @@ use Illuminate\Support\Facades\Storage;
  */
 class CardResetService
 {
+    public function __construct(private readonly ContactPhotoStorage $photos) {}
+
     /**
      * Clears everything the permanent NFC URL can serve, in every mode, and
      * returns the card to Links mode. The QR destination is untouched.
@@ -88,11 +89,10 @@ class CardResetService
 
         // Delete the photo only after the transaction commits. Filesystem
         // deletes do not roll back; a file removed while the profile row
-        // survives would show a broken image on a live contact page. An
-        // orphaned file after a successful reset costs disk space only.
-        if ($photoPath) {
-            Storage::disk('public')->delete($photoPath);
-        }
+        // survives would show a broken image on a live contact page. A file
+        // that outlives the row is the worse-kept secret, so the storage helper
+        // logs it rather than letting it pass unnoticed.
+        $this->photos->forget($photoPath, $card);
 
         // The in-memory model may still hold the profile we just deleted.
         $card->unsetRelation('contactProfile');
