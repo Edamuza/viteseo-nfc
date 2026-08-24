@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class NfcContactProfile extends Model
@@ -128,5 +129,25 @@ class NfcContactProfile extends Model
     public function isMeaningful(): bool
     {
         return $this->hasName();
+    }
+
+    /**
+     * SQL twin of isMeaningful().
+     *
+     * The dashboard counts configured cards across the whole table and cannot
+     * instantiate a model per row, so this rule exists in both PHP and SQL.
+     * test_meaningful_scope_agrees_with_is_meaningful is what keeps the two
+     * from drifting apart.
+     *
+     * A NULL column does not satisfy `!= ''` in SQL, which is exactly the
+     * wanted behaviour: unset is not meaningful.
+     */
+    public function scopeMeaningful(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            foreach (['first_name', 'middle_name', 'last_name', 'suffix', 'company'] as $column) {
+                $q->orWhere($column, '!=', '');
+            }
+        });
     }
 }

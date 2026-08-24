@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Card;
+use App\Models\NfcContactProfile;
 use App\Models\User;
 use App\Services\CardGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -64,5 +65,37 @@ class DashboardStatusTest extends TestCase
         ]);
 
         $this->assertSame(1, Card::findOrFail($card->id)->activeNfcLinkCount());
+    }
+
+    /** @return array<string, array{array<string,string>, bool}> */
+    public static function contactFixtures(): array
+    {
+        return [
+            'first name only'   => [['first_name' => 'John'], true],
+            'middle name only'  => [['middle_name' => 'Quincy'], true],
+            'last name only'    => [['last_name' => 'Doe'], true],
+            'suffix only'       => [['suffix' => 'Jr'], true],
+            'company only'      => [['company' => 'Acme Ltd'], true],
+            'nothing at all'    => [[], false],
+            'blank strings'     => [['first_name' => '', 'company' => ''], false],
+            'job title only'    => [['job_title' => 'Director'], false],
+            'phone only'        => [['mobile_phone' => '+639171234567'], false],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('contactFixtures')]
+    public function test_meaningful_scope_agrees_with_is_meaningful(array $attrs, bool $expected): void
+    {
+        $card = $this->card();
+        $profile = $card->contactProfile()->make($attrs);
+        $card->contactProfile()->save($profile);
+
+        $this->assertSame($expected, $profile->isMeaningful(), 'PHP method');
+
+        $this->assertSame(
+            $expected,
+            NfcContactProfile::query()->meaningful()->whereKey($profile->getKey())->exists(),
+            'the SQL scope and the PHP method must not disagree'
+        );
     }
 }
