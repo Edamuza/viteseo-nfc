@@ -60,4 +60,46 @@ class NfcProfile extends Model
     {
         return $query->whereRaw("trim(coalesce(display_name, '')) != ''");
     }
+
+    /** "UP" for the avatar placeholder — first and last word, at most two letters. */
+    public function initials(): string
+    {
+        $words = preg_split('/\s+/', trim((string) $this->display_name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        if ($words === []) {
+            return '';
+        }
+
+        $letters = count($words) === 1
+            ? [$words[0]]
+            : [$words[0], $words[count($words) - 1]];
+
+        return strtoupper(implode('', array_map(fn (string $w) => mb_substr($w, 0, 1), $letters)));
+    }
+
+    /**
+     * The page background. Always a valid hex colour, because it is
+     * interpolated into a style attribute.
+     *
+     * DominantColor normalises every derived value into a dark lightness band,
+     * which is why --on-brand can be a fixed light value with no luminance
+     * branch. A stored value that is not a hex colour is treated as absent
+     * rather than trusted.
+     */
+    public function brandColor(): string
+    {
+        $stored = (string) $this->brand_color;
+
+        return preg_match('/^#[0-9a-fA-F]{6}$/', $stored) === 1
+            ? strtolower($stored)
+            : self::DEFAULT_BRAND_COLOR;
+    }
+
+    /** The same colour at low alpha, for the cover band. */
+    public function brandColorSoftRgba(): string
+    {
+        [$r, $g, $b] = sscanf($this->brandColor(), '#%02x%02x%02x');
+
+        return sprintf('rgba(%d,%d,%d,.34)', $r, $g, $b);
+    }
 }

@@ -120,14 +120,22 @@ class NfcController extends Controller
     /**
      * Profile mode.
      *
-     * Every card renders the not-ready page for now; the profile view lands in
-     * the next task and adds the branch. Existing at all is what matters here:
-     * an enum case with no match arm throws UnhandledMatchError, which would
-     * take down a live public URL.
+     * A card with no profile, or a profile with no display name, is not ready.
+     * Existing at all is what matters for dispatch: an enum case with no match
+     * arm throws UnhandledMatchError, which would take down a live public URL.
      */
     private function showProfile(Card $card): Response
     {
-        return $this->notReady($card);
+        $profile = $card->profile;
+
+        if (! $profile || ! $profile->isMeaningful()) {
+            return $this->notReady($card);
+        }
+
+        return $this->noStore(response()->view('public.nfc-profile', [
+            'card'    => $card,
+            'profile' => $profile,
+        ]));
     }
 
     /**

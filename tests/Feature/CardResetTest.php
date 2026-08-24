@@ -426,4 +426,23 @@ class CardResetTest extends TestCase
             ->assertOk()
             ->assertDontSee('https://example.com/qr');
     }
+
+    public function test_a_reset_card_no_longer_serves_the_previous_holders_profile_page(): void
+    {
+        Storage::fake('public');
+        $card = $this->fullyPopulatedCard();
+        $card->forceFill(['nfc_mode' => 'profile'])->save();
+
+        // The "before" half is what makes the "after" half meaningful: the page
+        // demonstrably served this name a moment ago.
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('John Doe');
+
+        $this->actingAs($this->admin())->delete('/admin/cards/'.$card->public_id.'/reset');
+        $this->selectNfcMode($card, 'profile');
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('John Doe', $body, 'name survived the reset');
+        $this->assertStringNotContainsString('CEO, Acme Ltd', $body, 'headline survived the reset');
+    }
 }

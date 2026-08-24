@@ -189,4 +189,164 @@ class NfcProfileTest extends TestCase
         $this->assertStringContainsString('must-revalidate', $cc, "Cache-Control was: {$cc}");
         $this->assertStringContainsString('max-age=0', $cc, "Cache-Control was: {$cc}");
     }
+
+    private function profileCard(array $attributes = []): Card
+    {
+        $card = $this->card();
+        $card->profile()->save($card->profile()->make(array_merge(['display_name' => 'Uriel Papa'], $attributes)));
+        $card->forceFill(['nfc_mode' => 'profile'])->save();
+
+        return $card->fresh();
+    }
+
+    public function test_the_profile_page_shows_the_identity_block(): void
+    {
+        $card = $this->profileCard([
+            'headline' => 'Chief Executive Officer, Vite SEO Digital Advertising OPC',
+            'username' => 'yurielyel',
+            'location' => 'Philippines',
+            'tagline'  => 'Say my name',
+        ]);
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('Uriel Papa')
+            ->assertSee('Chief Executive Officer, Vite SEO Digital Advertising OPC')
+            ->assertSee('yurielyel')
+            ->assertSee('Philippines')
+            ->assertSee('Say my name');
+    }
+
+    public function test_an_empty_optional_field_renders_nothing_rather_than_an_empty_element(): void
+    {
+        $card = $this->profileCard();
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('class="headline"', $body);
+        $this->assertStringNotContainsString('class="meta"', $body);
+        $this->assertStringNotContainsString('class="tagline"', $body);
+    }
+
+    public function test_the_avatar_falls_back_to_initials_when_there_is_no_photo(): void
+    {
+        $card = $this->profileCard();
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('UP')
+            ->assertDontSee('<img', false);
+    }
+
+    public function test_the_avatar_renders_the_stored_photo_when_there_is_one(): void
+    {
+        $card = $this->profileCard();
+        $card->profile->forceFill(['avatar_path' => 'profile-avatars/a.jpg'])->save();
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('storage/profile-avatars/a.jpg', false);
+    }
+
+    /** @return array<string, array{string, string}> */
+    public static function initialsFixtures(): array
+    {
+        return [
+            'two words'    => ['Uriel Papa', 'UP'],
+            'one word'     => ['Uriel', 'U'],
+            'three words'  => ['Uriel Q Papa', 'UP'],
+            'lowercase'    => ['uriel papa', 'UP'],
+            'extra spaces' => ['  Uriel   Papa  ', 'UP'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('initialsFixtures')]
+    public function test_initials_come_from_the_first_and_last_word(string $name, string $expected): void
+    {
+        $this->assertSame($expected, (new NfcProfile(['display_name' => $name]))->initials());
+    }
+
+    public function test_every_profile_field_is_escaped_on_the_page(): void
+    {
+        $card = $this->profileCard([
+            'display_name' => '<script>alert(1)</script>',
+            'headline'     => '<img src=x onerror=alert(2)>',
+            'username'     => '"><b>u</b>',
+            'location'     => '<svg onload=alert(3)>',
+            'tagline'      => '<iframe src=javascript:alert(4)>',
+        ]);
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('<script>alert(1)</script>', $body);
+        $this->assertStringNotContainsString('<img src=x onerror=alert(2)>', $body);
+        $this->assertStringNotContainsString('<svg onload', $body);
+        $this->assertStringNotContainsString('<iframe', $body);
+        $this->assertStringContainsString('&lt;script&gt;', $body);
+    }
+
+    public function test_advanced_details_shows_the_permanent_url_and_never_the_card_number(): void
+    {
+        $card = $this->profileCard();
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringContainsString($card->public_id, $body);
+        $this->assertStringNotContainsString(
+            $card->card_number,
+            $body,
+            'the card number tells a visitor how many cards exist and where theirs falls'
+        );
+    }
+
+    public function test_the_page_uses_the_default_brand_colour_when_none_is_derived(): void
+    {
+        $card = $this->profileCard();
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('--brand:'.NfcProfile::DEFAULT_BRAND_COLOR, false);
+    }
+
+    public function test_a_derived_brand_colour_is_used_for_the_page_and_the_cover(): void
+    {
+        $card = $this->profileCard();
+        $card->profile->forceFill(['brand_color' => '#1d5b45'])->save();
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('--brand:#1d5b45', false)
+            ->assertSee('--brand-soft:rgba(29,91,69,.34)', false);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function malformedBrandColours(): array
+    {
+        return [
+            'style break out'  => ['red;}</style><script>alert(1)</script>'],
+            'no hash'          => ['1d5b45'],
+            'short form'       => ['#abc'],
+            'not hex'          => ['#zzzzzz'],
+            'empty'            => [''],
+        ];
+    }
+
+    /**
+     * brand_color is interpolated into a style attribute, so the value that
+     * reaches the page must be a hex colour or nothing. It is not mass
+     * assignable, which makes this defence in depth rather than the only guard
+     * — but a derived column written by a service is exactly the kind of value
+     * that gets a second writer later.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('malformedBrandColours')]
+    public function test_a_malformed_brand_colour_falls_back_to_the_default(string $stored): void
+    {
+        $card = $this->profileCard();
+        $card->profile->forceFill(['brand_color' => $stored])->save();
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('--brand:'.NfcProfile::DEFAULT_BRAND_COLOR, false)
+            ->assertDontSee('<script>alert(1)</script>', false);
+    }
 }
