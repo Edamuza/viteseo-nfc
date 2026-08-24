@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Builder;
 
 class NfcProfile extends Model
 {
@@ -40,5 +41,23 @@ class NfcProfile extends Model
     public function isMeaningful(): bool
     {
         return trim((string) $this->display_name) !== '';
+    }
+
+    /**
+     * SQL twin of isMeaningful().
+     *
+     * test_the_meaningful_scope_agrees_with_is_meaningful is what keeps the two
+     * from drifting. `trim(coalesce(...))` mirrors the PHP `trim((string) ...)`:
+     * coalesce collapses NULL to '' first, because `NULL != ''` is UNKNOWN in
+     * SQL rather than true, which would drop every unset row.
+     *
+     * One known limit, shared with NfcContactProfile::scopeMeaningful(): SQL
+     * trim() removes spaces while PHP trim() also removes tabs and newlines, so
+     * a name of "\t" would differ. It is unreachable today because every write
+     * path strips control characters first.
+     */
+    public function scopeMeaningful(Builder $query): Builder
+    {
+        return $query->whereRaw("trim(coalesce(display_name, '')) != ''");
     }
 }

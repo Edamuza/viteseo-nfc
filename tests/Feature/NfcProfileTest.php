@@ -49,6 +49,41 @@ class NfcProfileTest extends TestCase
         $this->assertSame($expected, $profile->isMeaningful());
     }
 
+    /**
+     * The same fixtures drive the PHP method and the SQL scope. Two
+     * implementations of one rule drift silently otherwise: the dashboard would
+     * report a card as blank while its public page is live.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('meaningfulFixtures')]
+    public function test_the_meaningful_scope_agrees_with_is_meaningful(array $attributes, bool $expected): void
+    {
+        $card = $this->card();
+        $card->profile()->save($card->profile()->make($attributes));
+        $profile = $card->fresh()->profile;
+
+        $this->assertSame($expected, $profile->isMeaningful(), 'PHP method');
+
+        $this->assertSame(
+            $expected,
+            NfcProfile::query()->meaningful()->whereKey($profile->getKey())->exists(),
+            'the SQL scope and the PHP method must not disagree'
+        );
+    }
+
+    public function test_the_meaningful_scope_partitions_the_table(): void
+    {
+        foreach ([['display_name' => 'Uriel Papa'], ['display_name' => ''], ['display_name' => '  '], []] as $attributes) {
+            $card = $this->card();
+            $card->profile()->save($card->profile()->make($attributes));
+        }
+
+        $meaningful = NfcProfile::query()->meaningful()->count();
+        $total      = NfcProfile::query()->count();
+
+        $this->assertSame(1, $meaningful);
+        $this->assertSame(4, $total, 'every fixture was stored');
+    }
+
     public function test_card_id_avatar_path_and_brand_color_are_not_mass_assignable(): void
     {
         $card  = $this->card();
