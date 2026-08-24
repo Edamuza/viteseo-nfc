@@ -39,6 +39,27 @@ enum NfcMode: string
         };
     }
 
+    /**
+     * Does this mode publish `nfc_links` to a visitor?
+     *
+     * Links mode serves them as buttons or a redirect; Profile mode serves the
+     * same rows as its Accounts panel. The other three publish something else
+     * entirely, so a link count next to them describes nothing a visitor can
+     * reach — which is why the dashboard shows an em dash instead.
+     *
+     * An exhaustive match, not a default: a sixth mode must state its answer
+     * here rather than inherit one. Silently inheriting "no" is exactly how the
+     * dashboard came to print an em dash for a Profile card that was serving
+     * two links.
+     */
+    public function publishesLinks(): bool
+    {
+        return match ($this) {
+            self::Links, self::Profile => true,
+            self::Contact, self::Phone, self::Email => false,
+        };
+    }
+
     /** @return array<int, self> */
     public static function all(): array
     {

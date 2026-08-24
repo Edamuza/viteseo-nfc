@@ -65,11 +65,11 @@
     <tbody>
     @forelse ($cards as $card)
       @php
-        $n       = (int) $card->active_link_count;
-        $mode    = $card->nfcMode();
-        $nfcOn   = $card->nfcModeIsConfigured();
-        $isLinks = $mode === \App\Enums\NfcMode::Links;
-        $qrOn    = $card->qrIsConfigured();
+        $n        = (int) $card->active_link_count;
+        $mode     = $card->nfcMode();
+        $nfcOn    = $card->nfcModeIsConfigured();
+        $hasLinks = $mode->publishesLinks();
+        $qrOn     = $card->qrIsConfigured();
       @endphp
       <tr>
         <td data-label="Card Number"><strong>{{ $card->card_number }}</strong></td>
@@ -88,9 +88,12 @@
         <td data-label="NFC Status">
           <span class="badge {{ $nfcOn ? 'b-ok' : 'b-off' }}">{{ $mode->label() }} &middot; {{ $nfcOn ? 'Active' : 'Unconfigured' }}</span>
         </td>
-        {{-- The count only means something in Links mode; showing 0 next to a
-             live contact card is what made the old dashboard misleading. --}}
-        <td data-label="NFC Links" class="mono muted">{{ $isLinks ? $n : '—' }}</td>
+        {{-- The count only means something where the mode actually publishes
+             those links; showing 0 next to a live contact card is what made the
+             old dashboard misleading, and an em dash next to a Profile card
+             serving two of them was the same mistake inverted. Each mode's
+             answer lives on the enum, next to its label and description. --}}
+        <td data-label="NFC Links" class="mono muted">{{ $hasLinks ? $n : '—' }}</td>
         <td data-label="Created" class="muted small">{{ $card->created_at->format('Y-m-d') }}</td>
         <td><a class="btn btn-sm" href="{{ route('admin.cards.show', $card->public_id) }}">View</a></td>
       </tr>

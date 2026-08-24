@@ -325,13 +325,82 @@ class DashboardStatusTest extends TestCase
         return trim($m[1]);
     }
 
-    public function test_dashboard_link_count_column_shows_an_em_dash_outside_links_mode(): void
+    /**
+     * A card in the given mode carrying exactly one active link.
+     *
+     * The link is what makes the assertion sharp: every row then has a real
+     * count to show, so the cell distinguishes "the count" from "the em dash"
+     * rather than "0" from "—". cardInMode() cannot be used, because its
+     * configured shape for Profile mode is a display name and no links at all.
+     */
+    private function cardInModeWithOneActiveLink(string $mode): Card
     {
-        $this->cardInMode('contact', true);
+        $card = $this->card();
+        $card->forceFill(['nfc_mode' => $mode])->save();
+        $card->nfcLinks()->create([
+            'title' => 'A', 'url' => 'https://example.com/a', 'sort_order' => 0, 'is_active' => true,
+        ]);
 
-        // A literal 0 next to a live contact card is what made the old
-        // dashboard read as broken: the count means nothing outside Links mode.
-        $this->assertSame('—', $this->linkCountCell());
+        return $card->fresh();
+    }
+
+    /**
+     * Which modes publish nfc_links to a visitor, and therefore which ones the
+     * NFC Links column means something in.
+     *
+     * Written out by hand rather than derived from NfcMode::publishesLinks(),
+     * because a list generated from the predicate under test would agree with
+     * any predicate at all. test_the_link_column_fixtures_cover_every_mode_in_the_enum
+     * is what stops a sixth mode inheriting either answer silently.
+     *
+     * @return array<string, array{string, bool}>
+     */
+    public static function linkColumnModes(): array
+    {
+        return [
+            'links publishes its links'                => ['links', true],
+            // Profile mode renders the same nfc_links rows in its Accounts
+            // panel, so the count is as true there as it is in Links mode.
+            'profile publishes the same links'         => ['profile', true],
+            'contact publishes a vCard, not links'     => ['contact', false],
+            'phone publishes a call button, not links' => ['phone', false],
+            'email publishes a mail button, not links' => ['email', false],
+        ];
+    }
+
+    public function test_the_link_column_fixtures_cover_every_mode_in_the_enum(): void
+    {
+        $covered = array_map(fn (array $case) => $case[0], self::linkColumnModes());
+        sort($covered);
+
+        $modes = array_map(fn (NfcMode $m) => $m->value, NfcMode::cases());
+        sort($modes);
+
+        $this->assertSame(
+            $modes,
+            $covered,
+            'a mode exists that linkColumnModes() does not cover: decide explicitly whether it publishes nfc_links'
+        );
+    }
+
+    /**
+     * Both directions, every mode. A column hardcoded to Links mode is caught
+     * by the Profile row; a column that shows the count everywhere is caught by
+     * the three modes that publish something else entirely, where a count next
+     * to a live contact card is what made the old dashboard read as broken.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('linkColumnModes')]
+    public function test_dashboard_link_count_column_counts_only_where_links_are_published(string $mode, bool $publishes): void
+    {
+        $this->cardInModeWithOneActiveLink($mode);
+
+        $this->assertSame(
+            $publishes ? '1' : '—',
+            $this->linkCountCell(),
+            $publishes
+                ? $mode.' mode publishes these links, so the column must count them'
+                : $mode.' mode publishes something else, so the count is meaningless'
+        );
     }
 
     public function test_dashboard_link_count_column_still_counts_in_links_mode(): void

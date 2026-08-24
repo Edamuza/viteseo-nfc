@@ -2161,7 +2161,18 @@ appear in the panel as a website with a globe."
 
 - `php artisan test` passes with no warnings, deprecations or skipped tests.
 - A card put into Profile mode with a `display_name` renders the profile page; without one it renders the not-ready page, never the links setup form.
-- The dashboard shows `Profile Page · Active` for a configured profile card and `Profile Page · Unconfigured` for an empty one, with an em dash in the NFC Links column, and its query count is unchanged by row count.
+- The dashboard shows `Profile Page · Active` for a configured profile card and `Profile Page · Unconfigured` for an empty one, with the **active link count** in the NFC Links column, and its query count is unchanged by row count.
+
+  > **Corrected after the increment-2 review.** This line originally required an
+  > em dash for Profile mode, and the code satisfied it. It was right when Task 6
+  > wrote it — Profile mode read no links then — and Task 9 invalidated it three
+  > commits later by giving the profile page an Accounts panel that renders the
+  > same `nfc_links` rows. The em dash means "the count is meaningless in this
+  > mode", which is true for Contact, Phone and Email and false for Profile: a
+  > Profile card serving `x.com/u` and `github.com/u` read as `—` on the
+  > dashboard. The column is now driven by `NfcMode::publishesLinks()`, an
+  > exhaustive match, so a sixth mode has to state its answer rather than
+  > inherit one.
 - `resetNfc` and `resetCard` clear the profile row and delete the avatar file.
 - No `<script>` anywhere in `resources/views/public/nfc-profile.blade.php`.
 - `rg -n 'card_number' resources/views/public/` returns nothing.
