@@ -28,35 +28,54 @@ class StickerTemplateController extends Controller
         ])->header('Cache-Control', 'no-store, private, no-cache, must-revalidate, max-age=0');
     }
 
+    /**
+     * Both sides arrive in ONE multi-select input, in either order. The side
+     * carrying the QR is not a field name any more — it is whichever file has
+     * the fully transparent hole. That file is stored as the QR side
+     * (back_path); the other becomes the design side (front_path).
+     */
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:80', 'unique:sticker_templates,name'],
-            'front' => $this->pngRules(),
-            'back' => $this->pngRules(),
+            'files' => ['required', 'array', 'size:2'],
+            'files.*' => $this->pngRules(),
+        ], [
+            'files.size' => 'Select exactly two PNGs: the design side and the QR side.',
         ]);
 
+        $paths = [];
+
         try {
-            $frontPath = $this->artwork->store($request->file('front'));
-            $backPath = $this->artwork->store($request->file('back'));
+            foreach ($request->file('files') as $file) {
+                $paths[] = $this->artwork->store($file);
+            }
         } catch (UnreadableImageException $exception) {
-            return back()->withErrors(['front' => $exception->getMessage()])->withInput($request->except(['front', 'back']));
+            $this->forgetAll($paths);
+
+            return back()->withErrors(['files' => $exception->getMessage()])->withInput($request->except('files'));
         }
 
-        $box = $this->detectBox($backPath);
-        if ($box === null) {
-            $this->forget($frontPath);
-            $this->forget($backPath);
+        $boxes = array_map(fn (string $path) => $this->detectBox($path), $paths);
+        $holed = array_keys(array_filter($boxes));
+
+        if (count($holed) !== 1) {
+            $this->forgetAll($paths);
 
             return back()->withErrors([
-                'back' => 'The back PNG needs a fully transparent hole at least 200 pixels square.',
-            ])->withInput($request->except(['front', 'back']));
+                'files' => $holed === []
+                    ? 'One of the two PNGs needs a fully transparent QR hole at least 200 pixels square. The hole can be on either side.'
+                    : 'Only one of the two PNGs may carry the transparent QR hole.',
+            ])->withInput($request->except('files'));
         }
+
+        $qrSide = $holed[0];
+        $box = $boxes[$qrSide];
 
         $template = new StickerTemplate(['name' => trim($data['name'])]);
         $template->forceFill([
-            'front_path' => $frontPath,
-            'back_path' => $backPath,
+            'front_path' => $paths[1 - $qrSide],
+            'back_path' => $paths[$qrSide],
             'qr_x' => $box['x'],
             'qr_y' => $box['y'],
             'qr_size' => $box['size'],
@@ -66,66 +85,69 @@ class StickerTemplateController extends Controller
         return redirect()->route('admin.sticker-templates.index')->with('status', 'Sticker template saved.');
     }
 
+    /**
+     * Replacements use the same one-input contract as store(): each uploaded
+     * file is routed by its content — a file with a transparent hole replaces
+     * the QR side and re-detects the box, a file without one replaces the
+     * design side. One file of each kind at most, in either order.
+     */
     public function update(Request $request, StickerTemplate $template): RedirectResponse
     {
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:80', Rule::unique('sticker_templates', 'name')->ignore($template)],
-            'front' => ['nullable', 'file', 'image', 'mimes:png', 'max:2048', 'dimensions:max_width=4000,max_height=4000'],
-            'back' => ['nullable', 'file', 'image', 'mimes:png', 'max:2048', 'dimensions:max_width=4000,max_height=4000'],
+            'files' => ['sometimes', 'array', 'min:1', 'max:2'],
+            'files.*' => ['file', 'image', 'mimes:png', 'max:2048', 'dimensions:max_width=4000,max_height=4000'],
         ]);
 
         if (isset($data['name'])) {
             $template->fill(['name' => trim($data['name'])]);
         }
 
-        $newFront = null;
-        $newBack = null;
-        $oldFront = null;
-        $oldBack = null;
+        $stored = [];
 
         try {
-            if ($request->file('front')) {
-                $newFront = $this->artwork->store($request->file('front'));
-                $oldFront = $template->front_path;
-                $template->forceFill(['front_path' => $newFront]);
-            }
-
-            if ($request->file('back')) {
-                $newBack = $this->artwork->store($request->file('back'));
-                $box = $this->detectBox($newBack);
-                if ($box === null) {
-                    $this->forget($newBack);
-                    if ($newFront !== null) {
-                        $this->forget($newFront);
-                    }
-
-                    return back()->withErrors([
-                        'back' => 'The back PNG needs a fully transparent hole at least 200 pixels square.',
-                    ])->withInput($request->except(['front', 'back']));
-                }
-
-                $oldBack = $template->back_path;
-                $template->forceFill([
-                    'back_path' => $newBack,
-                    'qr_x' => $box['x'],
-                    'qr_y' => $box['y'],
-                    'qr_size' => $box['size'],
-                ]);
+            foreach ($request->file('files', []) as $file) {
+                $path = $this->artwork->store($file);
+                $stored[] = ['path' => $path, 'box' => $this->detectBox($path)];
             }
         } catch (UnreadableImageException $exception) {
-            if ($newFront !== null) {
-                $this->forget($newFront);
-            }
-            if ($newBack !== null) {
-                $this->forget($newBack);
-            }
+            $this->forgetAll(array_column($stored, 'path'));
 
-            return back()->withErrors(['front' => $exception->getMessage()])->withInput($request->except(['front', 'back']));
+            return back()->withErrors(['files' => $exception->getMessage()])->withInput($request->except('files'));
+        }
+
+        $holed = array_values(array_filter($stored, fn (array $side) => $side['box'] !== null));
+        $plain = array_values(array_filter($stored, fn (array $side) => $side['box'] === null));
+
+        if (count($holed) > 1 || count($plain) > 1) {
+            $this->forgetAll(array_column($stored, 'path'));
+
+            return back()->withErrors([
+                'files' => count($plain) > 1
+                    ? 'Neither PNG has a usable QR hole. To replace the QR side, its PNG needs a fully transparent hole at least 200 pixels square; only one file may be the design side.'
+                    : 'Only one of the PNGs may carry the transparent QR hole.',
+            ])->withInput($request->except('files'));
+        }
+
+        $old = [];
+
+        if ($plain !== []) {
+            $old[] = $template->front_path;
+            $template->forceFill(['front_path' => $plain[0]['path']]);
+        }
+
+        if ($holed !== []) {
+            $old[] = $template->back_path;
+            $template->forceFill([
+                'back_path' => $holed[0]['path'],
+                'qr_x' => $holed[0]['box']['x'],
+                'qr_y' => $holed[0]['box']['y'],
+                'qr_size' => $holed[0]['box']['size'],
+            ]);
         }
 
         $template->save();
-        $this->forget($oldFront);
-        $this->forget($oldBack);
+        $this->forgetAll($old);
 
         return back()->with('status', 'Sticker template updated.');
     }
@@ -189,5 +211,13 @@ class StickerTemplateController extends Controller
         }
 
         Storage::disk('public')->delete($path);
+    }
+
+    /** @param  array<int, string|null>  $paths */
+    private function forgetAll(array $paths): void
+    {
+        foreach ($paths as $path) {
+            $this->forget($path);
+        }
     }
 }

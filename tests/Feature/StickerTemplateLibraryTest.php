@@ -58,12 +58,12 @@ class StickerTemplateLibraryTest extends TestCase
         $this->assertTrue($template->is_active);
     }
 
-    public function test_admin_can_create_a_template_from_a_holed_back(): void
+    public function test_admin_can_create_a_template_with_the_hole_in_either_file(): void
     {
+        // Hole in the second file.
         $this->actingAs($this->admin())->post('/admin/sticker-templates', [
             'name' => 'Green batch',
-            'front' => $this->png(false),
-            'back' => $this->png(true, 80, 90, 250, 250),
+            'files' => [$this->png(false), $this->png(true, 80, 90, 250, 250)],
         ])->assertRedirect('/admin/sticker-templates')->assertSessionHasNoErrors();
 
         $created = StickerTemplate::query()->where('name', 'Green batch')->sole();
@@ -71,34 +71,53 @@ class StickerTemplateLibraryTest extends TestCase
         $this->assertSame([80, 90, 250], [$created->qr_x, $created->qr_y, $created->qr_size]);
         Storage::disk('public')->assertExists($created->front_path);
         Storage::disk('public')->assertExists($created->back_path);
+
+        // Hole in the FIRST file: same result — the holed file is the QR side
+        // regardless of selection order.
+        $this->actingAs($this->admin())->post('/admin/sticker-templates', [
+            'name' => 'Hole first',
+            'files' => [$this->png(true, 80, 90, 250, 250), $this->png(false)],
+        ])->assertRedirect('/admin/sticker-templates')->assertSessionHasNoErrors();
+
+        $swapped = StickerTemplate::query()->where('name', 'Hole first')->sole();
+        $this->assertSame([80, 90, 250], [$swapped->qr_x, $swapped->qr_y, $swapped->qr_size]);
     }
 
-    public function test_a_back_without_a_usable_hole_is_rejected_and_inserts_nothing(): void
+    public function test_uploads_without_exactly_one_usable_hole_are_rejected_and_insert_nothing(): void
     {
         $this->actingAs($this->admin())->post('/admin/sticker-templates', [
             'name' => 'No hole',
-            'front' => $this->png(false),
-            'back' => $this->png(false),
-        ])->assertSessionHasErrors('back');
+            'files' => [$this->png(false), $this->png(false)],
+        ])->assertSessionHasErrors('files');
 
         $this->actingAs($this->admin())->post('/admin/sticker-templates', [
             'name' => 'Thin strip',
-            'front' => $this->png(false),
-            'back' => $this->png(true, 20, 20, 40, 400),
-        ])->assertSessionHasErrors('back');
+            'files' => [$this->png(false), $this->png(true, 20, 20, 40, 400)],
+        ])->assertSessionHasErrors('files');
+
+        $this->actingAs($this->admin())->post('/admin/sticker-templates', [
+            'name' => 'Two holes',
+            'files' => [$this->png(true, 80, 90, 250, 250), $this->png(true, 80, 90, 250, 250)],
+        ])->assertSessionHasErrors('files');
+
+        $this->actingAs($this->admin())->post('/admin/sticker-templates', [
+            'name' => 'One file',
+            'files' => [$this->png(true, 80, 90, 250, 250)],
+        ])->assertSessionHasErrors('files');
 
         $this->assertSame(['Default'], StickerTemplate::query()->pluck('name')->all());
     }
 
-    public function test_failed_back_replace_keeps_the_previous_files_and_box(): void
+    public function test_failed_replace_keeps_the_previous_files_and_box(): void
     {
         $template = StickerTemplate::query()->sole();
         $oldFront = $template->front_path;
         $oldBack = $template->back_path;
 
+        // Two hole-less files cannot both be the design side.
         $this->actingAs($this->admin())->patch('/admin/sticker-templates/'.$template->id, [
-            'back' => $this->png(false),
-        ])->assertSessionHasErrors('back');
+            'files' => [$this->png(false), $this->png(false)],
+        ])->assertSessionHasErrors('files');
 
         $fresh = $template->fresh();
         $this->assertSame($oldFront, $fresh->front_path);
@@ -107,19 +126,37 @@ class StickerTemplateLibraryTest extends TestCase
         Storage::disk('public')->assertExists($oldBack);
     }
 
-    public function test_replacing_only_the_front_does_not_change_the_box(): void
+    public function test_replacing_with_a_plain_file_updates_the_design_side_and_keeps_the_box(): void
     {
         $template = StickerTemplate::query()->sole();
         $oldBack = $template->back_path;
 
         $this->actingAs($this->admin())->patch('/admin/sticker-templates/'.$template->id, [
-            'front' => $this->png(false, red: 10, green: 80, blue: 10),
+            'files' => [$this->png(false, red: 10, green: 80, blue: 10)],
         ])->assertSessionHasNoErrors();
 
         $fresh = $template->fresh();
         $this->assertSame($oldBack, $fresh->back_path);
         $this->assertSame([106, 77, 426], [$fresh->qr_x, $fresh->qr_y, $fresh->qr_size]);
         $this->assertNotSame($template->front_path, $fresh->front_path);
+    }
+
+    public function test_replacing_with_a_holed_file_updates_the_qr_side_and_redetects_the_box(): void
+    {
+        $template = StickerTemplate::query()->sole();
+        $oldFront = $template->front_path;
+        $oldBack = $template->back_path;
+
+        $this->actingAs($this->admin())->patch('/admin/sticker-templates/'.$template->id, [
+            'files' => [$this->png(true, 60, 70, 220, 220)],
+        ])->assertSessionHasNoErrors();
+
+        $fresh = $template->fresh();
+        $this->assertSame($oldFront, $fresh->front_path);
+        $this->assertNotSame($oldBack, $fresh->back_path);
+        $this->assertSame([60, 70, 220], [$fresh->qr_x, $fresh->qr_y, $fresh->qr_size]);
+        Storage::disk('public')->assertMissing($oldBack);
+        Storage::disk('public')->assertExists($fresh->back_path);
     }
 
     public function test_activating_another_template_leaves_exactly_one_active(): void
@@ -269,8 +306,7 @@ class StickerTemplateLibraryTest extends TestCase
     {
         $this->actingAs($this->admin())->post('/admin/sticker-templates', [
             'name' => 'Extra '.$x,
-            'front' => $this->png(false),
-            'back' => $this->png(true, $x, $y, $width, $height),
+            'files' => [$this->png(false), $this->png(true, $x, $y, $width, $height)],
         ])->assertSessionHasNoErrors();
 
         return StickerTemplate::query()->where('name', 'Extra '.$x)->sole();

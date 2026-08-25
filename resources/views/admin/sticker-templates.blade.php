@@ -4,7 +4,7 @@
 
 <div class="page-head">
   <h1>Sticker templates</h1>
-  <p>Each design is a front and back pair. The back needs a fully transparent hole; that is where the card QR is printed.</p>
+  <p>Each design is a pair of PNGs. One of the two carries a fully transparent hole — that is where the card QR is printed, and it can be on either side.</p>
 </div>
 
 <section class="panel">
@@ -13,10 +13,13 @@
     @csrf
     <label class="fld" for="template-name">Name</label>
     <input id="template-name" type="text" name="name" maxlength="80" value="{{ old('name') }}" required style="width:100%;max-width:420px">
-    <div class="fgrid" style="margin-top:14px">
-      <label><span>Front PNG</span><input type="file" name="front" accept="image/png" required></label>
-      <label><span>Back PNG (transparent QR hole)</span><input type="file" name="back" accept="image/png" required></label>
-    </div>
+
+    <label class="fld" for="template-files" style="margin-top:14px">Both sides &mdash; select the two PNGs together</label>
+    <input id="template-files" type="file" name="files[]" accept="image/png" multiple required>
+    <p class="small muted" style="margin:7px 0 14px">
+      Pick both files in one go. The PNG with the fully transparent hole (at least 200&times;200px)
+      becomes the QR side automatically &mdash; the hole can be on either design; the other file is the design side.
+    </p>
     <button class="btn btn-p" type="submit">Save template</button>
   </form>
 </section>
@@ -32,8 +35,8 @@
     @foreach ($templates as $template)
       <article class="tpl-card {{ $template->is_active ? 'on' : '' }}">
         <div class="tpl-thumbs">
-          <img src="{{ asset('storage/'.$template->front_path) }}" alt="{{ $template->name }} — front" loading="lazy">
-          <img src="{{ asset('storage/'.$template->back_path) }}" alt="{{ $template->name }} — back" loading="lazy">
+          <img src="{{ asset('storage/'.$template->front_path) }}" alt="{{ $template->name }} — design side" loading="lazy">
+          <img src="{{ asset('storage/'.$template->back_path) }}" alt="{{ $template->name }} — QR side" loading="lazy">
           <button type="button" class="tpl-eye" data-modal="tpl-modal-{{ $template->id }}"
                   aria-label="Preview {{ $template->name }} at full size" title="Preview at full size">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -84,25 +87,27 @@
 
     <div class="tpl-big">
       <figure>
-        <img src="{{ asset('storage/'.$template->front_path) }}" alt="{{ $template->name }} — front, full size" loading="lazy">
-        <figcaption class="small muted">Front</figcaption>
+        <img src="{{ asset('storage/'.$template->front_path) }}" alt="{{ $template->name }} — design side, full size" loading="lazy">
+        <figcaption class="small muted">Design side</figcaption>
       </figure>
       <figure>
         <span class="tpl-backwrap">
-          <img src="{{ asset('storage/'.$template->back_path) }}" alt="{{ $template->name }} — back, full size" loading="lazy">
+          <img src="{{ asset('storage/'.$template->back_path) }}" alt="{{ $template->name }} — QR side, full size" loading="lazy">
           <span class="tpl-qrbox" style="left:{{ ($template->qr_x / 638) * 100 }}%;top:{{ ($template->qr_y / 1011) * 100 }}%;width:{{ ($template->qr_size / 638) * 100 }}%;height:{{ ($template->qr_size / 1011) * 100 }}%"></span>
         </span>
-        <figcaption class="small muted">Back &middot; the blue box is where the card QR prints</figcaption>
+        <figcaption class="small muted">QR side &middot; the blue box is where the card QR prints</figcaption>
       </figure>
     </div>
 
     <hr>
     <form method="POST" action="{{ route('admin.sticker-templates.update', $template) }}" enctype="multipart/form-data">
       @csrf @method('PATCH')
-      <div class="fgrid">
-        <label><span>Replace front</span><input type="file" name="front" accept="image/png"></label>
-        <label><span>Replace back</span><input type="file" name="back" accept="image/png"></label>
-      </div>
+      <label class="fld" for="tpl-files-{{ $template->id }}">Replace files &mdash; one or both sides</label>
+      <input id="tpl-files-{{ $template->id }}" type="file" name="files[]" accept="image/png" multiple>
+      <p class="small muted" style="margin:7px 0 14px">
+        Each file is routed by its content: a PNG with the transparent hole replaces the QR side
+        (and the QR box is re-detected), a PNG without one replaces the design side.
+      </p>
       <button class="btn btn-p" type="submit">Replace files</button>
     </form>
   </dialog>
