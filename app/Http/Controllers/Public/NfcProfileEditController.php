@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Card;
 use App\Rules\SafeExternalUrl;
 use App\Services\CardGenerationService;
+use App\Services\LinkPlatform;
 use App\Services\DominantColor;
 use App\Services\ImageIngest;
 use App\Services\PublicImageStorage;
@@ -95,14 +96,16 @@ class NfcProfileEditController extends Controller
 
                 $title = $link['title'] ?? null;
                 $url = $link['url'] ?? null;
+                $icon = $link['icon'] ?? null;
                 $title = is_string($title) ? $this->singleLineOrNull($title) : $title;
                 $url = is_string($url) ? trim($url) : $url;
+                $icon = is_string($icon) ? (trim($icon) ?: null) : null;
 
                 if (($title === null || $title === '') && ($url === null || $url === '')) {
                     continue;
                 }
 
-                $normalizedLinks[] = ['title' => $title, 'url' => $url];
+                $normalizedLinks[] = ['title' => $title, 'url' => $url, 'icon' => $icon];
             }
 
             $request->merge(['links' => $normalizedLinks]);
@@ -120,6 +123,7 @@ class NfcProfileEditController extends Controller
             'links.*' => ['array'],
             'links.*.title' => ['required', 'string', 'max:120'],
             'links.*.url' => ['required', 'string', 'max:500', new SafeExternalUrl()],
+            'links.*.icon' => ['nullable', 'string', \Illuminate\Validation\Rule::in(array_keys(LinkPlatform::iconChoices()))],
         ]);
 
         $newPath = null;
@@ -195,6 +199,7 @@ class NfcProfileEditController extends Controller
                     $lockedCard->nfcLinks()->create([
                         'title' => $link['title'],
                         'url' => $link['url'],
+                        'icon' => $link['icon'] ?? null,
                         'sort_order' => $order,
                         'is_active' => true,
                     ]);
@@ -272,6 +277,7 @@ class NfcProfileEditController extends Controller
                 ->map(fn ($link): array => [
                     'title' => $link->title,
                     'url' => $link->url,
+                    'icon' => $link->icon,
                     'sort_order' => $link->sort_order,
                     'is_active' => $link->is_active,
                 ])

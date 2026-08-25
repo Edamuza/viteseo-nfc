@@ -13,6 +13,7 @@ use App\Rules\SafePhoneNumber;
 use App\Services\CardGenerationService;
 use App\Services\CardReviewStickerService;
 use App\Services\CardResetService;
+use App\Services\LinkPlatform;
 use App\Services\PublicImageStorage;
 use App\Services\ImageIngest;
 use App\Services\QrCodeService;
@@ -86,11 +87,13 @@ class CardController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:120'],
             'url'   => ['required', 'string', new SafeExternalUrl()],
+            'icon'  => ['nullable', 'string', Rule::in(array_keys(LinkPlatform::iconChoices()))],
         ]);
 
         $card->nfcLinks()->create([
             'title'      => trim($data['title']),
             'url'        => trim($data['url']),
+            'icon'       => $data['icon'] ?? null,
             'sort_order' => (int) ($card->nfcLinks()->max('sort_order') ?? -1) + 1,
             'is_active'  => true,
         ]);
@@ -110,12 +113,14 @@ class CardController extends Controller
         $data = $request->validate([
             'title'     => ['required', 'string', 'max:120'],
             'url'       => ['required', 'string', new SafeExternalUrl()],
+            'icon'      => ['nullable', 'string', Rule::in(array_keys(LinkPlatform::iconChoices()))],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
         $link->update([
             'title'     => trim($data['title']),
             'url'       => trim($data['url']),
+            'icon'      => $data['icon'] ?? null,
             'is_active' => $request->boolean('is_active'),
         ]);
 

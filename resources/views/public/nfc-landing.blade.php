@@ -28,7 +28,7 @@ header{text-align:center;margin-bottom:28px}
 h1{font-size:1.4rem;font-weight:650;margin:0;letter-spacing:-.02em;overflow-wrap:anywhere}
 p.tag{color:var(--muted);margin:7px 0 0;font-size:.93rem;overflow-wrap:anywhere}
 a.link{
-  display:flex;align-items:center;justify-content:center;text-align:center;
+  display:flex;align-items:center;justify-content:center;text-align:center;gap:10px;
   min-height:56px;padding:15px 20px;margin-bottom:11px;
   background:var(--surface);color:var(--text);text-decoration:none;
   border:1px solid var(--line-strong);border-radius:var(--radius);
@@ -36,6 +36,8 @@ a.link{
   box-shadow:0 1px 2px rgba(16,24,40,.04);
   transition:transform .12s ease,background .12s ease,border-color .12s ease;
 }
+a.link .ic{display:inline-flex;flex:0 0 auto;color:#20262e}
+a.link .ic svg{width:19px;height:19px;fill:currentColor;display:block}
 a.link:hover{background:var(--surface-hover);border-color:var(--muted)}
 a.link:active{transform:scale(.99)}
 a.link:focus-visible{outline:2px solid var(--text);outline-offset:2px}
@@ -64,7 +66,13 @@ footer{text-align:center;color:var(--muted);font-size:.73rem;margin-top:26px}
 
   <nav>
     @foreach ($links as $link)
-      <a class="link" href="{{ $link->url }}" rel="noopener noreferrer nofollow ugc" target="_blank">{{ $link->title }}</a>
+      @php $icon = \App\Services\LinkPlatform::iconFor($link->icon, $link->url); @endphp
+      <a class="link" href="{{ $link->url }}" rel="noopener noreferrer nofollow ugc" target="_blank">
+        @if ($icon !== \App\Services\LinkPlatform::NONE)
+          <span class="ic" aria-hidden="true"><x-platform-icon :platform="$icon" /></span>
+        @endif
+        <span class="lt">{{ $link->title }}</span>
+      </a>
     @endforeach
   </nav>
 

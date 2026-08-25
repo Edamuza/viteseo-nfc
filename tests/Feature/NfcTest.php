@@ -113,6 +113,54 @@ class NfcTest extends TestCase
             ->assertDontSee('Activation PIN');
     }
 
+    public function test_landing_buttons_carry_the_chosen_icon_and_none_hides_it(): void
+    {
+        $card = $this->card();
+        // Explicit globe on an unknown URL, explicit no-logo on another.
+        $card->nfcLinks()->create(['title' => 'Portfolio', 'url' => 'https://my-folio.example', 'icon' => 'web', 'sort_order' => 0, 'is_active' => true]);
+        $card->nfcLinks()->create(['title' => 'Plain', 'url' => 'https://plain.example', 'icon' => 'none', 'sort_order' => 1, 'is_active' => true]);
+        // No choice on a recognisable host: detection still applies.
+        $card->nfcLinks()->create(['title' => 'GH', 'url' => 'https://github.com/someone', 'sort_order' => 2, 'is_active' => true]);
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        // Portfolio row: globe icon before the label.
+        $this->assertMatchesRegularExpression('/<span class="ic"[^>]*>.*?<\/span>\s*<span class="lt">Portfolio</s', $body);
+        // Plain row: label only, no icon span before it.
+        $this->assertMatchesRegularExpression('/<a class="link"[^>]*>\s*<span class="lt">Plain</s', $body);
+        // GitHub row: the brand mark (its path data starts with M12 .297).
+        $this->assertStringContainsString('M12 .297c-6.63', $body);
+    }
+
+    public function test_public_links_setup_persists_the_chosen_icon(): void
+    {
+        $card = $this->card();
+
+        $this->post('/n/'.$card->public_id, [
+            'activation_pin' => $this->pin($card),
+            'links' => [
+                ['title' => 'Folio', 'url' => 'https://folio.example', 'icon' => 'web'],
+                ['title' => 'Plain', 'url' => 'https://plain.example', 'icon' => 'none'],
+                ['title' => 'Auto', 'url' => 'https://github.com/x', 'icon' => ''],
+            ],
+        ])->assertRedirect('/n/'.$card->public_id.'/done');
+
+        $this->assertSame(
+            ['web', 'none', null],
+            $card->fresh()->nfcLinks()->orderBy('sort_order')->pluck('icon')->all()
+        );
+    }
+
+    public function test_public_links_setup_rejects_an_unknown_icon(): void
+    {
+        $card = $this->card();
+
+        $this->post('/n/'.$card->public_id, [
+            'activation_pin' => $this->pin($card),
+            'links' => [['title' => 'X', 'url' => 'https://example.com', 'icon' => 'evil']],
+        ])->assertSessionHasErrors('links.0.icon');
+    }
+
     public function test_landing_page_omits_the_header_when_no_branding_is_set(): void
     {
         // Both branding fields are optional; leaving them blank is the common path.

@@ -9,6 +9,7 @@ use App\Models\SitePage;
 use App\Rules\SafeExternalUrl;
 use App\Rules\SafePhoneNumber;
 use App\Services\CardGenerationService;
+use App\Services\LinkPlatform;
 use App\Services\QrCodeService;
 use App\Services\VCardBuilder;
 use Illuminate\Http\RedirectResponse;
@@ -16,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\Rule;
 
 /**
  * Public NFC endpoint.
@@ -375,6 +377,7 @@ class NfcController extends Controller
             'links'                => ['required', 'array', 'min:1', 'max:12'],
             'links.*.title'        => ['required', 'string', 'max:120'],
             'links.*.url'          => ['required', 'string', new SafeExternalUrl()],
+            'links.*.icon'         => ['nullable', 'string', Rule::in(array_keys(LinkPlatform::iconChoices()))],
         ], [
             'links.required'       => 'Please add at least one link.',
             'links.*.title.required' => 'Every link needs a label.',
@@ -398,6 +401,7 @@ class NfcController extends Controller
                 $card->nfcLinks()->create([
                     'title'      => trim($link['title']),
                     'url'        => trim($link['url']),
+                    'icon'       => $link['icon'] ?? null,
                     'sort_order' => $order++,
                     'is_active'  => true,
                 ]);

@@ -279,12 +279,15 @@ footer a:hover{text-decoration:underline}
            test_the_icon_row_never_carries_a_defused_link pins the consequence
            so a change to either is caught rather than shipping a dead mark. --}}
       @php
-        $branded = $links->filter(fn ($l) => \App\Services\LinkPlatform::forUrl($l->url) !== 'web');
+        // iconFor honours the author's dropdown choice and falls back to URL
+        // detection. The row still carries brand marks only: a globe or a
+        // "no logo" choice has no mark that belongs up here.
+        $branded = $links->filter(fn ($l) => ! in_array(\App\Services\LinkPlatform::iconFor($l->icon, $l->url), ['web', \App\Services\LinkPlatform::NONE], true));
       @endphp
       @if ($branded->isNotEmpty())
         <div class="iconrow">
           @foreach ($branded as $link)
-            @php $platform = \App\Services\LinkPlatform::forUrl($link->url); @endphp
+            @php $platform = \App\Services\LinkPlatform::iconFor($link->icon, $link->url); @endphp
             <a href="{{ \App\Services\LinkPlatform::safeHref($link->url) }}" rel="noopener noreferrer nofollow ugc" target="_blank"
                aria-label="{{ \App\Services\LinkPlatform::label($platform) }}">
               <x-platform-icon :platform="$platform" />
@@ -306,14 +309,19 @@ footer a:hover{text-decoration:underline}
            exist. Hence the plain heading rather than a verified-profile framing. --}}
       @foreach ($links as $link)
         @php
-          $platform = \App\Services\LinkPlatform::forUrl($link->url);
+          $platform = \App\Services\LinkPlatform::iconFor($link->icon, $link->url);
+          $noLogo   = $platform === \App\Services\LinkPlatform::NONE;
           $href     = \App\Services\LinkPlatform::safeHref($link->url);
           $display  = \App\Services\LinkPlatform::displayUrl($link->url);
         @endphp
         <div class="acct">
-          <span class="acct-ico"><x-platform-icon :platform="$platform" /></span>
+          @unless ($noLogo)
+            <span class="acct-ico"><x-platform-icon :platform="$platform" /></span>
+          @endunless
           <div>
-            <div class="acct-name">{{ \App\Services\LinkPlatform::label($platform) }}</div>
+            {{-- A "no logo" row has no platform to name, so it shows the
+                 author's own label instead. --}}
+            <div class="acct-name">{{ $noLogo ? $link->title : \App\Services\LinkPlatform::label($platform) }}</div>
             @if ($href === '#')
               {{-- Defused, so not an anchor at all. href="#" resolves to this
                    page, which with target="_blank" would open a second copy of

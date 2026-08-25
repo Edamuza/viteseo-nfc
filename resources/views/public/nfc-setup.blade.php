@@ -22,12 +22,23 @@
     <input id="page_subtitle" name="page_subtitle" type="text" maxlength="200" value="{{ old('page_subtitle') }}">
 
     <label>Your links</label>
+    <p class="sub" style="margin:0 0 10px;font-size:.82rem">
+      The logo dropdown decides the icon shown next to each link: pick a platform,
+      the globe for your own site or portfolio, or “No logo” for plain text.
+      “Auto” matches the URL to a known platform by itself.
+    </p>
     <div id="links">
-      @php $old = old('links', [['title'=>'','url'=>'']]); @endphp
+      @php $old = old('links', [['title'=>'','url'=>'','icon'=>'']]); @endphp
       @foreach ($old as $i => $row)
         <div class="linkrow">
           <input class="t" name="links[{{ $i }}][title]" type="text" placeholder="Label" maxlength="120" value="{{ $row['title'] ?? '' }}" required>
           <input name="links[{{ $i }}][url]" type="url" inputmode="url" placeholder="https://…" value="{{ $row['url'] ?? '' }}" required>
+          <select class="ico" name="links[{{ $i }}][icon]" aria-label="Logo">
+            <option value="">Auto</option>
+            @foreach (\App\Services\LinkPlatform::iconChoices() as $key => $label)
+              <option value="{{ $key }}" @selected(($row['icon'] ?? '') === $key)>{{ $label }}</option>
+            @endforeach
+          </select>
         </div>
       @endforeach
     </div>
@@ -56,7 +67,10 @@
     var u = document.createElement('input');
     u.type = 'url'; u.placeholder = 'https://…'; u.required = true;
     u.name = 'links[' + i + '][url]';
-    row.appendChild(t); row.appendChild(u); wrap.appendChild(row);
+    // Clone the first row's logo select so the choices stay in one place.
+    var s = wrap.querySelector('select.ico').cloneNode(true);
+    s.name = 'links[' + i + '][icon]'; s.selectedIndex = 0;
+    row.appendChild(t); row.appendChild(u); row.appendChild(s); wrap.appendChild(row);
     i++; t.focus();
   });
 })();

@@ -10,7 +10,7 @@ class NfcLink extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['card_id', 'title', 'url', 'sort_order', 'is_active'];
+    protected $fillable = ['card_id', 'title', 'url', 'icon', 'sort_order', 'is_active'];
 
     protected function casts(): array
     {

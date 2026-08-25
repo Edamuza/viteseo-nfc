@@ -541,6 +541,24 @@ class NfcProfileTest extends TestCase
             ->assertSee('--brand-soft:rgba(29,91,69,.34)', false);
     }
 
+    public function test_the_profile_page_honours_the_chosen_link_icon(): void
+    {
+        $card = $this->profileCard();
+        // Explicit globe on a LinkedIn URL: no brand mark anywhere for it.
+        $card->nfcLinks()->create(['title' => 'Mine', 'url' => 'https://linkedin.com/in/me', 'icon' => 'web', 'sort_order' => 0, 'is_active' => true]);
+        // Explicit no-logo: the Accounts row shows the author's label, no icon.
+        $card->nfcLinks()->create(['title' => 'My Portfolio', 'url' => 'https://folio.example', 'icon' => 'none', 'sort_order' => 1, 'is_active' => true]);
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        // The LinkedIn brand path must not render: the author chose the globe.
+        $this->assertStringNotContainsString('M20.447 20.452', $body);
+        // The no-logo row is named by its own label.
+        $this->assertStringContainsString('My Portfolio', $body);
+        // And the icon row shows no marks at all: globe and none are excluded.
+        $this->assertStringNotContainsString('class="iconrow"', $body);
+    }
+
     public function test_the_cover_shows_the_blurred_avatar_only_when_one_exists(): void
     {
         $card = $this->profileCard();

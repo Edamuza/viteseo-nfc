@@ -184,10 +184,11 @@ class CardProfileController extends Controller
             $lockedCard->nfcLinks()->delete();
 
             foreach ((array) ($snapshot['links'] ?? []) as $link) {
-                $link = Arr::only((array) $link, ['title', 'url', 'sort_order', 'is_active']);
+                $link = Arr::only((array) $link, ['title', 'url', 'icon', 'sort_order', 'is_active']);
                 $lockedCard->nfcLinks()->create([
                     'title' => $link['title'] ?? null,
                     'url' => $link['url'] ?? null,
+                    'icon' => $link['icon'] ?? null,
                     'sort_order' => (int) ($link['sort_order'] ?? 0),
                     'is_active' => (bool) ($link['is_active'] ?? false),
                 ]);

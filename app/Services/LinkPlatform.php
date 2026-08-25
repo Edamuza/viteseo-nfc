@@ -77,6 +77,43 @@ class LinkPlatform
         return self::LABELS[$key] ?? self::LABELS['web'];
     }
 
+    /** A link whose author chose to show no logo at all. */
+    public const NONE = 'none';
+
+    /**
+     * key => label for the logo dropdown on every add-link form, in display
+     * order: the plain globe first (the answer for a portfolio or company
+     * site), then the brand marks, then label-only.
+     *
+     * @return array<string, string>
+     */
+    public static function iconChoices(): array
+    {
+        $choices = ['web' => self::LABELS['web'].' (globe)'];
+
+        foreach (array_keys(self::HOSTS) as $key) {
+            $choices[$key] = self::LABELS[$key];
+        }
+
+        $choices[self::NONE] = 'No logo';
+
+        return $choices;
+    }
+
+    /**
+     * The icon key a link renders with: the author's explicit choice when one
+     * was made, URL detection otherwise (which is also what every link stored
+     * before the dropdown existed gets).
+     */
+    public static function iconFor(?string $chosen, string $url): string
+    {
+        if (is_string($chosen) && ($chosen === self::NONE || isset(self::LABELS[$chosen]))) {
+            return $chosen;
+        }
+
+        return self::forUrl($url);
+    }
+
     /**
      * The URL the visitor may safely tap, or "#".
      *

@@ -103,6 +103,26 @@ class NfcProfileEditTest extends TestCase
         $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Chooser Profile');
     }
 
+    public function test_the_client_editor_persists_each_links_chosen_icon(): void
+    {
+        $card = $this->card();
+        $this->unlock($card);
+
+        $this->patch('/n/'.$card->public_id.'/edit', [
+            'display_name' => 'Uriel Papa',
+            'links' => [
+                ['title' => 'Folio', 'url' => 'https://folio.example', 'icon' => 'web'],
+                ['title' => 'Plain', 'url' => 'https://plain.example', 'icon' => 'none'],
+                ['title' => 'Auto', 'url' => 'https://github.com/x', 'icon' => ''],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(
+            ['web', 'none', null],
+            $card->fresh()->nfcLinks()->orderBy('sort_order')->pluck('icon')->all()
+        );
+    }
+
     public function test_a_card_has_newest_first_profile_edit_history_with_array_snapshots(): void
     {
         $card = $this->card();

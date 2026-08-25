@@ -30,6 +30,12 @@
               @csrf @method('PATCH')
               <input type="text" name="title" value="{{ $link->title }}" maxlength="120" style="width:140px" aria-label="Link label" required>
               <input type="url" name="url" value="{{ $link->url }}" style="flex:1;min-width:180px" aria-label="Link URL" required>
+              <select name="icon" aria-label="Logo" style="width:130px">
+                <option value="">Auto logo</option>
+                @foreach (\App\Services\LinkPlatform::iconChoices() as $key => $label)
+                  <option value="{{ $key }}" @selected($link->icon === $key)>{{ $label }}</option>
+                @endforeach
+              </select>
               <label class="small row row-tight" style="gap:5px;white-space:nowrap">
                 <input type="checkbox" name="is_active" value="1" @checked($link->is_active) style="width:auto"> on
               </label>
@@ -72,7 +78,17 @@
     <div class="row row-tight">
       <input type="text" name="title" placeholder="Label (e.g. Instagram)" maxlength="120" style="width:170px" required>
       <input type="url" name="url" placeholder="https://…" style="flex:1;min-width:200px" required>
+      <select name="icon" aria-label="Logo" style="width:130px">
+        <option value="">Auto logo</option>
+        @foreach (\App\Services\LinkPlatform::iconChoices() as $key => $label)
+          <option value="{{ $key }}">{{ $label }}</option>
+        @endforeach
+      </select>
       <button class="btn btn-sm btn-p" type="submit">Add link</button>
     </div>
+    <p class="small muted" style="margin:7px 0 0">
+      “Auto logo” matches the URL to a known platform and shows a globe otherwise.
+      Pick a logo to override it, or “No logo” to show the label as plain text.
+    </p>
   </form>
 </div>

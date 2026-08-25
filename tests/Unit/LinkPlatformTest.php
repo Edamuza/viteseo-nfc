@@ -236,4 +236,31 @@ class LinkPlatformTest extends TestCase
     {
         $this->assertSame(['http', 'https'], SafeExternalUrl::ALLOWED_SCHEMES);
     }
+
+    public function test_icon_for_prefers_the_authors_choice_over_url_detection(): void
+    {
+        // Explicit choice wins, even against a recognisable host.
+        $this->assertSame('web', LinkPlatform::iconFor('web', 'https://linkedin.com/in/someone'));
+        $this->assertSame('none', LinkPlatform::iconFor('none', 'https://linkedin.com/in/someone'));
+        $this->assertSame('github', LinkPlatform::iconFor('github', 'https://example.com'));
+
+        // No choice (legacy rows) falls back to detection.
+        $this->assertSame('linkedin', LinkPlatform::iconFor(null, 'https://linkedin.com/in/someone'));
+        $this->assertSame('web', LinkPlatform::iconFor(null, 'https://my-portfolio.example'));
+
+        // Junk stored by some future bug degrades to detection, never renders raw.
+        $this->assertSame('web', LinkPlatform::iconFor('not-a-platform', 'https://my-portfolio.example'));
+    }
+
+    public function test_icon_choices_cover_every_platform_plus_globe_and_none(): void
+    {
+        $choices = LinkPlatform::iconChoices();
+
+        $this->assertSame('web', array_key_first($choices));
+        $this->assertSame(LinkPlatform::NONE, array_key_last($choices));
+
+        foreach (['x', 'linkedin', 'tiktok', 'github', 'facebook', 'instagram', 'youtube'] as $key) {
+            $this->assertArrayHasKey($key, $choices);
+        }
+    }
 }

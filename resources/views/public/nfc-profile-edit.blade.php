@@ -46,10 +46,10 @@
     @php
       $linkRows = old('links');
       if ($linkRows === null) {
-          $linkRows = $links->map(fn ($link) => ['title' => $link->title, 'url' => $link->url])->all();
+          $linkRows = $links->map(fn ($link) => ['title' => $link->title, 'url' => $link->url, 'icon' => $link->icon])->all();
       }
       if (count($linkRows) < 12) {
-          $linkRows[] = ['title' => '', 'url' => ''];
+          $linkRows[] = ['title' => '', 'url' => '', 'icon' => ''];
       }
     @endphp
     <form method="POST" action="{{ route('nfc.profile.edit.update', $card->public_id) }}" enctype="multipart/form-data">
@@ -96,7 +96,9 @@
           <h2>Links</h2>
           <button class="ghost" id="add-link" type="button" style="width:auto;margin:0">Add link</button>
         </div>
-        <p class="sub">Add up to 12 secure web links.</p>
+        <p class="sub">Add up to 12 secure web links. The logo dropdown picks the icon shown
+          beside each link &mdash; a platform mark, the globe for your own site, or
+          &ldquo;No logo&rdquo; for plain text; &ldquo;Auto&rdquo; matches the URL by itself.</p>
         <div id="link-rows">
           @foreach ($linkRows as $index => $link)
             <div class="linkrow">
@@ -105,6 +107,12 @@
               <input name="links[{{ $index }}][url]" type="url" maxlength="500"
                      value="{{ $link['url'] ?? '' }}" placeholder="https://example.com">
               <button class="remove-link" type="button" aria-label="Remove link">&times;</button>
+              <select name="links[{{ $index }}][icon]" aria-label="Logo">
+                <option value="">Auto logo</option>
+                @foreach (\App\Services\LinkPlatform::iconChoices() as $key => $label)
+                  <option value="{{ $key }}" @selected(($link['icon'] ?? '') === $key)>{{ $label }}</option>
+                @endforeach
+              </select>
             </div>
           @endforeach
         </div>
@@ -117,6 +125,12 @@
         <input class="t" name="links[__INDEX__][title]" type="text" maxlength="120" placeholder="Title">
         <input name="links[__INDEX__][url]" type="url" maxlength="500" placeholder="https://example.com">
         <button class="remove-link" type="button" aria-label="Remove link">&times;</button>
+        <select name="links[__INDEX__][icon]" aria-label="Logo">
+          <option value="">Auto logo</option>
+          @foreach (\App\Services\LinkPlatform::iconChoices() as $key => $label)
+            <option value="{{ $key }}">{{ $label }}</option>
+          @endforeach
+        </select>
       </div>
     </template>
     <script>

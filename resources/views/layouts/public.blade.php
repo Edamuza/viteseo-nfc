@@ -39,12 +39,12 @@ h1{font-size:1.2rem;font-weight:640;margin:0 0 6px;letter-spacing:-.02em}
 .sub{color:var(--muted);font-size:.9rem;margin:0 0 20px;line-height:1.5}
 label{display:block;font-weight:570;font-size:.85rem;margin:16px 0 6px;color:var(--text-soft)}
 label .opt{font-weight:400;color:var(--muted)}
-input[type=text],input[type=url],input[type=tel],input[type=password]{
+input[type=text],input[type=url],input[type=tel],input[type=password],select{
   width:100%;padding:12px 13px;font-size:1rem;border:1px solid var(--line-strong);
   border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;
 }
 input::placeholder{color:#9aa1ac}
-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .pin{letter-spacing:.34em;text-align:center;font-size:1.15rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 button.primary,a.primary{
   display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;
@@ -66,9 +66,11 @@ button.primary:focus-visible,a.primary:focus-visible{outline:2px solid var(--acc
 }
 .err ul{margin:0;padding-left:18px}
 .foot{text-align:center;color:var(--muted);font-size:.76rem;margin-top:20px}
-.linkrow{display:flex;gap:8px;margin-bottom:9px}
+.linkrow{display:flex;gap:8px;margin-bottom:9px;flex-wrap:wrap}
 .linkrow .t{flex:0 0 38%}
 .linkrow input{flex:1;min-width:0}
+/* The logo dropdown drops to its own line; a phone-width row cannot hold three fields. */
+.linkrow select{flex:1 1 100%;font-size:.9rem;padding:9px 11px}
 .ok{font-size:2.2rem;text-align:center;margin:2px 0 10px;color:#047857}
 code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radius:5px;
  font-size:.85em;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
