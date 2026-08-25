@@ -102,13 +102,32 @@ h2{font-size:.95rem;font-weight:620;margin:0 0 16px;letter-spacing:-.005em}
 .btn-ghost:hover{background:var(--surface-sunken)}
 
 /* ── Forms ─────────────────────────────────────────────────── */
-input[type=text],input[type=url],input[type=email],input[type=password],input[type=number],select,textarea{
+input[type=text],input[type=url],input[type=email],input[type=password],input[type=number],
+input[type=tel],input[type=search],input[type=date],select,textarea{
   padding:8px 11px;font-size:.88rem;border:1px solid var(--line-strong);border-radius:8px;
   background:var(--surface);color:var(--text);font-family:inherit;
 }
 textarea{display:block;width:100%;resize:vertical;line-height:1.55}
 input::placeholder{color:#9aa1ac}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
+
+/* File pickers: the native control renders a bare grey button and loose text.
+   Dress the whole control as a drop-well and its button like a .btn. */
+input[type=file]{
+  font-size:.83rem;color:var(--text-soft);max-width:100%;
+  border:1px dashed var(--line-strong);border-radius:8px;
+  padding:8px 10px;background:var(--surface-sunken);font-family:inherit;
+}
+input[type=file]:hover{border-color:var(--muted)}
+input[type=file]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=file]::file-selector-button{
+  margin-right:10px;padding:6px 12px;border-radius:7px;cursor:pointer;
+  border:1px solid var(--line-strong);background:var(--surface);color:var(--text);
+  font-size:.82rem;font-weight:550;font-family:inherit;
+  transition:background .12s ease,border-color .12s ease;
+}
+input[type=file]::file-selector-button:hover{background:var(--accent-soft);border-color:var(--accent)}
 label.fld{display:block;font-weight:570;font-size:.83rem;margin-bottom:6px;color:var(--text-soft)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .row-tight{gap:6px}

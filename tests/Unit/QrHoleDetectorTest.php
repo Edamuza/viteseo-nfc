@@ -48,6 +48,23 @@ class QrHoleDetectorTest extends TestCase
         unset($empty, $strip);
     }
 
+    public function test_the_minimum_hole_size_is_a_hard_boundary(): void
+    {
+        $atMinimum = $this->canvas();
+        $this->hole($atMinimum, 30, 40, QrHoleDetector::MIN_SIZE, QrHoleDetector::MIN_SIZE);
+
+        $justUnder = $this->canvas();
+        $this->hole($justUnder, 30, 40, QrHoleDetector::MIN_SIZE - 1, QrHoleDetector::MIN_SIZE - 1);
+
+        $detector = new QrHoleDetector();
+        $this->assertSame(
+            ['x' => 30, 'y' => 40, 'size' => QrHoleDetector::MIN_SIZE],
+            $detector->inscribedSquare($atMinimum)
+        );
+        $this->assertNull($detector->inscribedSquare($justUnder));
+        unset($atMinimum, $justUnder);
+    }
+
     private function canvas(): GdImage
     {
         $image = imagecreatetruecolor(638, 1011);

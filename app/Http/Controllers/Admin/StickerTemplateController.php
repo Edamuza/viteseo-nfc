@@ -64,7 +64,7 @@ class StickerTemplateController extends Controller
 
             return back()->withErrors([
                 'files' => $holed === []
-                    ? 'One of the two PNGs needs a fully transparent QR hole at least 200 pixels square. The hole can be on either side.'
+                    ? 'One of the two PNGs needs a fully transparent QR hole at least '.QrHoleDetector::MIN_SIZE.' pixels square. The hole can be on either side.'
                     : 'Only one of the two PNGs may carry the transparent QR hole.',
             ])->withInput($request->except('files'));
         }
@@ -124,7 +124,7 @@ class StickerTemplateController extends Controller
 
             return back()->withErrors([
                 'files' => count($plain) > 1
-                    ? 'Neither PNG has a usable QR hole. To replace the QR side, its PNG needs a fully transparent hole at least 200 pixels square; only one file may be the design side.'
+                    ? 'Neither PNG has a usable QR hole. To replace the QR side, its PNG needs a fully transparent hole at least '.QrHoleDetector::MIN_SIZE.' pixels square; only one file may be the design side.'
                     : 'Only one of the PNGs may carry the transparent QR hole.',
             ])->withInput($request->except('files'));
         }

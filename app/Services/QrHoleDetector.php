@@ -6,7 +6,17 @@ use GdImage;
 
 class QrHoleDetector
 {
-    public const MIN_SIZE = 200;
+    /**
+     * Smallest QR hole a template may declare, in canvas pixels.
+     *
+     * The 638x1011 canvas prints at roughly credit-card size (~54mm wide), so
+     * ~11.8px per printed millimetre. 120px is therefore about a 10mm QR — the
+     * common minimum for reliable close-range scanning. Below that, print dots
+     * and phone cameras start missing modules, and a fancy sticker that does
+     * not scan is worthless. It also keeps stray transparent specks in the
+     * artwork from being mistaken for the hole.
+     */
+    public const MIN_SIZE = 120;
 
     /**
      * @return array{x: int, y: int, size: int}|null

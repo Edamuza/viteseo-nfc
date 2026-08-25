@@ -318,7 +318,7 @@
             <img src="{{ asset('storage/'.$profile->photo_path) }}" alt=""
                  style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:1px solid var(--line)">
           @endif
-          <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" style="font-size:.85rem">
+          <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
           @if ($profile?->photo_path)
             <button class="btn btn-sm btn-d" type="submit" form="del-photo">Remove photo</button>
           @endif

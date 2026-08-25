@@ -17,7 +17,7 @@
     <label class="fld" for="template-files" style="margin-top:14px">Both sides &mdash; select the two PNGs together</label>
     <input id="template-files" type="file" name="files[]" accept="image/png" multiple required>
     <p class="small muted" style="margin:7px 0 14px">
-      Pick both files in one go. The PNG with the fully transparent hole (at least 200&times;200px)
+      Pick both files in one go. The PNG with the fully transparent hole (at least {{ \App\Services\QrHoleDetector::MIN_SIZE }}&times;{{ \App\Services\QrHoleDetector::MIN_SIZE }}px &mdash; about a 10mm printed QR, the minimum that scans reliably)
       becomes the QR side automatically &mdash; the hole can be on either design; the other file is the design side.
     </p>
     <button class="btn btn-p" type="submit">Save template</button>

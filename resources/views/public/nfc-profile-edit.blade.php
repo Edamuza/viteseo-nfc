@@ -5,7 +5,17 @@
   .wrap{max-width:680px}
   .editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
   .wide{grid-column:1/-1}
-  input[type=file]{width:100%;padding:10px;border:1px solid var(--line-strong);border-radius:9px}
+  input[type=file]{
+    width:100%;padding:10px;border:1px dashed var(--line-strong);border-radius:9px;
+    background:#f9fafb;color:var(--text-soft);font-size:.9rem;font-family:inherit;
+  }
+  input[type=file]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  input[type=file]::file-selector-button{
+    margin-right:10px;padding:7px 13px;border-radius:8px;cursor:pointer;
+    border:1px solid var(--line-strong);background:var(--surface);color:var(--text);
+    font-size:.85rem;font-weight:550;font-family:inherit;
+  }
+  input[type=file]::file-selector-button:hover{background:var(--accent-soft);border-color:var(--accent)}
   .avatar-preview{width:72px;height:72px;border-radius:50%;object-fit:cover;border:1px solid var(--line);margin-top:8px}
   .check{display:flex;align-items:center;gap:8px;font-weight:500}
   .links{margin-top:22px;padding-top:4px;border-top:1px solid var(--line)}
