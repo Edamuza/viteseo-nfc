@@ -19,48 +19,97 @@
   <div class="toolbar">
     <div class="tool-group">
       <span class="tool-label">Generate cards</span>
-      <div class="row row-tight">
-        @foreach ([5,10,25] as $n)
-          <form method="POST" action="{{ route('admin.cards.generate') }}">@csrf
-            <input type="hidden" name="quantity" value="{{ $n }}">
-            <button class="btn btn-sm" type="submit">+{{ $n }}</button>
-          </form>
-        @endforeach
-        <form method="POST" action="{{ route('admin.cards.generate') }}" class="row row-tight">@csrf
-          <input type="number" name="quantity" min="1" max="{{ \App\Services\CardGenerationService::MAX_PER_REQUEST }}"
-                 placeholder="Custom" style="width:92px" aria-label="Custom quantity" required>
-          <button class="btn btn-sm btn-p" type="submit">Create</button>
-        </form>
-      </div>
+      <form method="POST" action="{{ route('admin.cards.generate') }}" class="row row-tight">@csrf
+        <input type="number" name="quantity" min="1" max="{{ \App\Services\CardGenerationService::MAX_PER_REQUEST }}"
+               placeholder="How many?" style="width:110px" aria-label="Number of cards to generate" required>
+        <button class="btn btn-p" type="submit">Create</button>
+      </form>
     </div>
 
     <div class="tool-group">
       <span class="tool-label">Export</span>
       <div class="row row-tight">
-        <form method="POST" action="{{ route('admin.export.qr-zip') }}">@csrf
-          <input type="hidden" name="format" value="svg">
-          <button class="btn btn-sm" type="submit">Download QR codes (SVG)</button>
-        </form>
-        <form method="POST" action="{{ route('admin.export.sticker-templates') }}" class="row row-tight">@csrf
-          <span class="small muted">Cards</span>
-          <input type="number" name="from" min="1" value="{{ $stickerFrom }}" aria-label="From card number" style="width:72px" required>
-          <span class="small muted">&ndash;</span>
-          <input type="number" name="to" min="1" value="{{ $stickerTo }}" aria-label="To card number" style="width:72px" required>
-          <select name="template_id" aria-label="Sticker template" style="min-width:140px">
-            @foreach ($stickerTemplates as $template)
-              <option value="{{ $template->id }}" @selected($template->is_active)>{{ $template->name }}</option>
-            @endforeach
-          </select>
-          <button class="btn btn-sm" type="submit">Download all templates (PNG)</button>
-        </form>
+        {{-- The QR codes (SVG) export is hidden for now by product decision;
+             the route and controller stay. Restore this form to bring it back:
+             POST admin.export.qr-zip with hidden format=svg. --}}
+        <button class="btn" type="button" id="tplexport-open">Download all templates (PNG)</button>
         <form method="POST" action="{{ route('admin.export.activation') }}"
               onsubmit="return confirm('This CSV lists the activation PIN for every card. Continue?')">@csrf
-          <button class="btn btn-sm" type="submit">Activation manifest</button>
+          <button class="btn" type="submit">Activation manifest</button>
         </form>
       </div>
     </div>
   </div>
 </div>
+
+{{-- The export details live in this modal, not in the toolbar: the card range
+     and template choice only matter at the moment of downloading, and here the
+     templates can be picked visually rather than from a blind name dropdown. --}}
+<dialog id="tplexport" class="exp-modal">
+  <div class="exp-head">
+    <strong>Download sticker templates (PNG)</strong>
+    <button class="btn btn-sm" type="button" id="tplexport-close" aria-label="Close">Close &times;</button>
+  </div>
+
+  <form method="POST" action="{{ route('admin.export.sticker-templates') }}">@csrf
+    <label class="fld">Card number range <span class="muted" style="font-weight:400">&mdash; up to 200 cards per download</span></label>
+    <div class="row row-tight" style="margin-bottom:16px">
+      <span class="small muted">CARD-</span>
+      <input type="number" name="from" min="1" value="{{ $stickerFrom }}" aria-label="From card number" style="width:90px" required>
+      <span class="small muted">to CARD-</span>
+      <input type="number" name="to" min="1" value="{{ $stickerTo }}" aria-label="To card number" style="width:90px" required>
+    </div>
+
+    <label class="fld">Template to print</label>
+    <div class="picktpl-grid">
+      @foreach ($stickerTemplates as $template)
+        <label class="picktpl">
+          <input type="radio" name="template_id" value="{{ $template->id }}" @checked($template->is_active) required>
+          <span class="pt-thumbs">
+            <img src="{{ asset('storage/'.$template->front_path) }}" alt="" loading="lazy">
+            <img src="{{ asset('storage/'.$template->back_path) }}" alt="" loading="lazy">
+          </span>
+          <span class="pt-name">{{ $template->name }}
+            @if ($template->is_active)<span class="badge b-ok">Active</span>@endif
+          </span>
+        </label>
+      @endforeach
+    </div>
+
+    <div class="row" style="margin-top:16px;justify-content:flex-end">
+      <button class="btn btn-p" type="submit">Download ZIP</button>
+    </div>
+  </form>
+</dialog>
+
+<style>
+.exp-modal{
+  border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;
+  width:min(640px,94vw);max-height:90vh;box-shadow:0 18px 50px rgba(16,24,40,.25);
+}
+.exp-modal::backdrop{background:rgba(16,24,40,.55)}
+.exp-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.picktpl-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));max-height:46vh;overflow-y:auto;padding:2px}
+.picktpl{
+  display:block;border:1px solid var(--line-strong);border-radius:10px;padding:10px;
+  cursor:pointer;background:var(--surface);transition:border-color .12s ease,background .12s ease;
+}
+.picktpl:hover{border-color:var(--muted)}
+.picktpl:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.picktpl input{position:absolute;opacity:0;pointer-events:none}
+.pt-thumbs{display:flex;gap:6px;margin-bottom:8px}
+.pt-thumbs img{width:calc(50% - 3px);height:auto;border:1px solid var(--line);border-radius:6px;display:block;background:var(--surface)}
+.pt-name{font-size:.85rem;font-weight:600;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+</style>
+
+<script>
+(function () {
+  var dlg = document.getElementById('tplexport');
+  document.getElementById('tplexport-open').addEventListener('click', function () { dlg.showModal(); });
+  document.getElementById('tplexport-close').addEventListener('click', function () { dlg.close(); });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+})();
+</script>
 
 <div class="panel">
   @php

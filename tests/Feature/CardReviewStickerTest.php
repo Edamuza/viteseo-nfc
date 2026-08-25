@@ -262,6 +262,14 @@ class CardReviewStickerTest extends TestCase
             $body
         );
         $this->assertStringContainsString('Download all templates (PNG)', $body);
+
+        // The export details live in a modal with a VISUAL template picker,
+        // not in the toolbar; the QR SVG export is hidden for now.
+        $this->assertStringContainsString('id="tplexport"', $body);
+        $this->assertStringContainsString('name="template_id"', $body);
+        $this->assertStringContainsString(StickerTemplate::active()->name, $body);
+        $this->assertStringNotContainsString('Download QR codes', $body);
+        $this->assertStringNotContainsString('>+5<', $body);
     }
 
     public function test_the_bulk_template_export_returns_not_found_when_there_are_no_cards(): void
