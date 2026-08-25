@@ -558,4 +558,48 @@ class DashboardStatusTest extends TestCase
             'the dashboard issued more queries for more rows: an N+1 has been introduced'
         );
     }
+
+    public function test_cards_list_by_card_number_ascending_by_default(): void
+    {
+        $first = $this->card();   // CARD-0001
+        $second = $this->card();  // CARD-0002
+
+        $this->actingAs($this->admin())
+            ->get('/admin')
+            ->assertOk()
+            ->assertSeeInOrder([$first->card_number, $second->card_number]);
+    }
+
+    public function test_sort_newest_puts_the_latest_card_first(): void
+    {
+        $first = $this->card();
+        $second = $this->card();
+
+        $this->actingAs($this->admin())
+            ->get('/admin?sort=newest')
+            ->assertOk()
+            ->assertSeeInOrder([$second->card_number, $first->card_number]);
+    }
+
+    public function test_status_filter_narrows_the_list_without_touching_the_stats(): void
+    {
+        $configured = $this->cardInMode('links', true);
+        $bare = $this->card();
+
+        $response = $this->actingAs($this->admin())->get('/admin?status=full')->assertOk();
+        $response->assertSee($configured->public_id)->assertDontSee($bare->public_id);
+
+        $response = $this->actingAs($this->admin())->get('/admin?status=unconfigured')->assertOk();
+        $response->assertSee($bare->public_id)->assertDontSee($configured->public_id);
+    }
+
+    public function test_unknown_status_and_sort_values_fall_back_to_the_defaults(): void
+    {
+        $card = $this->card();
+
+        $this->actingAs($this->admin())
+            ->get('/admin?status=bogus&sort=bogus')
+            ->assertOk()
+            ->assertSee($card->public_id);
+    }
 }

@@ -12,6 +12,22 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    /** Value => label, in the order the filter select shows them. */
+    public const STATUS_FILTERS = [
+        'all'          => 'All statuses',
+        'full'         => 'Fully configured',
+        'qr'           => 'QR configured',
+        'nfc'          => 'NFC configured',
+        'unconfigured' => 'Unconfigured',
+    ];
+
+    /** Value => label, in the order the sort select shows them. */
+    public const SORTS = [
+        'number' => 'Card number (0001 first)',
+        'newest' => 'Newest first',
+        'oldest' => 'Oldest first',
+    ];
+
     public function __construct(private readonly CardGenerationService $cards) {}
 
     public function index(Request $request): mixed
@@ -42,7 +58,35 @@ class DashboardController extends Controller
             });
         }
 
-        $cards = $query->orderByDesc('id')->paginate(25)->withQueryString();
+        // Unknown values fall back to the default instead of erroring: filter
+        // links are shared around and an admin may land here with a stale URL.
+        $status = (string) $request->query('status', 'all');
+        if (! array_key_exists($status, self::STATUS_FILTERS)) {
+            $status = 'all';
+        }
+
+        match ($status) {
+            'unconfigured' => $query->whereQrConfigured(false)->whereNfcModeConfigured(false),
+            'qr'           => $query->whereQrConfigured(),
+            'nfc'          => $query->whereNfcModeConfigured(),
+            'full'         => $query->whereQrConfigured()->whereNfcModeConfigured(),
+            default        => null,
+        };
+
+        $sort = (string) $request->query('sort', 'number');
+        if (! array_key_exists($sort, self::SORTS)) {
+            $sort = 'number';
+        }
+
+        match ($sort) {
+            // card_number is zero-padded (CARD-0001), so the lexicographic
+            // order is the numeric order and CARD-0001 comes first.
+            'number' => $query->orderBy('card_number'),
+            'oldest' => $query->orderBy('id'),
+            default  => $query->orderByDesc('id'),
+        };
+
+        $cards = $query->paginate(25)->withQueryString();
 
         $numbers = Card::query()->pluck('card_number')
             ->map(function (string $number) {
@@ -55,6 +99,8 @@ class DashboardController extends Controller
         return response()->view('admin.dashboard', [
             'cards'  => $cards,
             'search' => $search,
+            'status' => $status,
+            'sort'   => $sort,
             'stats'  => $this->stats(),
             'stickerTemplates' => StickerTemplate::query()->orderByDesc('is_active')->orderBy('name')->get(),
             'stickerFrom' => $numbers->first() ?? 1,

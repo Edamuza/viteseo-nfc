@@ -57,7 +57,9 @@ a:hover{text-decoration:underline}
 .topbar nav a.on{background:var(--accent-soft);color:var(--accent)}
 
 /* ── Layout ────────────────────────────────────────────────── */
-.container{max-width:1120px;margin:0 auto;padding:28px 20px 72px}
+/* Wide enough that a 1440p screen is not mostly gutter; the table and panels
+   grow into it. Content column stays centred with modest padding. */
+.container{max-width:1400px;margin:0 auto;padding:28px 24px 72px}
 .page-head{margin-bottom:24px}
 h1{font-size:1.35rem;font-weight:640;margin:0;letter-spacing:-.02em}
 .page-head p{color:var(--muted);font-size:.9rem;margin:5px 0 0}

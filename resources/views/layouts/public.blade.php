@@ -3,9 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex, nofollow">
+{{-- Card pages stay noindex: they are personal setup/redirect endpoints and
+     thin duplicates in search. Only the home page overrides this. --}}
+<meta name="robots" content="@yield('robots', 'noindex, nofollow')">
 <meta name="color-scheme" content="light">
 <title>@yield('title', 'Card Setup')</title>
+@yield('head')
 <style>
 /* Public setup pages: light, mobile-first, deliberately plain.
    No admin navigation or admin actions are ever rendered here. */

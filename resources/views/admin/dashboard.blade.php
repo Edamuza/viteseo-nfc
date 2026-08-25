@@ -63,13 +63,27 @@
 </div>
 
 <div class="panel">
+  @php
+    $filtered = $search !== '' || $status !== 'all' || $sort !== 'number';
+    $D = \App\Http\Controllers\Admin\DashboardController::class;
+  @endphp
   <div class="row" style="justify-content:space-between;margin-bottom:14px">
     <h2 style="margin:0">Cards</h2>
     <form method="GET" action="{{ route('admin.dashboard') }}" class="row row-tight">
-      <input type="text" name="search" value="{{ $search }}" placeholder="Card number or public ID"
-             style="min-width:220px" aria-label="Search cards">
-      <button class="btn btn-sm" type="submit">Search</button>
-      @if ($search !== '')<a class="btn btn-sm btn-ghost" href="{{ route('admin.dashboard') }}">Clear</a>@endif
+      <input type="search" name="search" value="{{ $search }}" placeholder="Card number or public ID"
+             style="min-width:200px" aria-label="Search cards">
+      <select name="status" aria-label="Filter by status">
+        @foreach ($D::STATUS_FILTERS as $value => $label)
+          <option value="{{ $value }}" @selected($status === $value)>{{ $label }}</option>
+        @endforeach
+      </select>
+      <select name="sort" aria-label="Sort cards">
+        @foreach ($D::SORTS as $value => $label)
+          <option value="{{ $value }}" @selected($sort === $value)>{{ $label }}</option>
+        @endforeach
+      </select>
+      <button class="btn btn-sm" type="submit">Apply</button>
+      @if ($filtered)<a class="btn btn-sm btn-ghost" href="{{ route('admin.dashboard') }}">Reset</a>@endif
     </form>
   </div>
 
@@ -115,7 +129,7 @@
         <td><a class="btn btn-sm" href="{{ route('admin.cards.show', $card->public_id) }}">View</a></td>
       </tr>
     @empty
-      <tr><td colspan="7" class="muted" style="padding:28px;text-align:center">No cards match that search.</td></tr>
+      <tr><td colspan="7" class="muted" style="padding:28px;text-align:center">No cards match that search or filter.</td></tr>
     @endforelse
     </tbody>
   </table>
