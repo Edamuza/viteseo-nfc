@@ -21,9 +21,13 @@ class DashboardController extends Controller
         'unconfigured' => 'Unconfigured',
     ];
 
-    /** Value => label, in the order the sort select shows them. */
+    /**
+     * Value => label, in the order the sort select shows them.
+     *
+     * There is no "by card number" option: numbers are assigned sequentially
+     * at generation, so it would be a duplicate of "Oldest first".
+     */
     public const SORTS = [
-        'number' => 'Card number (0001 first)',
         'newest' => 'Newest first',
         'oldest' => 'Oldest first',
     ];
@@ -73,15 +77,12 @@ class DashboardController extends Controller
             default        => null,
         };
 
-        $sort = (string) $request->query('sort', 'number');
+        $sort = (string) $request->query('sort', 'newest');
         if (! array_key_exists($sort, self::SORTS)) {
-            $sort = 'number';
+            $sort = 'newest';
         }
 
         match ($sort) {
-            // card_number is zero-padded (CARD-0001), so the lexicographic
-            // order is the numeric order and CARD-0001 comes first.
-            'number' => $query->orderBy('card_number'),
             'oldest' => $query->orderBy('id'),
             default  => $query->orderByDesc('id'),
         };

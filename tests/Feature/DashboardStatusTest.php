@@ -559,7 +559,7 @@ class DashboardStatusTest extends TestCase
         );
     }
 
-    public function test_cards_list_by_card_number_ascending_by_default(): void
+    public function test_cards_list_newest_first_by_default(): void
     {
         $first = $this->card();   // CARD-0001
         $second = $this->card();  // CARD-0002
@@ -567,18 +567,18 @@ class DashboardStatusTest extends TestCase
         $this->actingAs($this->admin())
             ->get('/admin')
             ->assertOk()
-            ->assertSeeInOrder([$first->card_number, $second->card_number]);
+            ->assertSeeInOrder([$second->card_number, $first->card_number]);
     }
 
-    public function test_sort_newest_puts_the_latest_card_first(): void
+    public function test_sort_oldest_puts_the_first_card_first(): void
     {
         $first = $this->card();
         $second = $this->card();
 
         $this->actingAs($this->admin())
-            ->get('/admin?sort=newest')
+            ->get('/admin?sort=oldest')
             ->assertOk()
-            ->assertSeeInOrder([$second->card_number, $first->card_number]);
+            ->assertSeeInOrder([$first->card_number, $second->card_number]);
     }
 
     public function test_status_filter_narrows_the_list_without_touching_the_stats(): void

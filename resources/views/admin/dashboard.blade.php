@@ -113,7 +113,7 @@
 
 <div class="panel">
   @php
-    $filtered = $search !== '' || $status !== 'all' || $sort !== 'number';
+    $filtered = $search !== '' || $status !== 'all' || $sort !== 'newest';
     $D = \App\Http\Controllers\Admin\DashboardController::class;
   @endphp
   <div class="row" style="justify-content:space-between;margin-bottom:14px">
