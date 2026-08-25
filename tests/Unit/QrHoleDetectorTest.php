@@ -48,6 +48,42 @@ class QrHoleDetectorTest extends TestCase
         unset($empty, $strip);
     }
 
+    public function test_a_near_fully_transparent_hole_is_detected(): void
+    {
+        $image = $this->canvas();
+        $clear = imagecolorallocatealpha($image, 0, 0, 0, QrHoleDetector::TRANSPARENT_ALPHA);
+        imagefilledrectangle($image, 80, 90, 329, 339, $clear);
+
+        $this->assertSame(['x' => 80, 'y' => 90, 'size' => 250], (new QrHoleDetector())->inscribedSquare($image));
+        unset($image);
+    }
+
+    public function test_largest_transparent_square_reports_sub_minimum_holes_for_diagnostics(): void
+    {
+        $image = $this->canvas();
+        $this->hole($image, 200, 300, 75, 75);
+
+        $detector = new QrHoleDetector();
+        $this->assertNull($detector->inscribedSquare($image));
+        $this->assertSame(['x' => 200, 'y' => 300, 'size' => 75], $detector->largestTransparentSquare($image));
+        unset($image);
+    }
+
+    public function test_a_large_thin_band_does_not_mask_a_smaller_real_hole(): void
+    {
+        // The band's rectangle has far more area than the hole, but its
+        // inscribed square is under the minimum — the hole must still win.
+        $image = $this->canvas();
+        $this->hole($image, 0, 0, 638, 110);
+        $this->hole($image, 200, 500, 130, 130);
+
+        $this->assertSame(
+            ['x' => 200, 'y' => 500, 'size' => 130],
+            (new QrHoleDetector())->inscribedSquare($image)
+        );
+        unset($image);
+    }
+
     public function test_the_minimum_hole_size_is_a_hard_boundary(): void
     {
         $atMinimum = $this->canvas();

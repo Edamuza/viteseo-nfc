@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Exceptions\UnreadableImageException;
 use App\Http\Controllers\Controller;
 use App\Models\StickerTemplate;
+use App\Services\CardReviewStickerService;
 use App\Services\QrHoleDetector;
 use App\Services\StickerArtworkIngest;
 use Illuminate\Http\RedirectResponse;
@@ -45,10 +46,13 @@ class StickerTemplateController extends Controller
         ]);
 
         $paths = [];
+        $scans = [];
 
         try {
             foreach ($request->file('files') as $file) {
-                $paths[] = $this->artwork->store($file);
+                $path = $this->artwork->store($file);
+                $paths[] = $path;
+                $scans[] = $this->scanArtwork($path);
             }
         } catch (UnreadableImageException $exception) {
             $this->forgetAll($paths);
@@ -56,21 +60,20 @@ class StickerTemplateController extends Controller
             return back()->withErrors(['files' => $exception->getMessage()])->withInput($request->except('files'));
         }
 
-        $boxes = array_map(fn (string $path) => $this->detectBox($path), $paths);
-        $holed = array_keys(array_filter($boxes));
+        $holed = array_keys(array_filter(array_column($scans, 'qualifying')));
 
         if (count($holed) !== 1) {
             $this->forgetAll($paths);
 
             return back()->withErrors([
                 'files' => $holed === []
-                    ? 'One of the two PNGs needs a fully transparent QR hole at least '.QrHoleDetector::MIN_SIZE.' pixels square. The hole can be on either side.'
+                    ? $this->missingHoleMessage($scans)
                     : 'Only one of the two PNGs may carry the transparent QR hole.',
             ])->withInput($request->except('files'));
         }
 
         $qrSide = $holed[0];
-        $box = $boxes[$qrSide];
+        $box = $scans[$qrSide]['qualifying'];
 
         $template = new StickerTemplate(['name' => trim($data['name'])]);
         $template->forceFill([
@@ -108,7 +111,7 @@ class StickerTemplateController extends Controller
         try {
             foreach ($request->file('files', []) as $file) {
                 $path = $this->artwork->store($file);
-                $stored[] = ['path' => $path, 'box' => $this->detectBox($path)];
+                $stored[] = ['path' => $path] + $this->scanArtwork($path);
             }
         } catch (UnreadableImageException $exception) {
             $this->forgetAll(array_column($stored, 'path'));
@@ -116,15 +119,15 @@ class StickerTemplateController extends Controller
             return back()->withErrors(['files' => $exception->getMessage()])->withInput($request->except('files'));
         }
 
-        $holed = array_values(array_filter($stored, fn (array $side) => $side['box'] !== null));
-        $plain = array_values(array_filter($stored, fn (array $side) => $side['box'] === null));
+        $holed = array_values(array_filter($stored, fn (array $side) => $side['qualifying'] !== null));
+        $plain = array_values(array_filter($stored, fn (array $side) => $side['qualifying'] === null));
 
         if (count($holed) > 1 || count($plain) > 1) {
             $this->forgetAll(array_column($stored, 'path'));
 
             return back()->withErrors([
                 'files' => count($plain) > 1
-                    ? 'Neither PNG has a usable QR hole. To replace the QR side, its PNG needs a fully transparent hole at least '.QrHoleDetector::MIN_SIZE.' pixels square; only one file may be the design side.'
+                    ? 'Both PNGs would replace the design side. '.$this->missingHoleMessage($stored)
                     : 'Only one of the PNGs may carry the transparent QR hole.',
             ])->withInput($request->except('files'));
         }
@@ -140,9 +143,9 @@ class StickerTemplateController extends Controller
             $old[] = $template->back_path;
             $template->forceFill([
                 'back_path' => $holed[0]['path'],
-                'qr_x' => $holed[0]['box']['x'],
-                'qr_y' => $holed[0]['box']['y'],
-                'qr_size' => $holed[0]['box']['size'],
+                'qr_x' => $holed[0]['qualifying']['x'],
+                'qr_y' => $holed[0]['qualifying']['y'],
+                'qr_size' => $holed[0]['qualifying']['size'],
             ]);
         }
 
@@ -187,21 +190,50 @@ class StickerTemplateController extends Controller
     }
 
     /**
-     * @return array{x: int, y: int, size: int}|null
+     * @return array{qualifying: array{x: int, y: int, size: int}|null, largest: array{x: int, y: int, size: int}|null}
      */
-    private function detectBox(string $path): ?array
+    private function scanArtwork(string $path): array
     {
         $bytes = Storage::disk('public')->get($path);
         $image = is_string($bytes) ? @imagecreatefromstring($bytes) : false;
         if ($image === false) {
-            return null;
+            return ['qualifying' => null, 'largest' => null];
         }
 
         try {
-            return $this->holes->inscribedSquare($image);
+            return $this->holes->scan($image);
         } finally {
             unset($image);
         }
+    }
+
+    /**
+     * Says what the detector actually saw, not just what it wanted. Uploads
+     * are scaled to the print canvas before detection, so a designer whose
+     * source file holds a generous hole can still fail the minimum — telling
+     * them "no hole" reads as nonsense, while "found 75px, need 120px" tells
+     * them exactly how much bigger to cut it.
+     *
+     * @param  array<int, array{qualifying: array{x: int, y: int, size: int}|null, largest: array{x: int, y: int, size: int}|null}>  $scans
+     */
+    private function missingHoleMessage(array $scans): string
+    {
+        $found = max(array_map(fn (array $scan) => $scan['largest']['size'] ?? 0, $scans));
+
+        if ($found === 0) {
+            return 'Neither PNG contains fully transparent pixels. Export the QR side as a PNG with transparency kept'
+                .' (no flattening, no background layer) and cut the QR hole fully out of the design.';
+        }
+
+        return sprintf(
+            'The largest transparent area found was %1$d×%1$dpx once the artwork was scaled to the %2$d×%3$d print canvas'
+                .' — the QR hole must be at least %4$d×%4$dpx at that scale (about one fifth of the design width).'
+                .' Enlarge the hole in the source design.',
+            $found,
+            CardReviewStickerService::WIDTH,
+            CardReviewStickerService::HEIGHT,
+            QrHoleDetector::MIN_SIZE
+        );
     }
 
     private function forget(?string $path): void

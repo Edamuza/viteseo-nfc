@@ -108,6 +108,48 @@ class StickerTemplateLibraryTest extends TestCase
         $this->assertSame(['Default'], StickerTemplate::query()->pluck('name')->all());
     }
 
+    public function test_a_98_percent_transparent_hole_is_still_detected(): void
+    {
+        // Design tools routinely leave the "transparent" hole at 97-99%
+        // transparency (soft erasers, layer opacity, export quantization).
+        // Requiring exactly 100% made those holes invisible to the detector.
+        $this->actingAs($this->admin())->post('/admin/sticker-templates', [
+            'name' => 'Soft eraser',
+            'files' => [$this->png(false), $this->png(true, 80, 90, 250, 250, holeAlpha: 125)],
+        ])->assertRedirect('/admin/sticker-templates')->assertSessionHasNoErrors();
+
+        $created = StickerTemplate::query()->where('name', 'Soft eraser')->sole();
+        $this->assertSame([80, 90, 250], [$created->qr_x, $created->qr_y, $created->qr_size]);
+    }
+
+    public function test_a_high_resolution_upload_with_a_small_hole_reports_the_measured_size(): void
+    {
+        // A 2x print-resolution export: 200px is a generous hole in source
+        // pixels but only ~100px once scaled to the 638x1011 canvas. The
+        // error must say what was found, not just "no hole".
+        $response = $this->actingAs($this->admin())->post('/admin/sticker-templates', [
+            'name' => 'High res',
+            'files' => [
+                $this->png(false),
+                $this->png(true, 400, 500, 200, 200, canvasWidth: 1276, canvasHeight: 2022),
+            ],
+        ]);
+
+        $response->assertInvalid(['files' => 'print canvas']);
+        $message = session('errors')->first('files');
+        $this->assertMatchesRegularExpression('/was \d+×\d+px/u', $message);
+        $this->assertStringContainsString('at least 120×120px', $message);
+        $this->assertSame(['Default'], StickerTemplate::query()->pluck('name')->all());
+    }
+
+    public function test_a_flattened_export_gets_the_no_transparency_message(): void
+    {
+        $this->actingAs($this->admin())->post('/admin/sticker-templates', [
+            'name' => 'Flattened',
+            'files' => [$this->png(false), $this->png(false)],
+        ])->assertInvalid(['files' => 'contains fully transparent pixels']);
+    }
+
     public function test_failed_replace_keeps_the_previous_files_and_box(): void
     {
         $template = StickerTemplate::query()->sole();
@@ -321,13 +363,16 @@ class StickerTemplateLibraryTest extends TestCase
         int $red = 30,
         int $green = 40,
         int $blue = 50,
+        int $canvasWidth = 638,
+        int $canvasHeight = 1011,
+        int $holeAlpha = 127,
     ): UploadedFile {
-        $image = imagecreatetruecolor(638, 1011);
+        $image = imagecreatetruecolor($canvasWidth, $canvasHeight);
         imagealphablending($image, false);
         imagesavealpha($image, true);
-        imagefilledrectangle($image, 0, 0, 637, 1010, imagecolorallocatealpha($image, $red, $green, $blue, 0));
+        imagefilledrectangle($image, 0, 0, $canvasWidth - 1, $canvasHeight - 1, imagecolorallocatealpha($image, $red, $green, $blue, 0));
         if ($withHole) {
-            imagefilledrectangle($image, $x, $y, $x + $width - 1, $y + $height - 1, imagecolorallocatealpha($image, 0, 0, 0, 127));
+            imagefilledrectangle($image, $x, $y, $x + $width - 1, $y + $height - 1, imagecolorallocatealpha($image, 0, 0, 0, $holeAlpha));
         }
         $path = tempnam(sys_get_temp_dir(), 'sticker-art').'.png';
         imagepng($image, $path);
