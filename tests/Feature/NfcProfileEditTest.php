@@ -54,6 +54,37 @@ class NfcProfileEditTest extends TestCase
         return new UploadedFile($path, 'avatar.png', 'image/png', null, true);
     }
 
+    public function test_an_empty_profile_card_offers_the_owner_the_self_service_setup_link(): void
+    {
+        $card = app(CardGenerationService::class)->generate(1)->first();
+        $card->forceFill(['nfc_mode' => NfcMode::Profile])->save();
+
+        // The tap lands on "not set up yet", but the owner must be able to
+        // reach the PIN-protected editor from there — otherwise a fresh
+        // Profile-mode card is a dead end the customer cannot configure.
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('Not set up yet')
+            ->assertSee('/n/'.$card->public_id.'/edit');
+
+        // And the editor genuinely works from empty: unlock, save, live page.
+        $this->unlock($card->fresh());
+        $this->patch('/n/'.$card->public_id.'/edit', ['display_name' => 'Fresh Owner'])
+            ->assertSessionHasNoErrors();
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Fresh Owner');
+    }
+
+    public function test_admin_only_modes_do_not_offer_the_profile_setup_link(): void
+    {
+        $card = app(CardGenerationService::class)->generate(1)->first();
+        $card->forceFill(['nfc_mode' => NfcMode::Contact])->save();
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('Not set up yet')
+            ->assertDontSee('/n/'.$card->public_id.'/edit');
+    }
+
     public function test_a_card_has_newest_first_profile_edit_history_with_array_snapshots(): void
     {
         $card = $this->card();

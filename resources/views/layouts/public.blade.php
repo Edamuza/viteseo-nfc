@@ -43,13 +43,14 @@ input[type=text],input[type=url],input[type=tel],input[type=password]{
 input::placeholder{color:#9aa1ac}
 input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .pin{letter-spacing:.34em;text-align:center;font-size:1.15rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-button.primary{
+button.primary,a.primary{
+  display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;
   width:100%;margin-top:22px;padding:13px;font-size:.98rem;font-weight:580;
   border:0;border-radius:9px;background:var(--accent);color:#fff;cursor:pointer;
-  min-height:46px;font-family:inherit;
+  min-height:46px;font-family:inherit;text-decoration:none;
 }
-button.primary:hover{background:var(--accent-press)}
-button.primary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary:hover,a.primary:hover{background:var(--accent-press)}
+button.primary:focus-visible,a.primary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ghost{
   width:100%;margin-top:10px;padding:10px;font-size:.88rem;font-weight:550;
   background:transparent;color:var(--accent);border:1px dashed var(--line-strong);
