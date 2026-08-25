@@ -44,12 +44,14 @@ a:hover{text-decoration:underline}
   padding:0 20px; display:flex; align-items:center; gap:22px;
   height:56px; position:sticky; top:0; z-index:20;
 }
-.brand{font-weight:640;letter-spacing:-.01em;color:var(--text);font-size:.98rem}
+.brand{font-weight:640;letter-spacing:-.01em;color:var(--text);font-size:.98rem;white-space:nowrap}
 .brand:hover{text-decoration:none}
-.topbar nav{display:flex;gap:4px;flex:1}
+/* The nav scrolls sideways instead of overflowing the bar on narrow phones. */
+.topbar nav{display:flex;gap:4px;flex:1;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.topbar nav::-webkit-scrollbar{display:none}
 .topbar nav a{
   color:var(--text-soft);font-weight:530;font-size:.9rem;
-  padding:6px 11px;border-radius:7px;
+  padding:6px 11px;border-radius:7px;white-space:nowrap;
 }
 .topbar nav a:hover{background:var(--surface-sunken);color:var(--text);text-decoration:none}
 .topbar nav a.on{background:var(--accent-soft);color:var(--accent)}
@@ -109,6 +111,28 @@ label.fld{display:block;font-weight:570;font-size:.83rem;margin-bottom:6px;color
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .row-tight{gap:6px}
 
+/* ── Toolbar: labelled groups of related actions ───────────── */
+.toolbar{display:flex;gap:18px 40px;flex-wrap:wrap;justify-content:space-between}
+.tool-group{min-width:0}
+.tool-label{
+  display:block;font-size:.72rem;font-weight:620;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;
+}
+
+/* ── Field grid: labelled inputs in responsive columns ─────── */
+/* Lives here, not in card.blade.php: the sticker templates page uses it too,
+   and it once rendered unstyled there because the rules were page-local. */
+.fgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:16px}
+.fgrid label{display:flex;flex-direction:column;gap:5px}
+.fgrid label.wide{grid-column:1/-1}
+.fgrid label span{font-size:.79rem;color:var(--text-soft);font-weight:530}
+.fgrid input,.fgrid textarea{
+  padding:8px 11px;font-size:.88rem;border:1px solid var(--line-strong);border-radius:8px;
+  background:var(--surface);color:var(--text);font-family:inherit;width:100%;
+}
+.fgrid textarea{resize:vertical;line-height:1.5}
+.fgrid input:focus,.fgrid textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
 /* ── Badges ────────────────────────────────────────────────── */
 .badge{
   display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;
@@ -162,11 +186,17 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
 .danger-zone{border-color:var(--danger-line);background:var(--danger-soft)}
 .danger-zone h2{color:var(--danger)}
 
-.pager{margin-top:16px;display:flex;gap:5px;flex-wrap:wrap}
-.pager a,.pager span{padding:6px 11px;border-radius:7px;border:1px solid var(--line);font-size:.82rem;background:var(--surface)}
-.pager a:hover{background:var(--surface-sunken);text-decoration:none}
-.pager .cursor-default span{color:var(--muted)}
-.pager svg{width:14px;height:14px;vertical-align:middle}
+.pager{margin-top:16px}
+.pager-nav{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.pager-nav a,.pager-nav span{
+  min-width:32px;text-align:center;padding:6px 11px;border-radius:7px;
+  border:1px solid var(--line);font-size:.82rem;background:var(--surface);color:var(--text);
+}
+.pager-nav a:hover{background:var(--surface-sunken);border-color:var(--line-strong);text-decoration:none}
+.pager-nav a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pager-nav .pg-on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.pager-nav .pg-off{color:var(--muted);background:var(--surface-sunken)}
+.pager-nav .pg-count{margin-left:auto;border:0;background:transparent;color:var(--muted);min-width:0}
 </style>
 </head>
 <body>

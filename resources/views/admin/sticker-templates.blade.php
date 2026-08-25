@@ -59,7 +59,7 @@
         <label><span>Replace front</span><input type="file" name="front" accept="image/png"></label>
         <label><span>Replace back</span><input type="file" name="back" accept="image/png"></label>
       </div>
-      <button class="btn btn-sm btn-p" type="submit">Replace files</button>
+      <button class="btn btn-p" type="submit">Replace files</button>
     </form>
   </section>
 @endforeach

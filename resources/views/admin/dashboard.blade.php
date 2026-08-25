@@ -16,41 +16,48 @@
 </div>
 
 <div class="panel panel-tight">
-  <div class="row" style="justify-content:space-between">
-    <div class="row row-tight">
-      <span class="small muted" style="margin-right:4px">Generate</span>
-      @foreach ([5,10,25] as $n)
-        <form method="POST" action="{{ route('admin.cards.generate') }}">@csrf
-          <input type="hidden" name="quantity" value="{{ $n }}">
-          <button class="btn btn-sm" type="submit">+{{ $n }}</button>
+  <div class="toolbar">
+    <div class="tool-group">
+      <span class="tool-label">Generate cards</span>
+      <div class="row row-tight">
+        @foreach ([5,10,25] as $n)
+          <form method="POST" action="{{ route('admin.cards.generate') }}">@csrf
+            <input type="hidden" name="quantity" value="{{ $n }}">
+            <button class="btn btn-sm" type="submit">+{{ $n }}</button>
+          </form>
+        @endforeach
+        <form method="POST" action="{{ route('admin.cards.generate') }}" class="row row-tight">@csrf
+          <input type="number" name="quantity" min="1" max="{{ \App\Services\CardGenerationService::MAX_PER_REQUEST }}"
+                 placeholder="Custom" style="width:92px" aria-label="Custom quantity" required>
+          <button class="btn btn-sm btn-p" type="submit">Create</button>
         </form>
-      @endforeach
-      <form method="POST" action="{{ route('admin.cards.generate') }}" class="row row-tight">@csrf
-        <input type="number" name="quantity" min="1" max="{{ \App\Services\CardGenerationService::MAX_PER_REQUEST }}"
-               placeholder="Custom" style="width:92px" aria-label="Custom quantity" required>
-        <button class="btn btn-sm btn-p" type="submit">Create</button>
-      </form>
+      </div>
     </div>
 
-    <div class="row row-tight">
-      <form method="POST" action="{{ route('admin.export.qr-zip') }}">@csrf
-        <input type="hidden" name="format" value="svg">
-        <button class="btn btn-sm" type="submit">Download QR codes (SVG)</button>
-      </form>
-      <form method="POST" action="{{ route('admin.export.sticker-templates') }}" class="row row-tight">@csrf
-        <input type="number" name="from" min="1" value="{{ $stickerFrom }}" aria-label="From card number" style="width:72px" required>
-        <input type="number" name="to" min="1" value="{{ $stickerTo }}" aria-label="To card number" style="width:72px" required>
-        <select name="template_id" aria-label="Sticker template" style="min-width:140px">
-          @foreach ($stickerTemplates as $template)
-            <option value="{{ $template->id }}" @selected($template->is_active)>{{ $template->name }}</option>
-          @endforeach
-        </select>
-        <button class="btn btn-sm" type="submit">Download all templates (PNG)</button>
-      </form>
-      <form method="POST" action="{{ route('admin.export.activation') }}"
-            onsubmit="return confirm('This CSV lists the activation PIN for every card. Continue?')">@csrf
-        <button class="btn btn-sm" type="submit">Activation manifest</button>
-      </form>
+    <div class="tool-group">
+      <span class="tool-label">Export</span>
+      <div class="row row-tight">
+        <form method="POST" action="{{ route('admin.export.qr-zip') }}">@csrf
+          <input type="hidden" name="format" value="svg">
+          <button class="btn btn-sm" type="submit">Download QR codes (SVG)</button>
+        </form>
+        <form method="POST" action="{{ route('admin.export.sticker-templates') }}" class="row row-tight">@csrf
+          <span class="small muted">Cards</span>
+          <input type="number" name="from" min="1" value="{{ $stickerFrom }}" aria-label="From card number" style="width:72px" required>
+          <span class="small muted">&ndash;</span>
+          <input type="number" name="to" min="1" value="{{ $stickerTo }}" aria-label="To card number" style="width:72px" required>
+          <select name="template_id" aria-label="Sticker template" style="min-width:140px">
+            @foreach ($stickerTemplates as $template)
+              <option value="{{ $template->id }}" @selected($template->is_active)>{{ $template->name }}</option>
+            @endforeach
+          </select>
+          <button class="btn btn-sm" type="submit">Download all templates (PNG)</button>
+        </form>
+        <form method="POST" action="{{ route('admin.export.activation') }}"
+              onsubmit="return confirm('This CSV lists the activation PIN for every card. Continue?')">@csrf
+          <button class="btn btn-sm" type="submit">Activation manifest</button>
+        </form>
+      </div>
     </div>
   </div>
 </div>

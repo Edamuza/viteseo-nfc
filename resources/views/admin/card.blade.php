@@ -74,9 +74,9 @@
         <div class="row row-tight">
           <input id="qrdest" type="url" name="destination" placeholder="https://example.com"
                  value="{{ $card->qr_destination }}" style="flex:1;min-width:200px" required>
-          <button class="btn btn-sm btn-p" type="submit">Save</button>
+          <button class="btn btn-p" type="submit">Save</button>
           @if ($qrOn)
-            <button class="btn btn-sm btn-d" type="submit" form="reset-qr">Reset QR</button>
+            <button class="btn btn-d" type="submit" form="reset-qr">Reset QR</button>
           @endif
         </div>
       </form>
@@ -131,7 +131,7 @@
           </label>
         @endforeach
       </div>
-      <button class="btn btn-sm btn-p" type="submit" style="margin-top:12px">Set mode</button>
+      <button class="btn btn-p" type="submit" style="margin-top:12px">Set mode</button>
       <span class="small muted" style="margin-left:8px">Switching modes keeps every mode’s saved data.</span>
     </form>
   </div>
@@ -229,7 +229,7 @@
         </div>
 
         <div class="row" style="margin-top:16px">
-          <button class="btn btn-sm btn-p" type="submit">Save profile</button>
+          <button class="btn btn-p" type="submit">Save profile</button>
           @if ($nfcProfile)
             <button class="btn btn-sm btn-d" type="submit" form="del-profile">Delete profile details</button>
           @endif
@@ -325,7 +325,7 @@
         </div>
 
         <div class="row row-tight">
-          <button class="btn btn-sm btn-p" type="submit">Save contact details</button>
+          <button class="btn btn-p" type="submit">Save contact details</button>
           @if ($profile)
             <button class="btn btn-sm btn-d" type="submit" form="del-contact">Delete contact details</button>
           @endif
@@ -363,9 +363,9 @@
         <div class="row row-tight">
           <input id="phonenum" type="tel" name="nfc_phone_number" placeholder="+63 917 123 4567"
                  value="{{ old('nfc_phone_number', $card->nfc_phone_number) }}" style="flex:1;min-width:200px" required>
-          <button class="btn btn-sm btn-p" type="submit">Save</button>
+          <button class="btn btn-p" type="submit">Save</button>
           @if ($card->nfc_phone_number)
-            <button class="btn btn-sm btn-d" type="submit" form="del-phone">Clear</button>
+            <button class="btn btn-d" type="submit" form="del-phone">Clear</button>
           @endif
         </div>
         <p class="small muted" style="margin:8px 0 0">Digits and <code>+ ( ) - .</code> only. Stored as a phone number, never as a URL.</p>
@@ -399,9 +399,9 @@
             <textarea name="nfc_email_body" rows="3" maxlength="2000">{{ old('nfc_email_body', $card->nfc_email_body) }}</textarea></label>
         </div>
         <div class="row row-tight" style="margin-top:12px">
-          <button class="btn btn-sm btn-p" type="submit">Save</button>
+          <button class="btn btn-p" type="submit">Save</button>
           @if ($card->nfc_email_address)
-            <button class="btn btn-sm btn-d" type="submit" form="del-email">Clear</button>
+            <button class="btn btn-d" type="submit" form="del-email">Clear</button>
           @endif
         </div>
       </form>
@@ -483,10 +483,8 @@
 .qr-plate{
   width:min(240px, 70vw);
   aspect-ratio:1/1;                 /* keeps it square regardless of content */
-  background:#fff;                  /* white surround so scanning is reliable */
-  padding:12px;                     /* extra quiet zone on top of the QR's own */
+  background:#fff;
   border:1px solid var(--line);
-  border-radius:10px;
   box-shadow:var(--shadow-sm);
   display:flex;align-items:center;justify-content:center;
 }
@@ -510,17 +508,6 @@
 .modeopt .mt{font-weight:570;font-size:.88rem}
 .modeopt .md{display:block;color:var(--muted);font-size:.78rem;margin-top:3px;padding-left:21px}
 
-/* ── Contact / email field grid ────────────────────────────── */
-.fgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:16px}
-.fgrid label{display:flex;flex-direction:column;gap:5px}
-.fgrid label.wide{grid-column:1/-1}
-.fgrid label span{font-size:.79rem;color:var(--text-soft);font-weight:530}
-.fgrid input,.fgrid textarea{
-  padding:8px 11px;font-size:.88rem;border:1px solid var(--line-strong);border-radius:8px;
-  background:var(--surface);color:var(--text);font-family:inherit;width:100%;
-}
-.fgrid textarea{resize:vertical;line-height:1.5}
-.fgrid input:focus,.fgrid textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 @media (max-width:720px){
   .qr-layout{gap:20px}
   .qr-preview{width:100%;align-items:center}

@@ -28,6 +28,15 @@ class QrCodeService
     public const QUIET_ZONE = 4;    // modules; the spec minimum for reliable scanning
 
     /**
+     * Card QR assets are rendered flush (no quiet zone baked into the file).
+     * Every surface that shows or prints them supplies its own white margin:
+     * the admin preview plate, the public profile pop-over, and the sticker
+     * back's cleared white box. Baking the quiet zone in as well doubled the
+     * white border everywhere and shrank the modules inside the sticker hole.
+     */
+    public const FLUSH = 0;
+
+    /**
      * Level M (~15% recovery). High enough to survive print and handling wear,
      * low enough to keep the module count — and therefore the printed dot size —
      * comfortable. No logo is embedded in V1, so we do not need Q or H.
@@ -39,12 +48,12 @@ class QrCodeService
 
     public function svgForCard(Card $card): string
     {
-        return $this->svg($card->qrUrl());
+        return $this->svg($card->qrUrl(), self::FLUSH);
     }
 
     public function pngForCard(Card $card, int $maxSize = self::PNG_SIZE): string
     {
-        return $this->png($card->qrUrl(), $maxSize);
+        return $this->png($card->qrUrl(), $maxSize, self::FLUSH);
     }
 
     public function pngForProfile(Card $card, NfcProfile $profile, int $maxSize = self::PNG_SIZE): string
@@ -76,10 +85,10 @@ class QrCodeService
         return $result;
     }
 
-    public function svg(string $payload): string
+    public function svg(string $payload, int $quietZone = self::QUIET_ZONE): string
     {
         $renderer = new ImageRenderer(
-            new RendererStyle(self::SVG_SIZE, self::QUIET_ZONE),
+            new RendererStyle(self::SVG_SIZE, $quietZone),
             new SvgImageBackEnd()
         );
 
@@ -90,12 +99,12 @@ class QrCodeService
      * Rendered with GD directly rather than through an image back-end, so the
      * only hard dependency is ext-gd (imagick is not installed on PHP 8.4 here).
      */
-    public function png(string $payload, int $maxSize = self::PNG_SIZE): string
+    public function png(string $payload, int $maxSize = self::PNG_SIZE, int $quietZone = self::QUIET_ZONE): string
     {
-        return $this->renderPng($payload, $maxSize, $this->eccLevel());
+        return $this->renderPng($payload, $maxSize, $this->eccLevel(), $quietZone);
     }
 
-    private function renderPng(string $payload, int $maxSize, ErrorCorrectionLevel $level): string
+    private function renderPng(string $payload, int $maxSize, ErrorCorrectionLevel $level, int $quietZone = self::QUIET_ZONE): string
     {
         if ($maxSize < 1) {
             throw new InvalidArgumentException('QR maximum size must be positive.');
@@ -103,7 +112,7 @@ class QrCodeService
 
         $matrix  = Encoder::encode($payload, $level, Encoder::DEFAULT_BYTE_MODE_ECODING)->getMatrix();
         $modules = $matrix->getWidth();
-        $total   = $modules + (self::QUIET_ZONE * 2);
+        $total   = $modules + ($quietZone * 2);
 
         if ($maxSize < $total) {
             throw new InvalidArgumentException('QR maximum size is too small for one pixel per module.');
@@ -121,8 +130,8 @@ class QrCodeService
         for ($y = 0; $y < $modules; $y++) {
             for ($x = 0; $x < $modules; $x++) {
                 if ($matrix->get($x, $y) === 1) {
-                    $px = ($x + self::QUIET_ZONE) * $scale;
-                    $py = ($y + self::QUIET_ZONE) * $scale;
+                    $px = ($x + $quietZone) * $scale;
+                    $py = ($y + $quietZone) * $scale;
                     imagefilledrectangle($img, $px, $py, $px + $scale - 1, $py + $scale - 1, $black);
                 }
             }
