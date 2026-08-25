@@ -9,9 +9,6 @@
   @else
     <div style="height:16px"></div>
   @endif
-  <a href="{{ $mailto }}"
-     style="display:flex;align-items:center;justify-content:center;min-height:52px;padding:14px;
-            background:var(--accent);color:#fff;border-radius:10px;text-decoration:none;
-            font-weight:580;font-size:1rem">Send Email</a>
+  <a class="primary" style="margin-top:0" href="{{ $mailto }}">Send Email</a>
 </div>
 @endsection

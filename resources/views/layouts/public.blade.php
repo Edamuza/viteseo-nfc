@@ -21,6 +21,9 @@
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
+a{color:var(--accent);text-decoration:none;font-weight:550}
+a:hover{text-decoration:underline}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
 body{
   margin:0; background:var(--bg); color:var(--text);
   font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
