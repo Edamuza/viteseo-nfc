@@ -34,7 +34,7 @@ class CardReviewStickerService
     {
         $template = $this->resolve($template);
         $back = $this->artwork($template->back_path);
-        $qr = imagecreatefromstring($this->qr->pngForCard($card, max(1, $template->qr_size - 16)));
+        $qr = imagecreatefromstring($this->qr->pngForCard($card, max(1, $template->qr_size)));
 
         if (! $qr instanceof GdImage) {
             unset($back);
@@ -42,20 +42,24 @@ class CardReviewStickerService
         }
 
         try {
-            imagealphablending($back, true);
-            $white = imagecolorallocate($back, 255, 255, 255);
-            imagefilledrectangle(
-                $back,
-                $template->qr_x,
-                $template->qr_y,
-                $template->qr_x + $template->qr_size - 1,
-                $template->qr_y + $template->qr_size - 1,
-                $white
-            );
+            // The QR fills the template's QR box exactly, edge to edge. It used
+            // to be rendered 16px smaller and centred over a white fill, and
+            // integer module scaling shrank it further — a ~10px white ring on
+            // every side that doubled the white margin the artwork already
+            // draws around the box. The integer-scaled render is stretched the
+            // last few pixels with nearest-neighbour, which keeps modules pure
+            // black/white; any quiet zone is the template design's job.
+            if (imagesx($qr) !== $template->qr_size || imagesy($qr) !== $template->qr_size) {
+                $exact = imagescale($qr, $template->qr_size, $template->qr_size, IMG_NEAREST_NEIGHBOUR);
+                if (! $exact instanceof GdImage) {
+                    throw new RuntimeException('Could not scale the card QR to the template QR box.');
+                }
+                unset($qr);
+                $qr = $exact;
+            }
 
-            $x = $template->qr_x + intdiv($template->qr_size - imagesx($qr), 2);
-            $y = $template->qr_y + intdiv($template->qr_size - imagesy($qr), 2);
-            imagecopy($back, $qr, $x, $y, 0, 0, imagesx($qr), imagesy($qr));
+            imagealphablending($back, true);
+            imagecopy($back, $qr, $template->qr_x, $template->qr_y, 0, 0, imagesx($qr), imagesy($qr));
 
             return $this->encode($back);
         } finally {

@@ -83,22 +83,26 @@ class CardReviewStickerTest extends TestCase
         $this->assertSame(0, $this->rgb($front, 20, 20)['alpha']);
     }
 
-    public function test_the_generated_qr_replaces_the_sample_without_covering_the_scanner_brackets(): void
+    public function test_the_generated_qr_fills_the_box_without_covering_the_scanner_brackets(): void
     {
         $card    = $this->card();
         $service = app(CardReviewStickerService::class);
         $back    = imagecreatefromstring($service->backPng($card));
-        $qrPng   = app(QrCodeService::class)->pngForCard($card, 410);
-        $qr      = imagecreatefromstring($qrPng);
+        $qr      = $this->qrScaledToBox($card, 426);
 
         $this->assertInstanceOf(GdImage::class, $back);
         $this->assertInstanceOf(GdImage::class, $qr);
 
-        $x = 106 + intdiv(426 - imagesx($qr), 2);
-        $y = 77 + intdiv(426 - imagesy($qr), 2);
-
-        $this->assertTrue($this->samePixels($back, $qr, $x, $y), 'the back does not contain the selected card QR');
+        // Edge to edge: the QR sits at the box origin with no white ring — the
+        // 16px inset plus the integer-scale remainder used to leave ~10px of
+        // white on every side inside the box.
+        $this->assertSame([426, 426], [imagesx($qr), imagesy($qr)]);
+        $this->assertTrue($this->samePixels($back, $qr, 106, 77), 'the back does not contain the selected card QR');
         $this->assertTrue($this->isPureBlackAndWhite($qr), 'QR modules were antialiased or recoloured');
+
+        // The flush QR's top-left finder module lands exactly on the box corner.
+        $corner = $this->rgb($back, 106, 77);
+        $this->assertLessThan(60, $corner['red'], 'the QR does not reach the top-left corner of its box');
 
         $bracket = $this->rgb($back, 150, 56);
         $this->assertLessThan(220, $bracket['red'], 'the top scanner bracket was painted over');
@@ -106,11 +110,21 @@ class CardReviewStickerTest extends TestCase
         $bracketRgb = array_intersect_key($bracket, array_flip(['red', 'green', 'blue']));
         $this->assertLessThanOrEqual(3, max($bracketRgb) - min($bracketRgb), 'the scanner bracket lost its neutral grey');
 
-        $margin = $this->rgb($back, 108, 79);
-        $marginRgb = array_intersect_key($margin, array_flip(['red', 'green', 'blue']));
-        $this->assertGreaterThanOrEqual(248, min($marginRgb), 'the old sample QR survived in the cleared margin');
-
         unset($qr, $back);
+    }
+
+    /** The exact image backPng() composes: the flush QR stretched to the box. */
+    private function qrScaledToBox(Card $card, int $boxSize): GdImage
+    {
+        $qr = imagecreatefromstring(app(QrCodeService::class)->pngForCard($card, $boxSize));
+        $this->assertInstanceOf(GdImage::class, $qr);
+
+        if (imagesx($qr) !== $boxSize) {
+            $qr = imagescale($qr, $boxSize, $boxSize, IMG_NEAREST_NEIGHBOUR);
+            $this->assertInstanceOf(GdImage::class, $qr);
+        }
+
+        return $qr;
     }
 
     public function test_the_zip_contains_exactly_the_two_named_pngs(): void

@@ -176,14 +176,17 @@ class StickerTemplateLibraryTest extends TestCase
         $template = $this->extraTemplate(80, 90, 250, 250);
         $card = $this->card('CARD-0025');
         $back = imagecreatefromstring(app(CardReviewStickerService::class)->backPng($card, $template));
-        $qr = imagecreatefromstring(app(QrCodeService::class)->pngForCard($card, 234));
+        $qr = imagecreatefromstring(app(QrCodeService::class)->pngForCard($card, 250));
 
         $this->assertInstanceOf(GdImage::class, $back);
         $this->assertInstanceOf(GdImage::class, $qr);
 
-        $x = 80 + intdiv(250 - imagesx($qr), 2);
-        $y = 90 + intdiv(250 - imagesy($qr), 2);
-        $this->assertTrue($this->samePixels($back, $qr, $x, $y));
+        // The QR is stretched to fill the detected hole exactly — no white ring.
+        if (imagesx($qr) !== 250) {
+            $qr = imagescale($qr, 250, 250, IMG_NEAREST_NEIGHBOUR);
+            $this->assertInstanceOf(GdImage::class, $qr);
+        }
+        $this->assertTrue($this->samePixels($back, $qr, 80, 90));
 
         $outside = imagecolorsforindex($back, imagecolorat($back, 20, 20));
         $this->assertSame(['red' => 30, 'green' => 40, 'blue' => 50], [
