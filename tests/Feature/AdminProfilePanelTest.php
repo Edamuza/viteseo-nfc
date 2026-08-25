@@ -678,7 +678,7 @@ class AdminProfilePanelTest extends TestCase
         $body = $this->page($card->fresh());
         $this->assertStringContainsString('Needs a display name', $body);
         $this->assertStringContainsString('name="display_name"', $body);
-        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Not set up yet');
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Set up your card');
 
         $this->actingAs($admin)->patch('/admin/cards/'.$card->public_id.'/profile', [
             'display_name' => 'Uriel Papa',
@@ -706,10 +706,9 @@ class AdminProfilePanelTest extends TestCase
         $this->assertSame(1, $card->nfcLinks()->count(), 'a per-mode delete clears one mode');
 
         $end = $this->get('/n/'.$card->public_id)->assertOk();
-        $end->assertSee('Not set up yet');
+        $end->assertSee('Set up your card');
         $end->assertDontSee('Uriel Papa');
-        // Profile mode is admin-managed: the not-ready page must never offer a
-        // visitor the links setup form.
+        // The chooser lists card types but never renders a PIN field itself.
         $end->assertDontSee('activation_pin', false);
 
         $this->get('/q/'.$card->public_id)->assertRedirect('https://viteseo.ph/landing');

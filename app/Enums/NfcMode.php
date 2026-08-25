@@ -65,4 +65,17 @@ enum NfcMode: string
     {
         return self::cases();
     }
+
+    /**
+     * Modes a customer may pick when setting up an unconfigured card
+     * themselves. Email is deliberately absent: it is hidden from both the
+     * public chooser and the admin mode selector for now (existing Email
+     * cards keep working; the mode is hidden, not removed).
+     *
+     * @return array<int, self>
+     */
+    public static function selfSetup(): array
+    {
+        return [self::Links, self::Contact, self::Phone, self::Profile];
+    }
 }

@@ -33,6 +33,15 @@ Route::get('/q/{card}/done',  [QrController::class, 'done'])->name('qr.done');
 // NFC - zero / one / many links.
 Route::get('/n/{card}',       [NfcController::class, 'show'])->name('nfc.show');
 Route::post('/n/{card}',      [NfcController::class, 'store'])->middleware('throttle:20,1')->name('nfc.store');
+
+// Self-service setup for an unconfigured card: the tap shows a chooser and
+// each choice leads to a PIN-gated form. The mode is only ever changed by a
+// POST that carried the correct activation PIN.
+Route::get('/n/{card}/setup/{mode}', [NfcController::class, 'setupForm'])
+    ->whereIn('mode', ['links', 'phone', 'contact'])
+    ->name('nfc.setup');
+Route::post('/n/{card}/setup/phone',   [NfcController::class, 'storePhone'])->middleware('throttle:20,1')->name('nfc.setup.phone');
+Route::post('/n/{card}/setup/contact', [NfcController::class, 'storeContact'])->middleware('throttle:20,1')->name('nfc.setup.contact');
 Route::get('/n/{card}/done',  [NfcController::class, 'done'])->name('nfc.done');
 Route::get('/n/{card}/qr.png', [NfcController::class, 'profileQr'])->name('nfc.profile.qr');
 Route::get('/n/{card}/edit', [NfcProfileEditController::class, 'edit'])->name('nfc.profile.edit');

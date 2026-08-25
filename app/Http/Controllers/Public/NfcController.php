@@ -61,7 +61,7 @@ class NfcController extends Controller
         $links = $card->activeNfcLinks()->get();
 
         if ($links->isEmpty()) {
-            return $this->noStore(response()->view('public.nfc-setup', ['card' => $card]));
+            return $this->chooseSetup($card);
         }
 
         if ($links->count() === 1) {
@@ -179,9 +179,139 @@ class NfcController extends Controller
      * configured by the administrator, so a visitor must not be offered a
      * self-service form that would write links onto a card in a different mode.
      */
+    /**
+     * An unconfigured card is the customer's starting point, not a dead end:
+     * every visible mode routes to the setup chooser. Email is hidden from
+     * self-setup, so an empty Email-mode card keeps the plain not-ready page.
+     */
     private function notReady(Card $card): Response
     {
-        return $this->noStore(response()->view('public.nfc-not-ready', ['card' => $card])->setStatusCode(200));
+        if ($card->nfcMode() === NfcMode::Email) {
+            return $this->noStore(response()->view('public.nfc-not-ready', ['card' => $card])->setStatusCode(200));
+        }
+
+        return $this->chooseSetup($card);
+    }
+
+    private function chooseSetup(Card $card): Response
+    {
+        return $this->noStore(response()->view('public.nfc-choose', ['card' => $card]));
+    }
+
+    /**
+     * GET /n/{public_id}/setup/{links|phone|contact}
+     *
+     * Profile setup is not here: the chooser sends that choice to the existing
+     * PIN-gated profile editor, which handles the empty card already.
+     */
+    public function setupForm(Card $card, string $mode): Response|RedirectResponse
+    {
+        if ($card->nfcModeIsConfigured()) {
+            return redirect()->route('nfc.show', $card->public_id);
+        }
+
+        return $this->noStore(response()->view(match ($mode) {
+            'phone'   => 'public.nfc-setup-phone',
+            'contact' => 'public.nfc-setup-contact',
+            default   => 'public.nfc-setup',
+        }, ['card' => $card]));
+    }
+
+    /** POST /n/{public_id}/setup/phone */
+    public function storePhone(Request $request, Card $card): RedirectResponse
+    {
+        if ($card->nfcModeIsConfigured()) {
+            return redirect()->route('nfc.show', $card->public_id);
+        }
+
+        if ($response = $this->tooManyAttempts($request, $card)) {
+            return $response;
+        }
+
+        $data = $request->validate([
+            'activation_pin'   => ['required', 'string', 'digits:6'],
+            'nfc_phone_number' => ['required', 'string', new SafePhoneNumber()],
+        ], [], ['activation_pin' => 'activation PIN', 'nfc_phone_number' => 'phone number']);
+
+        if ($response = $this->rejectWrongPin($request, $card, $data['activation_pin'])) {
+            return $response;
+        }
+
+        $card->forceFill([
+            'nfc_mode'          => NfcMode::Phone,
+            'nfc_phone_number'  => trim($data['nfc_phone_number']),
+            'nfc_configured_at' => now(),
+        ])->save();
+
+        return redirect()->route('nfc.done', $card->public_id);
+    }
+
+    /** POST /n/{public_id}/setup/contact */
+    public function storeContact(Request $request, Card $card): RedirectResponse
+    {
+        if ($card->nfcModeIsConfigured()) {
+            return redirect()->route('nfc.show', $card->public_id);
+        }
+
+        if ($response = $this->tooManyAttempts($request, $card)) {
+            return $response;
+        }
+
+        $data = $request->validate([
+            'activation_pin' => ['required', 'string', 'digits:6'],
+            'first_name'     => ['nullable', 'required_without:company', 'string', 'max:80'],
+            'last_name'      => ['nullable', 'string', 'max:80'],
+            'job_title'      => ['nullable', 'string', 'max:120'],
+            'company'        => ['nullable', 'required_without:first_name', 'string', 'max:150'],
+            'mobile_phone'   => ['nullable', 'string', new SafePhoneNumber()],
+            'personal_email' => ['nullable', 'email:rfc', 'max:190'],
+            'website'        => ['nullable', 'string', 'max:500', new SafeExternalUrl()],
+        ], [
+            'first_name.required_without' => 'Add at least a name or a company.',
+            'company.required_without'    => 'Add at least a name or a company.',
+        ], ['activation_pin' => 'activation PIN']);
+
+        if ($response = $this->rejectWrongPin($request, $card, $data['activation_pin'])) {
+            return $response;
+        }
+
+        DB::transaction(function () use ($card, $data): void {
+            $profile = $card->contactProfile ?: $card->contactProfile()->make();
+
+            // Same rule as the admin form: these values land in a vCard, where
+            // a stray CR/LF would terminate the property line.
+            $clean = [];
+            foreach (['first_name', 'last_name', 'job_title', 'company', 'mobile_phone', 'personal_email', 'website'] as $field) {
+                $value = $data[$field] ?? null;
+                $clean[$field] = is_string($value)
+                    ? (trim((string) preg_replace('/[\r\n]+/', ' ', $value)) ?: null)
+                    : $value;
+            }
+
+            $profile->fill($clean)->save();
+
+            $card->forceFill([
+                'nfc_mode'          => NfcMode::Contact,
+                'nfc_configured_at' => now(),
+            ])->save();
+        });
+
+        return redirect()->route('nfc.done', $card->public_id);
+    }
+
+    private function rejectWrongPin(Request $request, Card $card, string $pin): ?RedirectResponse
+    {
+        if ($this->cards->verifyPin($card, $pin)) {
+            RateLimiter::clear($this->throttleKey($request, $card));
+
+            return null;
+        }
+
+        RateLimiter::hit($this->throttleKey($request, $card), 900);
+
+        return back()
+            ->withErrors(['activation_pin' => 'That activation PIN is not correct.'])
+            ->withInput($request->except('activation_pin'));
     }
 
     /**
@@ -227,8 +357,10 @@ class NfcController extends Controller
     /** POST /n/{public_id} */
     public function store(Request $request, Card $card): RedirectResponse
     {
-        // Public self-service setup exists for Links mode only.
-        if ($card->nfcMode() !== NfcMode::Links || $card->activeNfcLinkCount() > 0) {
+        // Self-service setup is for unconfigured cards only. A card already
+        // serving content in its current mode is never changed from here —
+        // whatever that mode is; the PIN below guards the unconfigured rest.
+        if ($card->nfcModeIsConfigured()) {
             return redirect()->route('nfc.show', $card->public_id);
         }
 
@@ -272,6 +404,9 @@ class NfcController extends Controller
             }
 
             $card->forceFill([
+                // The chooser lets an unconfigured card in any visible mode
+                // become a Links card, so the mode is set here explicitly.
+                'nfc_mode'          => NfcMode::Links,
                 // Nullable fields are absent from $data entirely when not submitted,
                 // so coalesce before using them.
                 'nfc_page_title'    => trim((string) ($data['page_title'] ?? '')) ?: null,

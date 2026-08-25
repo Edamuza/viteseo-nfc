@@ -180,6 +180,15 @@ class NfcProfileEditController extends Controller
                     $lockedCard->profile()->save($profile);
                 }
 
+                // Saving from the setup chooser commits the choice: the card
+                // becomes a Profile card. A no-op for cards already in it.
+                if ($lockedCard->nfcMode() !== NfcMode::Profile) {
+                    $lockedCard->forceFill([
+                        'nfc_mode'          => NfcMode::Profile,
+                        'nfc_configured_at' => now(),
+                    ])->save();
+                }
+
                 $lockedCard->nfcLinks()->delete();
 
                 foreach ($data['links'] as $order => $link) {
@@ -204,9 +213,15 @@ class NfcProfileEditController extends Controller
             ->with('status', 'Your profile has been updated.'));
     }
 
+    /**
+     * The editor serves two audiences: the owner of a live Profile card, and
+     * the owner of an UNCONFIGURED card who picked "Profile page" on the setup
+     * chooser. A card actively serving any other mode stays off limits — its
+     * content must not be switched out from under it by a public URL.
+     */
     private function guardProfileMode(Card $card): void
     {
-        abort_if($card->nfcMode() !== NfcMode::Profile, 404);
+        abort_if($card->nfcMode() !== NfcMode::Profile && $card->nfcModeIsConfigured(), 404);
     }
 
     private function isUnlocked(Request $request, Card $card): bool

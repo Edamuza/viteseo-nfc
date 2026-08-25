@@ -124,6 +124,10 @@
       @csrf @method('PATCH')
       <div class="modegrid">
         @foreach (\App\Enums\NfcMode::all() as $m)
+          {{-- Email mode is hidden, not removed: no new card can be switched
+               to it from here, but a card already serving it keeps its option
+               visible so the admin can see and change what it is. --}}
+          @continue($m === $M::Email && $mode !== $M::Email)
           <label class="modeopt {{ $mode === $m ? 'on' : '' }}">
             <input type="radio" name="nfc_mode" value="{{ $m->value }}" @checked($mode === $m)>
             <span class="mt">{{ $m->label() }}</span>

@@ -64,8 +64,14 @@ details.menu>summary::-webkit-details-marker{display:none}
 
 .card{background:var(--card);border-radius:var(--radius);overflow:hidden;
  border:1px solid rgba(0,0,0,.06);margin-bottom:18px}
-/* Cover is the brand colour at low alpha - same hue, lighter. */
-.cover{height:150px;background:var(--brand-soft)}
+/* Cover: the avatar itself, blurred, when there is one — the brand colour at
+   low alpha otherwise. The blur scale-up hides the soft vignette a blur
+   filter leaves at the image edges. */
+.cover{height:150px;background:var(--brand-soft);position:relative;overflow:hidden}
+.cover-img{
+  width:100%;height:100%;object-fit:cover;display:block;
+  filter:blur(20px) saturate(1.15);transform:scale(1.2);opacity:.85;
+}
 .idblock{padding:0 28px 26px}
 .avatar-row{margin-top:-54px;margin-bottom:16px}
 .avatar-slot{position:relative;width:110px;height:110px}
@@ -233,7 +239,11 @@ footer a:hover{text-decoration:underline}
   </div>
 
   <section class="card">
-    <div class="cover"></div>
+    <div class="cover">
+      @if ($profile->avatar_path)
+        <img class="cover-img" src="{{ asset('storage/'.$profile->avatar_path) }}" alt="" aria-hidden="true">
+      @endif
+    </div>
     <div class="idblock">
 
       <div class="avatar-row">

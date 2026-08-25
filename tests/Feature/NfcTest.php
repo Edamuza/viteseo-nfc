@@ -26,13 +26,19 @@ class NfcTest extends TestCase
         $this->get('/n/NOSUCHID')->assertNotFound();
     }
 
-    public function test_zero_links_shows_setup_page(): void
+    public function test_zero_links_shows_the_chooser_and_the_links_form_carries_the_pin(): void
     {
         $card = $this->card();
 
+        // The tap lands on the setup chooser; the PIN lives on the per-type
+        // form the chooser links to, not on the chooser itself.
         $this->get('/n/'.$card->public_id)
             ->assertOk()
             ->assertSee('Set up your card')
+            ->assertSee('/n/'.$card->public_id.'/setup/links');
+
+        $this->get('/n/'.$card->public_id.'/setup/links')
+            ->assertOk()
             ->assertSee('Activation PIN');
     }
 
@@ -193,7 +199,8 @@ class NfcTest extends TestCase
         $card->nfcLinks()->delete();
         $card->forceFill(['nfc_configured_at' => null])->save();
 
-        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Activation PIN');
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Set up your card');
+        $this->get('/n/'.$card->public_id.'/setup/links')->assertOk()->assertSee('Activation PIN');
     }
 
     public function test_unsafe_schemes_rejected_in_nfc_links(): void

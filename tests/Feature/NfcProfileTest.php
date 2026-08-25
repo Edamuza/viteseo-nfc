@@ -160,17 +160,22 @@ class NfcProfileTest extends TestCase
             ->assertDontSee('CEO, Vite SEO');
     }
 
-    public function test_public_self_service_setup_still_refuses_profile_mode(): void
+    public function test_public_links_setup_still_refuses_a_live_profile_card(): void
     {
+        // An UNCONFIGURED profile card may become a links card through the
+        // setup chooser, but one actively serving a profile must never be
+        // switched out from under its owner by a public POST.
         $card = $this->card();
         $card->forceFill(['nfc_mode' => 'profile'])->save();
+        $card->profile()->save($card->profile()->make(['display_name' => 'Uriel Papa']));
 
         $this->post('/n/'.$card->public_id, [
             'activation_pin' => '000000',
             'links'          => [['title' => 'Site', 'url' => 'https://example.com']],
         ])->assertRedirect('/n/'.$card->public_id);
 
-        $this->assertSame(0, $card->nfcLinks()->count(), 'a visitor must not be able to write links onto a profile card');
+        $this->assertSame(0, $card->nfcLinks()->count(), 'a visitor must not be able to write links onto a live profile card');
+        $this->assertSame('profile', $card->fresh()->nfcMode()->value);
     }
 
     public function test_the_profile_mode_page_carries_no_store_and_noindex_headers(): void
@@ -534,6 +539,22 @@ class NfcProfileTest extends TestCase
             ->assertOk()
             ->assertSee('--brand:#1d5b45', false)
             ->assertSee('--brand-soft:rgba(29,91,69,.34)', false);
+    }
+
+    public function test_the_cover_shows_the_blurred_avatar_only_when_one_exists(): void
+    {
+        $card = $this->profileCard();
+
+        // No avatar: the cover stays the plain brand-soft block. The class
+        // attribute is the marker — the stylesheet always names .cover-img.
+        $this->get('/n/'.$card->public_id)->assertOk()->assertDontSee('class="cover-img"', false);
+
+        $card->profile->forceFill(['avatar_path' => 'profile-avatars/avatar.png'])->save();
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('class="cover-img"', false)
+            ->assertSee('profile-avatars/avatar.png');
     }
 
     /** @return array<string, array{string}> */

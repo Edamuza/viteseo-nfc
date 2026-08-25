@@ -35,6 +35,10 @@
 
     <button class="primary" type="submit">Save my card</button>
   </form>
+
+  <p style="text-align:center;margin:18px 0 0;font-size:.88rem">
+    <a href="{{ route('nfc.show', $card->public_id) }}">&larr; Choose a different card type</a>
+  </p>
 </div>
 
 <script>

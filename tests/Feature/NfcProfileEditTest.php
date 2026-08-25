@@ -59,12 +59,12 @@ class NfcProfileEditTest extends TestCase
         $card = app(CardGenerationService::class)->generate(1)->first();
         $card->forceFill(['nfc_mode' => NfcMode::Profile])->save();
 
-        // The tap lands on "not set up yet", but the owner must be able to
-        // reach the PIN-protected editor from there — otherwise a fresh
-        // Profile-mode card is a dead end the customer cannot configure.
+        // The tap lands on the setup chooser, which must route the Profile
+        // choice to the PIN-protected editor — otherwise a fresh Profile-mode
+        // card is a dead end the customer cannot configure.
         $this->get('/n/'.$card->public_id)
             ->assertOk()
-            ->assertSee('Not set up yet')
+            ->assertSee('Set up your card')
             ->assertSee('/n/'.$card->public_id.'/edit');
 
         // And the editor genuinely works from empty: unlock, save, live page.
@@ -74,15 +74,33 @@ class NfcProfileEditTest extends TestCase
         $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Fresh Owner');
     }
 
-    public function test_admin_only_modes_do_not_offer_the_profile_setup_link(): void
+    public function test_the_hidden_email_mode_keeps_the_plain_not_ready_page(): void
     {
         $card = app(CardGenerationService::class)->generate(1)->first();
-        $card->forceFill(['nfc_mode' => NfcMode::Contact])->save();
+        $card->forceFill(['nfc_mode' => NfcMode::Email])->save();
 
+        // Email is hidden from self-setup, so its empty state offers nothing.
         $this->get('/n/'.$card->public_id)
             ->assertOk()
             ->assertSee('Not set up yet')
             ->assertDontSee('/n/'.$card->public_id.'/edit');
+    }
+
+    public function test_an_unconfigured_links_card_can_be_set_up_as_a_profile(): void
+    {
+        $card = app(CardGenerationService::class)->generate(1)->first();
+        $this->assertSame(NfcMode::Links, $card->nfcMode());
+
+        // The chooser's Profile choice leads to the editor even though the
+        // card is not in Profile mode yet; saving commits the choice.
+        $this->get('/n/'.$card->public_id.'/edit')->assertOk();
+        $this->unlock($card);
+        $this->patch('/n/'.$card->public_id.'/edit', ['display_name' => 'Chooser Profile'])
+            ->assertSessionHasNoErrors();
+
+        $fresh = $card->fresh();
+        $this->assertSame(NfcMode::Profile, $fresh->nfcMode());
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Chooser Profile');
     }
 
     public function test_a_card_has_newest_first_profile_edit_history_with_array_snapshots(): void
@@ -119,10 +137,13 @@ class NfcProfileEditTest extends TestCase
         $this->assertFalse(NfcProfileEdit::query()->whereKey($edit->id)->exists());
     }
 
-    public function test_profile_edit_page_is_reachable_only_in_profile_mode(): void
+    public function test_profile_edit_page_is_unreachable_when_another_mode_is_live(): void
     {
+        // A card actively serving another mode must not be switchable to a
+        // profile from a public URL; only an UNCONFIGURED card may be.
         $card = $this->card();
         $card->forceFill(['nfc_mode' => NfcMode::Links])->save();
+        $card->nfcLinks()->create(['title' => 'A', 'url' => 'https://example.com/a', 'sort_order' => 0, 'is_active' => true]);
 
         $this->get('/n/'.$card->public_id.'/edit')->assertNotFound();
         $this->post('/n/'.$card->public_id.'/edit/unlock', ['activation_pin' => '000000'])->assertNotFound();

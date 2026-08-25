@@ -100,21 +100,27 @@ class NfcModesTest extends TestCase
         $this->assertStringNotContainsString('Notes', $body);
     }
 
-    public function test_contact_mode_without_a_name_shows_the_not_ready_page_not_the_links_form(): void
+    public function test_contact_mode_without_a_name_shows_the_setup_chooser(): void
     {
         $card = $this->card();
         $card->forceFill(['nfc_mode' => 'contact'])->save();
 
+        // An unconfigured card is the owner's starting point in every visible
+        // mode: the chooser lists the card types, with Email hidden.
         $this->get('/n/'.$card->public_id)
             ->assertOk()
-            ->assertSee('Not set up yet')
-            ->assertDontSee('Activation PIN');   // must not offer public self-service setup
+            ->assertSee('Set up your card')
+            ->assertSee('Digital Contact Card')
+            ->assertSee('Phone / Call')
+            ->assertSee('Profile Page')
+            ->assertDontSee('Send Email button');
     }
 
-    public function test_public_setup_post_is_rejected_when_not_in_links_mode(): void
+    public function test_public_setup_post_is_rejected_when_the_current_mode_is_configured(): void
     {
         $card = $this->card();
         $card->forceFill(['nfc_mode' => 'contact'])->save();
+        $card->contactProfile()->save($card->contactProfile()->make(['first_name' => 'Live']));
 
         $this->post('/n/'.$card->public_id, [
             'activation_pin' => '000000',
@@ -122,6 +128,118 @@ class NfcModesTest extends TestCase
         ])->assertRedirect('/n/'.$card->public_id);
 
         $this->assertSame(0, $card->fresh()->nfcLinks()->count());
+        $this->assertSame(NfcMode::Contact, $card->fresh()->nfcMode());
+    }
+
+    public function test_an_unconfigured_card_in_another_mode_can_become_a_links_card(): void
+    {
+        $card = $this->card();
+        $card->forceFill(['nfc_mode' => 'contact'])->save();
+
+        $this->post('/n/'.$card->public_id, [
+            'activation_pin' => '000000',
+            'links'          => [['title' => 'X', 'url' => 'https://example.com/x']],
+        ])->assertRedirect('/n/'.$card->public_id.'/done');
+
+        $fresh = $card->fresh();
+        $this->assertSame(NfcMode::Links, $fresh->nfcMode());
+        $this->assertSame(1, $fresh->nfcLinks()->count());
+    }
+
+    public function test_the_phone_setup_form_configures_an_unconfigured_card(): void
+    {
+        $card = $this->card();
+
+        $this->get('/n/'.$card->public_id.'/setup/phone')->assertOk()->assertSee('Activation PIN');
+
+        $this->post('/n/'.$card->public_id.'/setup/phone', [
+            'activation_pin'   => '000000',
+            'nfc_phone_number' => '+63 917 123 4567',
+        ])->assertRedirect('/n/'.$card->public_id.'/done');
+
+        $fresh = $card->fresh();
+        $this->assertSame(NfcMode::Phone, $fresh->nfcMode());
+        $this->assertSame('+63 917 123 4567', $fresh->nfc_phone_number);
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Call Now');
+    }
+
+    public function test_the_phone_setup_rejects_a_wrong_pin_and_saves_nothing(): void
+    {
+        $card = $this->card();
+
+        $this->from('/n/'.$card->public_id.'/setup/phone')->post('/n/'.$card->public_id.'/setup/phone', [
+            'activation_pin'   => '999999',
+            'nfc_phone_number' => '+63 917 123 4567',
+        ])->assertSessionHasErrors('activation_pin');
+
+        $this->assertSame(NfcMode::Links, $card->fresh()->nfcMode());
+        $this->assertNull($card->fresh()->nfc_phone_number);
+    }
+
+    public function test_the_contact_setup_form_configures_an_unconfigured_card(): void
+    {
+        $card = $this->card();
+
+        $this->get('/n/'.$card->public_id.'/setup/contact')->assertOk()->assertSee('Activation PIN');
+
+        $this->post('/n/'.$card->public_id.'/setup/contact', [
+            'activation_pin' => '000000',
+            'first_name'     => 'Maria',
+            'last_name'      => 'Santos',
+            'job_title'      => 'Owner',
+            'mobile_phone'   => '+63 917 000 1111',
+            'personal_email' => 'maria@example.com',
+        ])->assertRedirect('/n/'.$card->public_id.'/done');
+
+        $fresh = $card->fresh();
+        $this->assertSame(NfcMode::Contact, $fresh->nfcMode());
+        $this->assertSame('Maria', $fresh->contactProfile->first_name);
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Maria Santos')->assertSee('Save to Contacts');
+    }
+
+    public function test_the_contact_setup_requires_a_name_or_company(): void
+    {
+        $card = $this->card();
+
+        $this->post('/n/'.$card->public_id.'/setup/contact', [
+            'activation_pin' => '000000',
+            'mobile_phone'   => '+63 917 000 1111',
+        ])->assertSessionHasErrors(['first_name', 'company']);
+
+        $this->assertSame(NfcMode::Links, $card->fresh()->nfcMode());
+    }
+
+    public function test_the_admin_mode_selector_hides_email_except_on_an_email_card(): void
+    {
+        $card = $this->card();
+
+        // Hidden, not removed: no fresh card can be switched to Email...
+        $this->actingAs($this->admin())
+            ->get('/admin/cards/'.$card->public_id)
+            ->assertOk()
+            ->assertDontSee('value="email"', false);
+
+        // ...but a card already serving it keeps the option visible.
+        $card->forceFill(['nfc_mode' => 'email', 'nfc_email_address' => 'hi@example.com'])->save();
+        $this->actingAs($this->admin())
+            ->get('/admin/cards/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('value="email"', false);
+    }
+
+    public function test_setup_pages_redirect_away_from_a_configured_card(): void
+    {
+        $card = $this->card();
+        $card->nfcLinks()->create(['title' => 'A', 'url' => 'https://example.com/a', 'sort_order' => 0, 'is_active' => true]);
+
+        $this->get('/n/'.$card->public_id.'/setup/phone')->assertRedirect('/n/'.$card->public_id);
+        $this->get('/n/'.$card->public_id.'/setup/contact')->assertRedirect('/n/'.$card->public_id);
+        $this->get('/n/'.$card->public_id.'/setup/links')->assertRedirect('/n/'.$card->public_id);
+
+        $this->post('/n/'.$card->public_id.'/setup/phone', [
+            'activation_pin' => '000000', 'nfc_phone_number' => '+63 917 123 4567',
+        ])->assertRedirect('/n/'.$card->public_id);
+        $this->assertNull($card->fresh()->nfc_phone_number);
     }
 
     // ── Phone ───────────────────────────────────────────────────────────────
@@ -143,7 +261,7 @@ class NfcModesTest extends TestCase
         $card = $this->card();
         $card->forceFill(['nfc_mode' => 'phone'])->save();
 
-        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Not set up yet');
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Set up your card');
     }
 
     /** @return array<int, array{string}> */
