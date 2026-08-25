@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\NfcToolsController;
 use App\Http\Controllers\Admin\SitePageController;
 use App\Http\Controllers\Admin\StickerTemplateController;
 use App\Http\Controllers\Public\NfcController;
+use App\Http\Controllers\Public\NfcManageController;
 use App\Http\Controllers\Public\NfcProfileEditController;
 use App\Http\Controllers\Public\QrController;
 use Illuminate\Support\Facades\Route;
@@ -42,6 +43,12 @@ Route::get('/n/{card}/setup/{mode}', [NfcController::class, 'setupForm'])
     ->name('nfc.setup');
 Route::post('/n/{card}/setup/phone',   [NfcController::class, 'storePhone'])->middleware('throttle:20,1')->name('nfc.setup.phone');
 Route::post('/n/{card}/setup/contact', [NfcController::class, 'storeContact'])->middleware('throttle:20,1')->name('nfc.setup.contact');
+
+// Owner self-service: change what a LIVE card does, or change its PIN.
+// Everything behind one PIN unlock shared with the setup forms above.
+Route::get('/n/{card}/manage',         [NfcManageController::class, 'show'])->name('nfc.manage');
+Route::post('/n/{card}/manage/unlock', [NfcManageController::class, 'unlock'])->middleware('throttle:20,1')->name('nfc.manage.unlock');
+Route::post('/n/{card}/manage/pin',    [NfcManageController::class, 'changePin'])->middleware('throttle:20,1')->name('nfc.manage.pin');
 Route::get('/n/{card}/done',  [NfcController::class, 'done'])->name('nfc.done');
 Route::get('/n/{card}/qr.png', [NfcController::class, 'profileQr'])->name('nfc.profile.qr');
 Route::get('/n/{card}/edit', [NfcProfileEditController::class, 'edit'])->name('nfc.profile.edit');
@@ -128,6 +135,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
             // No PIN regeneration route: every card uses the universal PIN.
             Route::post('/pin/reveal', [CardController::class, 'revealPin'])->name('pin.reveal');
+            Route::post('/pin/reset',  [CardController::class, 'resetPin'])->name('pin.reset');
 
             Route::delete('/reset', [CardController::class, 'resetCard'])->name('reset');
         });

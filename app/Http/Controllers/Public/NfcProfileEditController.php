@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Card;
 use App\Rules\SafeExternalUrl;
 use App\Services\CardGenerationService;
+use App\Services\CardOwnerGate;
 use App\Services\LinkPlatform;
 use App\Services\DominantColor;
 use App\Services\ImageIngest;
@@ -25,18 +26,17 @@ class NfcProfileEditController extends Controller
 
     private const DECAY_SECONDS = 900;
 
-    private const UNLOCK_SECONDS = 1800;
-
     public function __construct(
         private readonly CardGenerationService $cards,
         private readonly ImageIngest $images,
         private readonly DominantColor $colors,
         private readonly PublicImageStorage $photos,
+        private readonly CardOwnerGate $gate,
     ) {}
 
     public function edit(Request $request, Card $card): Response
     {
-        $this->guardProfileMode($card);
+        $this->guardProfileMode($request, $card);
         $unlocked = $this->isUnlocked($request, $card);
 
         return $this->noStore(response()->view('public.nfc-profile-edit', [
@@ -49,7 +49,7 @@ class NfcProfileEditController extends Controller
 
     public function unlock(Request $request, Card $card): RedirectResponse
     {
-        $this->guardProfileMode($card);
+        $this->guardProfileMode($request, $card);
         $key = $this->throttleKey($request, $card);
 
         if (RateLimiter::tooManyAttempts($key, self::MAX_ATTEMPTS)) {
@@ -59,27 +59,42 @@ class NfcProfileEditController extends Controller
             ]));
         }
 
-        $data = $request->validate([
-            'activation_pin' => ['required', 'string', 'digits:6'],
-        ], [], ['activation_pin' => 'activation PIN']);
+        $rules = ['activation_pin' => ['required', 'string', 'digits:6']];
+
+        // First unlock on a universal-PIN card also personalizes the PIN:
+        // approved product rule — after providing the activation PIN the
+        // owner must provide their own.
+        if (! $card->pinIsPersonalized()) {
+            $rules += $this->cards->newPinRules();
+        }
+
+        $data = $request->validate($rules, $this->cards->newPinMessages(), [
+            'activation_pin' => 'activation PIN',
+            'new_pin' => 'new PIN',
+        ]);
 
         if (! $this->cards->verifyPin($card, $data['activation_pin'])) {
             RateLimiter::hit($key, self::DECAY_SECONDS);
 
             return $this->noStore(back()
                 ->withErrors(['activation_pin' => 'That activation PIN is not correct.'])
-                ->withInput($request->except('activation_pin')));
+                ->withInput($request->except(['activation_pin', 'new_pin', 'new_pin_confirmation'])));
         }
 
         RateLimiter::clear($key);
-        $request->session()->put($this->sessionKey($card), now()->timestamp);
+
+        if (isset($data['new_pin'])) {
+            $this->cards->personalizePin($card, $data['new_pin']);
+        }
+
+        $this->gate->unlock($request, $card);
 
         return $this->noStore(redirect()->route('nfc.profile.edit', $card->public_id));
     }
 
     public function update(Request $request, Card $card): RedirectResponse
     {
-        $this->guardProfileMode($card);
+        $this->guardProfileMode($request, $card);
         abort_unless($this->isUnlocked($request, $card), 403);
 
         $rawLinks = $request->input('links', []);
@@ -149,7 +164,7 @@ class NfcProfileEditController extends Controller
         try {
             DB::transaction(function () use ($request, $card, $data, $stored): void {
                 $lockedCard = Card::query()->whereKey($card->id)->lockForUpdate()->firstOrFail();
-                $this->guardProfileMode($lockedCard);
+                $this->guardProfileMode($request, $lockedCard);
                 $lockedCard->load(['profile', 'nfcLinks']);
 
                 $snapshot = $this->snapshot($lockedCard);
@@ -219,33 +234,26 @@ class NfcProfileEditController extends Controller
     }
 
     /**
-     * The editor serves two audiences: the owner of a live Profile card, and
-     * the owner of an UNCONFIGURED card who picked "Profile page" on the setup
-     * chooser. A card actively serving any other mode stays off limits — its
-     * content must not be switched out from under it by a public URL.
+     * The editor serves three audiences: the owner of a live Profile card,
+     * the owner of an UNCONFIGURED card who picked "Profile page" on the
+     * setup chooser, and an owner who unlocked the manage page to switch a
+     * live card of another mode over to a profile. A live other-mode card
+     * with NO owner unlock stays off limits — its content must not be
+     * switched out from under it by a bare public URL.
      */
-    private function guardProfileMode(Card $card): void
+    private function guardProfileMode(Request $request, Card $card): void
     {
-        abort_if($card->nfcMode() !== NfcMode::Profile && $card->nfcModeIsConfigured(), 404);
+        abort_if(
+            $card->nfcMode() !== NfcMode::Profile
+                && $card->nfcModeIsConfigured()
+                && ! $this->gate->isUnlocked($request, $card),
+            404
+        );
     }
 
     private function isUnlocked(Request $request, Card $card): bool
     {
-        $key = $this->sessionKey($card);
-        $timestamp = (int) $request->session()->get($key, 0);
-
-        if ($timestamp < now()->timestamp - self::UNLOCK_SECONDS) {
-            $request->session()->forget($key);
-
-            return false;
-        }
-
-        return $timestamp > 0;
-    }
-
-    private function sessionKey(Card $card): string
-    {
-        return 'nfc-profile-edit:'.$card->public_id;
+        return $this->gate->isUnlocked($request, $card);
     }
 
     private function throttleKey(Request $request, Card $card): string

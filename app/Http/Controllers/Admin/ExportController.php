@@ -147,7 +147,10 @@ class ExportController extends Controller
      */
     public function activationManifest(): Response
     {
-        $csv = "card_number,public_id,activation_pin,qr_url,nfc_url\n";
+        // pin_personalized marks PINs that are now an owner's personal secret
+        // rather than the shipped universal value — handle those rows with
+        // more care than a fresh-card manifest.
+        $csv = "card_number,public_id,activation_pin,pin_personalized,qr_url,nfc_url\n";
 
         Card::query()->orderBy('id')->chunk(200, function ($chunk) use (&$csv) {
             foreach ($chunk as $card) {
@@ -155,6 +158,7 @@ class ExportController extends Controller
                     $this->csv($card->card_number),
                     $this->csv($card->public_id),
                     $this->csv((string) $card->activation_pin_encrypted),
+                    $this->csv($card->pinIsPersonalized() ? 'yes' : 'no'),
                     $this->csv($card->qrUrl()),
                     $this->csv($card->nfcUrl()),
                 ])."\n";

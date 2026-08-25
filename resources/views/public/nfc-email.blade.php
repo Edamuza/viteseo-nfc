@@ -10,5 +10,6 @@
     <div style="height:16px"></div>
   @endif
   <a class="primary" style="margin-top:0" href="{{ $mailto }}">Send Email</a>
+  <p class="foot" style="margin-top:18px"><a href="{{ route('nfc.manage', $card->public_id) }}" style="color:var(--muted);font-weight:500">Card owner? Manage this card</a></p>
 </div>
 @endsection

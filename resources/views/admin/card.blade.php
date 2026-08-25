@@ -420,17 +420,27 @@
 <div class="panel panel-tight">
   <div class="row" style="justify-content:space-between">
     <div class="row row-tight">
-      <span class="small" style="font-weight:570">Activation PIN</span>
+      <span class="small" style="font-weight:570">Card PIN</span>
       <code id="pinbox" style="letter-spacing:.24em;padding:4px 12px">&bull;&bull;&bull;&bull;&bull;&bull;</code>
       <button class="btn btn-sm" type="button" id="revealbtn"
               data-url="{{ route('admin.cards.pin.reveal', $card->public_id) }}">Reveal PIN</button>
+      @if ($card->pinIsPersonalized())
+        <form method="POST" action="{{ route('admin.cards.pin.reset', $card->public_id) }}"
+              onsubmit="return confirm('Reset this card\'s PIN back to the universal activation PIN?\n\nThe owner\'s personal PIN stops working immediately. They will be asked to set a new personal PIN the next time they set up or unlock the card.')">
+          @csrf
+          <button class="btn btn-sm btn-d" type="submit">Reset PIN</button>
+        </form>
+      @endif
     </div>
-    <span class="small muted">Universal activation PIN</span>
+    <span class="badge {{ $card->pinIsPersonalized() ? 'b-ok' : 'b-off' }}">
+      {{ $card->pinIsPersonalized() ? 'Personalized '.$card->pin_personalized_at->format('Y-m-d') : 'Universal PIN' }}
+    </span>
   </div>
   <p class="small muted" style="margin:10px 0 0">
-    All cards use the universal activation PIN <code>{{ \App\Services\CardGenerationService::UNIVERSAL_PIN }}</code>.
-    It prevents accidental configuration by a stray scan; it is not a per-card secret.
-    Activation attempts remain rate-limited.
+    Cards ship with the universal activation PIN <code>{{ \App\Services\CardGenerationService::UNIVERSAL_PIN }}</code>.
+    The owner replaces it with a personal PIN during setup, which then guards their editing and mode changes.
+    If an owner forgets their PIN, Reset PIN returns the card to the universal one.
+    Attempts remain rate-limited.
   </p>
 </div>
 

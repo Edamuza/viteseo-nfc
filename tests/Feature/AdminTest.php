@@ -228,15 +228,26 @@ class AdminTest extends TestCase
         $this->assertStringContainsString('private', $cc);
     }
 
-    public function test_admin_card_page_documents_the_universal_pin_tradeoff(): void
+    public function test_admin_card_page_documents_the_pin_lifecycle(): void
     {
         $card = $this->card();
+        $admin = $this->admin();
 
-        $this->actingAs($this->admin())->get('/admin/cards/'.$card->public_id)
+        // Fresh card: ships on the universal PIN, no reset button yet.
+        $this->actingAs($admin)->get('/admin/cards/'.$card->public_id)
             ->assertOk()
-            ->assertSee('All cards use the universal activation PIN')
+            ->assertSee('Cards ship with the universal activation PIN')
             ->assertSee('000000')
+            ->assertSee('Universal PIN')
+            ->assertDontSee('/pin/reset', false)
             ->assertDontSee('Regenerate PIN');
+
+        // Personalized card: badge flips and the support reset appears.
+        app(\App\Services\CardGenerationService::class)->personalizePin($card, '445566');
+        $this->actingAs($admin)->get('/admin/cards/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('Personalized')
+            ->assertSee('/pin/reset', false);
     }
 
     /** @return array<int, array{int}> */

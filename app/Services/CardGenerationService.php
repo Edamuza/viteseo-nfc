@@ -141,9 +141,52 @@ class CardGenerationService
         $card->forceFill([
             'activation_pin_hash'      => Hash::make($pin),
             'activation_pin_encrypted' => $pin,
+            // Back to the universal PIN means back to "not personalized":
+            // the next setup or unlock will demand a personal PIN again.
+            'pin_personalized_at'      => null,
         ])->save();
 
         return $pin;
+    }
+
+    /**
+     * The owner's own PIN, set during setup or from the manage page. Stored
+     * exactly like the universal one — hash for verification, encrypted for
+     * the admin reveal — so verifyPin() and revealPin() need no changes.
+     */
+    public function personalizePin(Card $card, string $pin): void
+    {
+        $card->forceFill([
+            'activation_pin_hash'      => Hash::make($pin),
+            'activation_pin_encrypted' => $pin,
+            'pin_personalized_at'      => now(),
+        ])->save();
+    }
+
+    /**
+     * Validation for the owner's personal PIN. Shared by every flow that
+     * collects one — the three setup forms, the profile editor's unlock,
+     * and the manage page — so the rules cannot drift apart.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    public function newPinRules(): array
+    {
+        return [
+            'new_pin' => [
+                'required', 'string', 'digits:6', 'confirmed',
+                \Illuminate\Validation\Rule::notIn([self::UNIVERSAL_PIN]),
+            ],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function newPinMessages(): array
+    {
+        return [
+            'new_pin.not_in' => 'Choose your own PIN — the default '.self::UNIVERSAL_PIN.' is not allowed.',
+            'new_pin.confirmed' => 'The new PIN and its confirmation do not match.',
+        ];
     }
 
     public function revealPin(Card $card): string

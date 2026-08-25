@@ -420,10 +420,27 @@ class CardController extends Controller
     // --- Activation PIN ------------------------------------------------------
 
     /**
+     * POST /admin/cards/{card}/pin/reset
+     *
+     * The forgot-my-PIN support path: puts the card back on the universal
+     * activation PIN, so the owner's next setup or unlock will demand a fresh
+     * personal PIN. The owner identifies their card by the Card ID shown on
+     * every owner-facing page.
+     */
+    public function resetPin(Card $card): RedirectResponse
+    {
+        $this->cards->applyUniversalPin($card);
+
+        return back()->with('status', 'PIN reset to the universal activation PIN. The owner will set a new personal PIN on their next setup or unlock.');
+    }
+
+    /**
      * POST /admin/cards/{card}/pin/reveal
      *
-     * Always returns the universal PIN. Kept as an authenticated POST returning
-     * no-store JSON so the value never sits in page markup or a GET-able URL.
+     * Returns the card's CURRENT PIN — the universal one until the owner
+     * personalizes it at setup, their own afterwards. Kept as an authenticated
+     * POST returning no-store JSON so the value never sits in page markup or a
+     * GET-able URL.
      */
     public function revealPin(Card $card): JsonResponse
     {

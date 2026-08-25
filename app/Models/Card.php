@@ -33,8 +33,20 @@ class Card extends Model
             'activation_pin_encrypted' => 'encrypted',
             'qr_configured_at'  => 'datetime',
             'nfc_configured_at' => 'datetime',
+            'pin_personalized_at' => 'datetime',
             'nfc_mode'          => NfcMode::class,
         ];
+    }
+
+    /**
+     * Has the owner replaced the universal activation PIN with their own?
+     * Until they have, every setup and unlock flow demands a personal PIN
+     * alongside the universal one — a card protected by a PIN every customer
+     * knows is not protected at all.
+     */
+    public function pinIsPersonalized(): bool
+    {
+        return $this->pin_personalized_at !== null;
     }
 
     /** Public routes resolve by public_id, never by the internal numeric id. */

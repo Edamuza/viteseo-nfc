@@ -11,9 +11,10 @@
 
   <form method="POST" action="{{ route('nfc.store', $card->public_id) }}">
     @csrf
-    <label for="activation_pin">Activation PIN</label>
+    <label for="activation_pin">{{ $card->pinIsPersonalized() ? 'Your card PIN' : 'Activation PIN' }}</label>
     <input class="pin" id="activation_pin" name="activation_pin" type="tel" inputmode="numeric"
            maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN" required>
+    @include('public.partials.new-pin')
 
     <label for="page_title">Business name <span class="opt">(optional)</span></label>
     <input id="page_title" name="page_title" type="text" maxlength="120" value="{{ old('page_title') }}">
@@ -28,7 +29,14 @@
       “Auto” matches the URL to a known platform by itself.
     </p>
     <div id="links">
-      @php $old = old('links', [['title'=>'','url'=>'','icon'=>'']]); @endphp
+      @php
+        // Prefilled with the card's saved links when switching modes from
+        // the manage page; a fresh card starts with one empty row.
+        $existing = ($existingLinks ?? collect())
+            ->map(fn ($l) => ['title' => $l->title, 'url' => $l->url, 'icon' => (string) $l->icon])
+            ->values()->all();
+        $old = old('links', $existing ?: [['title'=>'','url'=>'','icon'=>'']]);
+      @endphp
       @foreach ($old as $i => $row)
         <div class="linkrow">
           <input class="t" name="links[{{ $i }}][title]" type="text" placeholder="Label" maxlength="120" value="{{ $row['title'] ?? '' }}" required>
@@ -50,6 +58,7 @@
   <p style="text-align:center;margin:18px 0 0;font-size:.88rem">
     <a href="{{ route('nfc.show', $card->public_id) }}">&larr; Choose a different card type</a>
   </p>
+  @include('public.partials.card-id')
 </div>
 
 <script>

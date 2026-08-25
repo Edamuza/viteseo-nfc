@@ -42,6 +42,8 @@ a.link:hover{background:var(--surface-hover);border-color:var(--muted)}
 a.link:active{transform:scale(.99)}
 a.link:focus-visible{outline:2px solid var(--text);outline-offset:2px}
 footer{text-align:center;color:var(--muted);font-size:.73rem;margin-top:26px}
+footer .own{color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:7px}
+footer .own:hover{color:var(--text);text-decoration:underline}
 @media (prefers-reduced-motion:reduce){a.link{transition:none}}
 </style>
 </head>
@@ -76,7 +78,10 @@ footer{text-align:center;color:var(--muted);font-size:.73rem;margin-top:26px}
     @endforeach
   </nav>
 
-  <footer>Powered by ViteSEO</footer>
+  <footer>
+    <a class="own" href="{{ route('nfc.manage', $card->public_id) }}">Card owner? Manage this card</a>
+    <div>Powered by ViteSEO</div>
+  </footer>
 </main>
 </body>
 </html>

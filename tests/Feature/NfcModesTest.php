@@ -124,6 +124,8 @@ class NfcModesTest extends TestCase
 
         $this->post('/n/'.$card->public_id, [
             'activation_pin' => '000000',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
             'links'          => [['title' => 'X', 'url' => 'https://example.com/x']],
         ])->assertRedirect('/n/'.$card->public_id);
 
@@ -138,6 +140,8 @@ class NfcModesTest extends TestCase
 
         $this->post('/n/'.$card->public_id, [
             'activation_pin' => '000000',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
             'links'          => [['title' => 'X', 'url' => 'https://example.com/x']],
         ])->assertRedirect('/n/'.$card->public_id.'/done');
 
@@ -154,6 +158,7 @@ class NfcModesTest extends TestCase
 
         $this->post('/n/'.$card->public_id.'/setup/phone', [
             'activation_pin'   => '000000',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
             'nfc_phone_number' => '+63 917 123 4567',
         ])->assertRedirect('/n/'.$card->public_id.'/done');
 
@@ -169,6 +174,7 @@ class NfcModesTest extends TestCase
 
         $this->from('/n/'.$card->public_id.'/setup/phone')->post('/n/'.$card->public_id.'/setup/phone', [
             'activation_pin'   => '999999',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
             'nfc_phone_number' => '+63 917 123 4567',
         ])->assertSessionHasErrors('activation_pin');
 
@@ -184,6 +190,8 @@ class NfcModesTest extends TestCase
 
         $this->post('/n/'.$card->public_id.'/setup/contact', [
             'activation_pin' => '000000',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
             'first_name'     => 'Maria',
             'last_name'      => 'Santos',
             'job_title'      => 'Owner',
@@ -203,6 +211,8 @@ class NfcModesTest extends TestCase
 
         $this->post('/n/'.$card->public_id.'/setup/contact', [
             'activation_pin' => '000000',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
             'mobile_phone'   => '+63 917 000 1111',
         ])->assertSessionHasErrors(['first_name', 'company']);
 
@@ -238,6 +248,8 @@ class NfcModesTest extends TestCase
 
         $this->post('/n/'.$card->public_id.'/setup/phone', [
             'activation_pin' => '000000', 'nfc_phone_number' => '+63 917 123 4567',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
         ])->assertRedirect('/n/'.$card->public_id);
         $this->assertNull($card->fresh()->nfc_phone_number);
     }

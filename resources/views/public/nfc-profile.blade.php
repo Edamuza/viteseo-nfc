@@ -354,6 +354,7 @@ footer a:hover{text-decoration:underline}
       <a href="#about">What is this?</a>
       <a href="#terms">Terms of Service</a>
       <a href="#privacy">Privacy Policy</a>
+      <a href="{{ route('nfc.manage', $card->public_id) }}">Manage this card</a>
     </nav>
     <div class="by">Powered by ViteSEO</div>
   </footer>

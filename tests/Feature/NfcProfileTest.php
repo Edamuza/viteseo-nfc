@@ -171,6 +171,7 @@ class NfcProfileTest extends TestCase
 
         $this->post('/n/'.$card->public_id, [
             'activation_pin' => '000000',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
             'links'          => [['title' => 'Site', 'url' => 'https://example.com']],
         ])->assertRedirect('/n/'.$card->public_id);
 

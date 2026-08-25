@@ -39,7 +39,7 @@ class NfcProfileEditTest extends TestCase
 
     private function unlock(Card $card): void
     {
-        $this->post('/n/'.$card->public_id.'/edit/unlock', ['activation_pin' => '000000'])
+        $this->post('/n/'.$card->public_id.'/edit/unlock', ['activation_pin' => '000000', 'new_pin' => '222222', 'new_pin_confirmation' => '222222'])
             ->assertRedirect('/n/'.$card->public_id.'/edit');
     }
 
@@ -166,7 +166,7 @@ class NfcProfileEditTest extends TestCase
         $card->nfcLinks()->create(['title' => 'A', 'url' => 'https://example.com/a', 'sort_order' => 0, 'is_active' => true]);
 
         $this->get('/n/'.$card->public_id.'/edit')->assertNotFound();
-        $this->post('/n/'.$card->public_id.'/edit/unlock', ['activation_pin' => '000000'])->assertNotFound();
+        $this->post('/n/'.$card->public_id.'/edit/unlock', ['activation_pin' => '000000', 'new_pin' => '222222', 'new_pin_confirmation' => '222222'])->assertNotFound();
     }
 
     public function test_locked_profile_edit_page_shows_only_the_pin_gate_with_private_headers(): void
@@ -189,13 +189,13 @@ class NfcProfileEditTest extends TestCase
 
         for ($attempt = 1; $attempt <= 5; $attempt++) {
             $this->from('/n/'.$card->public_id.'/edit')
-                ->post('/n/'.$card->public_id.'/edit/unlock', ['activation_pin' => '111111'])
+                ->post('/n/'.$card->public_id.'/edit/unlock', ['activation_pin' => '111111', 'new_pin' => '222222', 'new_pin_confirmation' => '222222'])
                 ->assertRedirect('/n/'.$card->public_id.'/edit')
                 ->assertSessionHasErrors(['activation_pin' => 'That activation PIN is not correct.']);
         }
 
         $limited = $this->from('/n/'.$card->public_id.'/edit')
-            ->post('/n/'.$card->public_id.'/edit/unlock', ['activation_pin' => '111111'])
+            ->post('/n/'.$card->public_id.'/edit/unlock', ['activation_pin' => '111111', 'new_pin' => '222222', 'new_pin_confirmation' => '222222'])
             ->assertRedirect('/n/'.$card->public_id.'/edit')
             ->assertSessionHasErrors('activation_pin');
 
@@ -213,7 +213,7 @@ class NfcProfileEditTest extends TestCase
         $card = $this->card();
         $other = $this->card(['display_name' => 'Other Person']);
 
-        $this->post('/n/'.$card->public_id.'/edit/unlock', ['activation_pin' => '000000'])
+        $this->post('/n/'.$card->public_id.'/edit/unlock', ['activation_pin' => '000000', 'new_pin' => '222222', 'new_pin_confirmation' => '222222'])
             ->assertRedirect('/n/'.$card->public_id.'/edit');
 
         $this->get('/n/'.$card->public_id.'/edit')

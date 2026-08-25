@@ -47,9 +47,10 @@
   @if (! $unlocked)
     <form method="POST" action="{{ route('nfc.profile.edit.unlock', $card->public_id) }}">
       @csrf
-      <label for="activation_pin">Activation PIN</label>
+      <label for="activation_pin">{{ $card->pinIsPersonalized() ? 'Your card PIN' : 'Activation PIN' }}</label>
       <input class="pin" id="activation_pin" name="activation_pin" type="tel" inputmode="numeric"
              maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN" required>
+      @include('public.partials.new-pin')
       <button class="primary" type="submit">Continue</button>
     </form>
   @else
@@ -163,5 +164,6 @@
   @endif
 
   <p style="margin:18px 0 0"><a href="{{ route('nfc.show', $card->public_id) }}">&larr; Back to profile</a></p>
+  @include('public.partials.card-id')
 </div>
 @endsection

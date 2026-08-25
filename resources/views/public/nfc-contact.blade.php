@@ -57,6 +57,8 @@ h1{font-size:1.45rem;font-weight:650;margin:0;letter-spacing:-.02em;overflow-wra
 .note{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.92rem;color:var(--text-soft);padding:12px 0}
 .hint{text-align:center;color:var(--muted);font-size:.78rem;margin:16px 6px 0;line-height:1.45}
 footer{text-align:center;color:var(--muted);font-size:.73rem;margin-top:22px}
+footer .own{color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:7px}
+footer .own:hover{color:var(--text);text-decoration:underline}
 @media (prefers-reduced-motion:reduce){.act{transition:none}}
 </style>
 </head>
@@ -150,7 +152,10 @@ footer{text-align:center;color:var(--muted);font-size:.73rem;margin-top:22px}
     confirm before anything is added to your address book.
   </p>
 
-  <footer>Powered by ViteSEO</footer>
+  <footer>
+    <a class="own" href="{{ route('nfc.manage', $card->public_id) }}">Card owner? Manage this card</a>
+    <div>Powered by ViteSEO</div>
+  </footer>
 </main>
 </body>
 </html>

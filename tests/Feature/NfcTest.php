@@ -48,7 +48,8 @@ class NfcTest extends TestCase
 
         $this->from('/n/'.$card->public_id)
             ->post('/n/'.$card->public_id, [
-                'activation_pin' => '123456',   // 000000 is now the valid universal PIN
+                'activation_pin' => '123456',
+                'new_pin' => '222222', 'new_pin_confirmation' => '222222',   // 000000 is now the valid universal PIN
                 'links'          => [['title' => 'Site', 'url' => 'https://example.com']],
             ])
             ->assertSessionHasErrors('activation_pin');
@@ -62,6 +63,7 @@ class NfcTest extends TestCase
 
         $this->post('/n/'.$card->public_id, [
             'activation_pin' => '000000',
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
             'links'          => [
                 ['title' => 'One', 'url' => 'https://example.com/1'],
                 ['title' => 'Two', 'url' => 'https://example.com/2'],
@@ -79,6 +81,7 @@ class NfcTest extends TestCase
         $this->from('/n/'.$card->public_id)
             ->post('/n/'.$card->public_id, [
                 'activation_pin' => '000001',
+                'new_pin' => '222222', 'new_pin_confirmation' => '222222',
                 'links'          => [['title' => 'X', 'url' => 'https://example.com/x']],
             ])
             ->assertSessionHasErrors('activation_pin');
@@ -138,6 +141,7 @@ class NfcTest extends TestCase
 
         $this->post('/n/'.$card->public_id, [
             'activation_pin' => $this->pin($card),
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
             'links' => [
                 ['title' => 'Folio', 'url' => 'https://folio.example', 'icon' => 'web'],
                 ['title' => 'Plain', 'url' => 'https://plain.example', 'icon' => 'none'],
@@ -157,6 +161,7 @@ class NfcTest extends TestCase
 
         $this->post('/n/'.$card->public_id, [
             'activation_pin' => $this->pin($card),
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
             'links' => [['title' => 'X', 'url' => 'https://example.com', 'icon' => 'evil']],
         ])->assertSessionHasErrors('links.0.icon');
     }
@@ -210,6 +215,7 @@ class NfcTest extends TestCase
 
         $this->post('/n/'.$card->public_id, [
             'activation_pin' => $this->pin($card),
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
             'page_title'     => 'Acme',
             'links'          => [
                 ['title' => 'One', 'url' => 'https://example.com/1'],
@@ -234,6 +240,7 @@ class NfcTest extends TestCase
 
         $this->post('/n/'.$card->public_id, [
             'activation_pin' => $this->pin($card),
+            'new_pin' => '222222', 'new_pin_confirmation' => '222222',
             'links'          => [['title' => 'C', 'url' => 'https://example.com/c']],
         ]);
 
@@ -258,6 +265,7 @@ class NfcTest extends TestCase
         $this->from('/n/'.$card->public_id)
             ->post('/n/'.$card->public_id, [
                 'activation_pin' => $this->pin($card),
+                'new_pin' => '222222', 'new_pin_confirmation' => '222222',
                 'links'          => [['title' => 'Bad', 'url' => 'javascript:alert(1)']],
             ])
             ->assertSessionHasErrors('links.0.url');
