@@ -92,7 +92,10 @@ class LinkPlatform
         $choices = ['web' => self::LABELS['web'].' (globe)'];
 
         foreach (array_keys(self::HOSTS) as $key) {
-            $choices[$key] = self::LABELS[$key];
+            // A lone "X" in a dropdown reads like a stray character, not a
+            // platform. Only the choice label carries the clarification —
+            // rendered rows keep the plain brand name from LABELS.
+            $choices[$key] = $key === 'x' ? 'X (Twitter)' : self::LABELS[$key];
         }
 
         $choices[self::NONE] = 'No logo';

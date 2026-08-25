@@ -21,9 +21,19 @@
   .links{margin-top:22px;padding-top:4px;border-top:1px solid var(--line)}
   .links-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
   .links-head h2{font-size:1rem;margin:15px 0 7px}
-  .remove-link{border:0;background:transparent;color:var(--danger);cursor:pointer;padding:8px}
+  /* A real button, not a floating ×: input-height, red-bordered, with hover
+     and focus states, sitting at the end of the label/URL line. */
+  .remove-link{
+    flex:0 0 auto;width:44px;align-self:stretch;min-height:46px;
+    display:inline-flex;align-items:center;justify-content:center;
+    border:1px solid var(--danger-line);border-radius:9px;cursor:pointer;
+    background:var(--surface);color:var(--danger);font-size:1.15rem;line-height:1;
+    font-family:inherit;transition:background .12s ease,border-color .12s ease;
+  }
+  .remove-link:hover{background:var(--danger-soft);border-color:var(--danger)}
+  .remove-link:focus-visible{outline:2px solid var(--danger);outline-offset:2px}
   .status{background:#ecfdf3;border:1px solid #abefc6;color:#067647;padding:11px 13px;border-radius:9px;margin-bottom:18px}
-  @media(max-width:560px){.editor-grid{grid-template-columns:1fr}.wide{grid-column:auto}.linkrow{display:block}.linkrow .t{margin-bottom:8px}}
+  @media(max-width:560px){.editor-grid{grid-template-columns:1fr}.wide{grid-column:auto}}
 </style>
 <div class="card">
   <h1>Edit your profile</h1>

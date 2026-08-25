@@ -66,11 +66,22 @@ button.primary:focus-visible,a.primary:focus-visible{outline:2px solid var(--acc
 }
 .err ul{margin:0;padding-left:18px}
 .foot{text-align:center;color:var(--muted);font-size:.76rem;margin-top:20px}
-.linkrow{display:flex;gap:8px;margin-bottom:9px;flex-wrap:wrap}
-.linkrow .t{flex:0 0 38%}
-.linkrow input{flex:1;min-width:0}
-/* The logo dropdown drops to its own line; a phone-width row cannot hold three fields. */
-.linkrow select{flex:1 1 100%;font-size:.9rem;padding:9px 11px}
+/* One link = one grouped card: label + URL (+ remove) on the first line, the
+   logo dropdown on its own line below. Loose bare fields read as separate
+   questions; the border is what makes the three of them one link. */
+.linkrow{
+  display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;
+  border:1px solid var(--line);border-radius:11px;padding:11px;
+  background:var(--surface);
+}
+.linkrow .t{flex:1 1 32%;min-width:120px}
+.linkrow input{flex:1 1 52%;min-width:0}
+.linkrow select{flex:1 1 100%;font-size:.9rem;padding:9px 11px;color:var(--text-soft)}
+@media (max-width:560px){
+  /* Narrow phones: the label takes the whole first line so the URL is never
+     squeezed beside it. */
+  .linkrow .t{flex-basis:100%}
+}
 .ok{font-size:2.2rem;text-align:center;margin:2px 0 10px;color:#047857}
 code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radius:5px;
  font-size:.85em;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
