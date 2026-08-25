@@ -20,8 +20,10 @@
     <div class="tool-group">
       <span class="tool-label">Generate cards</span>
       <form method="POST" action="{{ route('admin.cards.generate') }}" class="row row-tight">@csrf
+        {{-- 160px, not less: a number input loses ~20px to its spinner, and a
+             narrower box clips the placeholder text. --}}
         <input type="number" name="quantity" min="1" max="{{ \App\Services\CardGenerationService::MAX_PER_REQUEST }}"
-               placeholder="How many?" style="width:110px" aria-label="Number of cards to generate" required>
+               placeholder="How many?" style="width:160px" aria-label="Number of cards to generate" required>
         <button class="btn btn-p" type="submit">Create</button>
       </form>
     </div>
