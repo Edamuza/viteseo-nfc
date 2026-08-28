@@ -342,6 +342,34 @@ class NfcSetupFlowTest extends TestCase
             ->assertSee(route('nfc.manage', $live->public_id), false);
     }
 
+    /**
+     * The way out rides in the actions row beside the real button. It used to
+     * be a lone "← Back to my card" line under every form, and a line per
+     * screen is what the owner screens were being asked to stop spending.
+     */
+    public function test_the_way_out_shares_a_row_with_the_action(): void
+    {
+        $card = $this->card();
+
+        $this->get('/n/'.$card->public_id.'/setup/links')
+            ->assertOk()
+            ->assertSee('class="actions"', false)
+            ->assertSee('class="btn-2"', false)
+            ->assertDontSee('&larr;', false);
+
+        $this->get('/n/'.$card->public_id.'/done')
+            ->assertOk()
+            ->assertSee('class="actions"', false)
+            ->assertDontSee('&larr;', false);
+
+        // The manage page's only action is a form deep in the page, so its
+        // exit rides in the heading instead - still no line of its own.
+        $this->get('/n/'.$card->public_id.'/manage')
+            ->assertOk()
+            ->assertSee('class="head"', false)
+            ->assertDontSee('&larr;', false);
+    }
+
     public function test_the_progress_bar_counts_the_three_steps(): void
     {
         $card = $this->card();

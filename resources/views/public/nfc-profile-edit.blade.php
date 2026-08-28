@@ -73,7 +73,10 @@
             <p class="pin-hint">This is the number printed on the sheet that came with your card.</p>
           @endunless
           @include('public.partials.new-pin')
-          <button class="primary" type="submit">Continue</button>
+          <div class="actions">
+            @include('public.partials.back-to-types')
+            <button class="primary" type="submit">Continue</button>
+          </div>
         </form>
       @else
         @php
@@ -149,7 +152,10 @@
             </div>
           </section>
 
-          <button class="primary" type="submit">Save and go live</button>
+          <div class="actions">
+            @include('public.partials.back-to-types')
+            <button class="primary" type="submit">Save and go live</button>
+          </div>
         </form>
         <template id="link-template">
           <div class="linkrow">
@@ -183,7 +189,6 @@
         </script>
       @endif
 
-      <p style="margin:18px 0 0"><a href="{{ route('nfc.show', $card->public_id) }}">&larr; Back to my card</a></p>
       @include('public.partials.card-id')
     </div>
   </div>

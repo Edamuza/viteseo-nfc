@@ -17,8 +17,13 @@
   @endif
 
   @if (! $unlocked)
-    <h1>My card</h1>
-    <p class="sub">Enter your PIN to change your card.</p>
+    <div class="head">
+      @include('public.partials.back-button', [
+        'href' => route('nfc.show', $card->public_id), 'label' => 'Back to my card', 'iconOnly' => true,
+      ])
+      <h1>My card</h1>
+      <p class="sub">Enter your PIN to change your card.</p>
+    </div>
     <form method="POST" action="{{ route('nfc.manage.unlock', $card->public_id) }}">
       @csrf
       <label for="activation_pin">{{ $card->pinIsPersonalized() ? 'Your card PIN' : 'Activation PIN' }}</label>
@@ -28,7 +33,12 @@
       <button class="primary" type="submit">Continue</button>
     </form>
   @else
-    <h1>What your card does</h1>
+    <div class="head">
+      @include('public.partials.back-button', [
+        'href' => route('nfc.show', $card->public_id), 'label' => 'Back to my card', 'iconOnly' => true,
+      ])
+      <h1>What your card does</h1>
+    </div>
     @foreach (\App\Enums\NfcMode::selfSetup() as $mode)
       <div class="choice {{ $card->nfcMode() === $mode ? 'now' : '' }}">
         <a class="choice-go"
@@ -67,9 +77,6 @@
       </form>
     </div>
 
-    <p style="text-align:center;margin:20px 0 0;font-size:.88rem">
-      <a href="{{ route('nfc.show', $card->public_id) }}">&larr; Back to my card</a>
-    </p>
   @endif
 
   @include('public.partials.card-id')

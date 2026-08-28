@@ -92,6 +92,8 @@ h2{font-size:.95rem;font-weight:620;margin:0 0 16px;letter-spacing:-.005em}
   transition:background .12s ease,border-color .12s ease;
 }
 .btn:hover{background:var(--surface-sunken);border-color:var(--muted);text-decoration:none}
+/* An icon inside a button sizes with the label, never to its own viewBox. */
+.btn svg{width:14px;height:14px;flex:0 0 auto}
 .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn-p{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn-p:hover{background:var(--accent-press);border-color:var(--accent-press);color:#fff}

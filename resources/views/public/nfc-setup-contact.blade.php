@@ -46,10 +46,12 @@
         <input id="website" name="website" type="url" inputmode="url" placeholder="https://…" maxlength="500"
                value="{{ old('website', $contactProfile?->website) }}">
 
-        <button class="primary" type="submit">Save and go live</button>
+        <div class="actions">
+          @include('public.partials.back-to-types')
+          <button class="primary" type="submit">Save and go live</button>
+        </div>
       </form>
 
-      @include('public.partials.back-to-types')
       @include('public.partials.card-id')
     </div>
   </div>

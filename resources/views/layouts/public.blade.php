@@ -54,6 +54,34 @@ button.primary,a.primary{
 }
 button.primary:hover,a.primary:hover{background:var(--accent-press)}
 button.primary:focus-visible,a.primary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* ---------- Actions ----------
+   The way out sits BESIDE the thing you came to do. Every owner screen used
+   to spend a whole line on a lone "← Back to my card" underneath its form. */
+.actions{display:flex;gap:10px;align-items:stretch;margin-top:22px}
+.actions .primary{margin-top:0;flex:1;width:auto}
+.btn-2{
+  flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-height:46px;padding:13px 15px;border:1px solid var(--line-strong);border-radius:9px;
+  background:var(--surface);color:var(--text-soft);
+  font:inherit;font-size:.9rem;font-weight:550;text-decoration:none;cursor:pointer;
+}
+.btn-2:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);text-decoration:none}
+.btn-2:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn-2 svg{width:16px;height:16px;flex:0 0 auto}
+/* Narrow phones: the arrow alone, so the real action keeps the width. */
+@media (max-width:380px){.btn-2 span{display:none}}
+
+/* A page whose main action is not a form button carries its exit in the
+   heading instead, where it costs no line at all. */
+.head{position:relative;text-align:center;margin-bottom:16px}
+.head h1{margin:0 0 6px}
+.head .sub{margin:0}
+.head .btn-2{position:absolute;left:0;top:-2px;width:38px;height:38px;min-height:0;padding:0;border-radius:50%}
+
+/* Headings speak to the whole screen, so they sit in the middle of it; the
+   fields below stay left-aligned, where they are read. */
+.card > h1,.card > .sub{text-align:center}
+
 .ghost{
   width:100%;margin-top:10px;padding:10px;font-size:.88rem;font-weight:550;
   background:transparent;color:var(--accent);border:1px dashed var(--line-strong);

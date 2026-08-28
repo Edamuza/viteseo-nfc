@@ -22,10 +22,12 @@
       <p class="pin-hint">This is the number printed on the sheet that came with your card.</p>
     @endunless
     @include('public.partials.new-pin')
-    <button class="primary" type="submit">Continue</button>
+    <div class="actions">
+      @include('public.partials.back-to-types')
+      <button class="primary" type="submit">Continue</button>
+    </div>
   </form>
 
-  @include('public.partials.back-to-types')
   @include('public.partials.card-id')
 </div>
 @endsection

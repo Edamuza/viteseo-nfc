@@ -29,7 +29,12 @@
         <span class="badge b-off">Created {{ $card->created_at->format('Y-m-d') }}</span>
       </div>
     </div>
-    <a class="btn btn-sm" href="{{ route('admin.dashboard') }}">&larr; All cards</a>
+    {{-- The same back arrow the owner screens use, so both sides of the
+         system point the way out the same way. --}}
+    <a class="btn btn-sm" href="{{ route('admin.dashboard') }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 19 3 12l7-7"/><path d="M3 12h18"/></svg>
+      All cards
+    </a>
   </div>
 </div>
 

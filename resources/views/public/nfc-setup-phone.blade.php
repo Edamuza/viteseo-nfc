@@ -22,10 +22,12 @@
         <input id="nfc_phone_number" name="nfc_phone_number" type="tel" placeholder="+63 917 123 4567"
                value="{{ old('nfc_phone_number', $card->nfc_phone_number) }}" required autofocus>
 
-        <button class="primary" type="submit">Save and go live</button>
+        <div class="actions">
+          @include('public.partials.back-to-types')
+          <button class="primary" type="submit">Save and go live</button>
+        </div>
       </form>
 
-      @include('public.partials.back-to-types')
       @include('public.partials.card-id')
     </div>
   </div>

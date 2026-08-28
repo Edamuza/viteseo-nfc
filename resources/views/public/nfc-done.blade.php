@@ -6,13 +6,12 @@
      tap away here - see the card the way a stranger will, and change it. --}}
 <div class="card">
   <div class="ok" aria-hidden="true">&#10003;</div>
-  <h1 style="text-align:center">Your card is live</h1>
+  <h1>Your card is live</h1>
 
-  <a class="primary" href="{{ route('nfc.show', $card->public_id) }}">See my card</a>
-
-  <p style="text-align:center;margin:16px 0 0;font-size:.88rem">
-    <a href="{{ route('nfc.manage', $card->public_id) }}">Change my card</a>
-  </p>
+  <div class="actions">
+    <a class="btn-2" href="{{ route('nfc.manage', $card->public_id) }}">Change</a>
+    <a class="primary" href="{{ route('nfc.show', $card->public_id) }}">See my card</a>
+  </div>
 
   @include('public.partials.card-id')
 </div>
