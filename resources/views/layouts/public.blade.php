@@ -101,7 +101,6 @@ button.primary:focus-visible,a.primary:focus-visible{outline:2px solid var(--acc
 .foot{text-align:center;color:var(--muted);font-size:.76rem;margin-top:20px}
 .cardid{text-align:center;color:var(--muted);font-size:.78rem;margin:16px 0 0;line-height:1.5}
 .cardid code{font-size:.95em}
-.cardid-hint{display:block}
 /* One link = one grouped card: label + URL (+ remove) on the first line, the
    logo dropdown on its own line below. Loose bare fields read as separate
    questions; the border is what makes the three of them one link. */

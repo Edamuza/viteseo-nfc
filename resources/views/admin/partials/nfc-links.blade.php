@@ -25,10 +25,7 @@
   </div>
 
   @if ($editing)
-    <p class="small muted" style="margin:0 0 10px">
-      Drag a row by its handle &mdash; or hold it and move &mdash; to reorder.
-      &ldquo;Auto logo&rdquo; matches the URL to a known platform and shows a globe otherwise.
-    </p>
+    <p class="small muted" style="margin:0 0 10px">Drag a row by its handle, or hold it and move, to reorder.</p>
   @endif
 
   <div id="lnk-list" class="lnk-list">
@@ -48,7 +45,8 @@
           @endforeach
         </select>
         <input type="hidden" name="links[{{ $i }}][is_active]" value="0">
-        <label class="lnk-on small"><input type="checkbox" name="links[{{ $i }}][is_active]" value="1" @checked($link->is_active)> on</label>
+        <input class="lnk-on" type="checkbox" name="links[{{ $i }}][is_active]" value="1"
+               @checked($link->is_active) aria-label="Show this link" title="Show this link">
         <button class="rm" type="button" aria-label="Remove link">&times;</button>
       </div>
     @endforeach
@@ -77,7 +75,8 @@
         @endforeach
       </select>
       <input type="hidden" name="links[__I__][is_active]" value="0">
-      <label class="lnk-on small"><input type="checkbox" name="links[__I__][is_active]" value="1" checked> on</label>
+      <input class="lnk-on" type="checkbox" name="links[__I__][is_active]" value="1" checked
+             aria-label="Show this link" title="Show this link">
       <button class="rm" type="button" aria-label="Remove link">&times;</button>
     </div>
   </template>

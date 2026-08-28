@@ -236,7 +236,7 @@ class AdminTest extends TestCase
         // Fresh card: ships on the universal PIN, no reset button yet.
         $this->actingAs($admin)->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
-            ->assertSee('Cards ship with the universal activation PIN')
+            ->assertSee('Cards ship with the universal PIN')
             ->assertSee('000000')
             ->assertSee('Universal PIN')
             ->assertDontSee('/pin/reset', false)

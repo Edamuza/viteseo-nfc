@@ -14,7 +14,7 @@
         <div class="pv-bezel"></div>
         <div class="pv-screen">@include('public.partials.preview-sample', ['mode' => $pvMode])</div>
       </div>
-      <p class="pv-note">This is an example. Your own details go in once you pick this type.</p>
+      <p class="pv-note">Example only &mdash; your own details go in here.</p>
     </div>
   </dialog>
 @endforeach

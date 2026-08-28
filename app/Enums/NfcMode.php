@@ -79,12 +79,6 @@ enum NfcMode: string
         };
     }
 
-    /** @return array<int, self> */
-    public static function all(): array
-    {
-        return self::cases();
-    }
-
     /**
      * Every mode in the order pickers show them, best first.
      *

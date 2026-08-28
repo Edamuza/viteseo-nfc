@@ -413,7 +413,7 @@ class NfcModesTest extends TestCase
         $card = $this->card();
         $pid = $card->public_id; $nfc = $card->nfcUrl(); $qr = $card->qrUrl();
 
-        foreach (NfcMode::all() as $mode) {
+        foreach (NfcMode::cases() as $mode) {
             $this->actingAs($this->admin())->patch('/admin/cards/'.$card->public_id.'/nfc-mode', ['nfc_mode' => $mode->value]);
             $card->refresh();
             $this->assertSame($pid, $card->public_id);

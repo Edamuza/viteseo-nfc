@@ -81,8 +81,7 @@
       @if ($qrOn)
         <p class="small" style="margin:0 0 14px"><code>{{ $card->qr_destination }}</code></p>
       @else
-        <p class="small muted" style="margin:0 0 14px">Not configured &mdash; scanning shows the setup page.</p>
-        <p class="small muted" style="margin:-8px 0 14px">The sticker can still be downloaded; scans open the setup page until a destination is set.</p>
+        <p class="small muted" style="margin:0 0 14px">Not configured &mdash; the sticker still prints, and scans show the setup page until a destination is set.</p>
       @endif
 
       <form method="POST" action="{{ route('admin.cards.qr.set', $card->public_id) }}">
@@ -251,7 +250,7 @@
           </div>
         @endif
         <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp">
-        <p class="small muted" style="margin:7px 0 14px">JPEG, PNG or WebP, up to 2 MB. The page colour is derived automatically.</p>
+        <p class="small muted" style="margin:7px 0 14px">Up to 2 MB. The page colour is taken from the photo.</p>
 
         {{-- Field names stay (welcome_eyebrow and friends are columns); the
              labels do not. "Eyebrow" is a typographer's word, and the people
@@ -416,7 +415,7 @@
             <button class="btn btn-d" type="submit" form="del-phone">Clear</button>
           @endif
         </div>
-        <p class="small muted" style="margin:8px 0 0">Digits and <code>+ ( ) - .</code> only. Stored as a phone number, never as a URL.</p>
+        <p class="small muted" style="margin:8px 0 0">Digits and <code>+ ( ) - .</code> only.</p>
         </fieldset>
       </form>
       @if ($card->nfc_phone_number)
@@ -484,10 +483,8 @@
     </span>
   </div>
   <p class="small muted" style="margin:10px 0 0">
-    Cards ship with the universal activation PIN <code>{{ \App\Services\CardGenerationService::UNIVERSAL_PIN }}</code>.
-    The owner replaces it with a personal PIN during setup, which then guards their editing and mode changes.
-    If an owner forgets their PIN, Reset PIN returns the card to the universal one.
-    Attempts remain rate-limited.
+    Cards ship with the universal PIN <code>{{ \App\Services\CardGenerationService::UNIVERSAL_PIN }}</code>, which the
+    owner replaces during setup. Reset PIN puts the card back on the universal one.
   </p>
 </div>
 

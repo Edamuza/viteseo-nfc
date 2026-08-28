@@ -33,7 +33,7 @@
      choice; the eye button opens a full-size modal for inspecting a design. --}}
 <section class="panel">
   <h2>Template library</h2>
-  <p class="sub">The active template is what single-card sticker downloads use. Click the eye to inspect a design at full size.</p>
+  <p class="sub">The active template is what single-card sticker downloads use.</p>
 
   <div class="tpl-grid">
     @foreach ($templates as $template)

@@ -348,10 +348,7 @@ class CardReviewStickerTest extends TestCase
             $body
         );
         $this->assertStringContainsString('Download sticker template', $body);
-        $this->assertStringContainsString(
-            'The sticker can still be downloaded; scans open the setup page until a destination is set.',
-            $body
-        );
+        $this->assertStringContainsString('the sticker still prints', $body);
     }
 
     public function test_the_setup_warning_disappears_after_the_qr_is_configured(): void

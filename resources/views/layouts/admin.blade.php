@@ -127,8 +127,11 @@ fieldset:disabled .btn{display:none}
 .lnk .lnk-t{flex:0 1 150px;min-width:120px}
 .lnk .lnk-u{flex:1 1 220px;min-width:0}
 .lnk .lnk-i{flex:0 0 140px}
-.lnk-on{display:flex;align-items:center;gap:5px;white-space:nowrap;margin:0}
-.lnk-on input{width:auto}
+.lnk-on{flex:0 0 auto;width:auto;margin:0 2px}
+/* An unticked box dims its own row. The state was spelled out beside the
+   checkbox before - the checkbox saying it, and then the word "on" saying it
+   again - and a row that looks switched off needs neither. */
+.lnk:has(.lnk-on:not(:checked)){opacity:.55}
 .grab{
   flex:0 0 auto;width:26px;height:32px;display:grid;place-items:center;padding:0;
   border:0;background:none;color:var(--muted);cursor:grab;touch-action:none;
