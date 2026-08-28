@@ -75,25 +75,51 @@ details.menu>summary::-webkit-details-marker{display:none}
 .idblock{padding:0 28px 26px}
 .avatar-row{margin-top:-54px;margin-bottom:16px}
 .avatar-slot{position:relative;width:110px;height:110px}
+
+/* The photo and the card's QR are two faces of one disc.
+   The disc grows as it turns: a QR squeezed into the 110px the photo needs
+   is too small to scan across a table, and it squares off as it grows
+   because a circle would crop the corner finders off the code. */
+.flip{width:110px;height:110px;perspective:700px;
+ transition:transform .45s cubic-bezier(.2,.7,.3,1)}
+.flip-in{position:relative;width:100%;height:100%;transform-style:preserve-3d;
+ transition:transform .55s cubic-bezier(.2,.7,.3,1)}
+.face{
+  position:absolute;inset:0;border-radius:50%;border:4px solid var(--card);
+  overflow:hidden;background:var(--card);transition:border-radius .45s ease;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
+}
+.face img{width:100%;height:100%;object-fit:cover;display:block}
+/* White padding is the QR's quiet zone: the card QR is rendered flush to its
+   edges, so the rounded corner would otherwise bite into real modules. */
+.face.back{transform:rotateY(180deg);background:#fff;padding:12px;display:grid;place-items:center}
+.face.back svg{width:100%;height:100%;display:block}
 .avatar-fallback{
-  width:110px;height:110px;border-radius:50%;border:4px solid var(--card);
-  display:grid;place-items:center;font-weight:640;font-size:2.1rem;color:#fff;
-  background:var(--brand);
+  width:100%;height:100%;display:grid;place-items:center;
+  font-weight:640;font-size:2.1rem;color:#fff;background:var(--brand);
 }
-.avatar-img{width:110px;height:110px;border-radius:50%;border:4px solid var(--card);
- object-fit:cover;display:block}
-details.qr{position:absolute;top:-2px;right:-2px}
-details.qr>summary{
-  list-style:none;cursor:pointer;width:34px;height:34px;border-radius:50%;
-  background:#141a17;color:#fff;display:grid;place-items:center;
-  border:3px solid var(--card);
+.avatar-slot.on .flip{transform:scale(1.36)}
+.avatar-slot.on .flip-in{transform:rotateY(180deg)}
+.avatar-slot.on .face{border-radius:16px}
+
+/* The button always shows the face you are NOT looking at, so it reads as
+   "tap for this" rather than as a state nobody can see. */
+.qrtoggle{
+  position:absolute;top:-2px;right:-2px;z-index:5;padding:0;cursor:pointer;
+  width:34px;height:34px;border-radius:50%;overflow:hidden;
+  background:#141a17;color:#fff;border:3px solid var(--card);
+  display:grid;place-items:center;font-family:inherit;
+  transition:transform .45s cubic-bezier(.2,.7,.3,1);
 }
-details.qr>summary::-webkit-details-marker{display:none}
-.qr-pop{
-  position:absolute;left:0;top:42px;z-index:25;background:var(--card);
-  border-radius:14px;padding:14px;box-shadow:0 14px 38px rgba(0,0,0,.3);
+.qrtoggle svg{width:16px;height:16px;fill:currentColor;display:block}
+.qrtoggle .i-av{display:none;width:100%;height:100%;font-size:.72rem;font-weight:650}
+.qrtoggle .i-av img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar-slot.on .qrtoggle{transform:translate(20px,-20px)}
+.avatar-slot.on .i-qr{display:none}
+.avatar-slot.on .i-av{display:grid;place-items:center}
+@media (prefers-reduced-motion:reduce){
+  .flip,.flip-in,.face,.qrtoggle{transition:none}
 }
-.qr-pop svg{width:176px;height:176px;display:block}
 
 h1{font-size:1.95rem;font-weight:680;margin:0;letter-spacing:-.024em;overflow-wrap:anywhere}
 .headline{color:var(--soft);margin:7px 0 0;font-size:1.02rem;overflow-wrap:anywhere}
@@ -254,18 +280,30 @@ footer a:hover{text-decoration:underline}
     <div class="idblock">
 
       <div class="avatar-row">
-        <div class="avatar-slot">
-          @if ($profile->avatar_path)
-            <img class="avatar-img" src="{{ asset('storage/'.$profile->avatar_path) }}" alt="">
-          @else
-            <div class="avatar-fallback">{{ $profile->initials() }}</div>
-          @endif
-          <details class="qr" data-qr-url="{{ $card->qrUrl() }}">
-            <summary aria-label="Show the card QR code">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h7v7H3V3zm2 2v3h3V5H5zm9-2h7v7h-7V3zm2 2v3h3V5h-3zM3 14h7v7H3v-7zm2 2v3h3v-3H5zm9-2h3v3h-3v-3zm5 0h2v2h-2v-2zm-5 5h3v2h-3v-2zm5-2h2v4h-4v-2h2v-2z"/></svg>
-            </summary>
-            <div class="qr-pop">{!! $cardQrSvg !!}</div>
-          </details>
+        <div class="avatar-slot" id="avslot" data-qr-url="{{ $card->qrUrl() }}">
+          <div class="flip">
+            <div class="flip-in">
+              <div class="face front">
+                @if ($profile->avatar_path)
+                  <img src="{{ asset('storage/'.$profile->avatar_path) }}" alt="">
+                @else
+                  <div class="avatar-fallback">{{ $profile->initials() }}</div>
+                @endif
+              </div>
+              <div class="face back">{!! $cardQrSvg !!}</div>
+            </div>
+          </div>
+          <button class="qrtoggle" type="button" id="qrflip" aria-pressed="false"
+                  aria-label="Show the card QR code">
+            <svg class="i-qr" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h7v7H3V3zm2 2v3h3V5H5zm9-2h7v7h-7V3zm2 2v3h3V5h-3zM3 14h7v7H3v-7zm2 2v3h3v-3H5zm9-2h3v3h-3v-3zm5 0h2v2h-2v-2zm-5 5h3v2h-3v-2zm5-2h2v4h-4v-2h2v-2z"/></svg>
+            <span class="i-av">
+              @if ($profile->avatar_path)
+                <img src="{{ asset('storage/'.$profile->avatar_path) }}" alt="">
+              @else
+                {{ $profile->initials() }}
+              @endif
+            </span>
+          </button>
         </div>
       </div>
 
@@ -478,6 +516,39 @@ function copyFallback(value, done) {
   if (document.execCommand('copy')) { done(); }
   document.body.removeChild(field);
 }
+/**
+ * The avatar turns over to show the card's QR.
+ *
+ * It used to be a <details> popover that only the same 34px button could
+ * close, which is what made it feel stuck: people tapped the page, nothing
+ * happened, and the code stayed up. Anywhere off the disc puts the photo
+ * back now, as does Escape.
+ */
+(function () {
+  var slot = document.getElementById('avslot');
+  var button = document.getElementById('qrflip');
+  if (! slot || ! button) return;
+
+  function show(open) {
+    slot.classList.toggle('on', open);
+    button.setAttribute('aria-pressed', open ? 'true' : 'false');
+    button.setAttribute('aria-label', open ? 'Show the photo again' : 'Show the card QR code');
+  }
+
+  button.addEventListener('click', function () {
+    show(! slot.classList.contains('on'));
+  });
+
+  // The button lives inside the slot, so its own click never reaches this.
+  document.addEventListener('click', function (event) {
+    if (! slot.contains(event.target)) show(false);
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') show(false);
+  });
+})();
+
 document.querySelectorAll('[data-copy]').forEach(function (btn) {
   btn.addEventListener('click', function () {
     var value = btn.dataset.copy;

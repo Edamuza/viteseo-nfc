@@ -249,7 +249,7 @@ class NfcProfileTest extends TestCase
         $card = $this->profileCard();
         $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
 
-        $this->assertStringContainsString('class="qr" data-qr-url="'.$card->qrUrl().'"', $body);
+        $this->assertStringContainsString('id="avslot" data-qr-url="'.$card->qrUrl().'"', $body);
         $this->assertStringContainsString(app(QrCodeService::class)->svgForCard($card), $body);
         $this->assertStringContainsString(
             'class="profile-qr" src="'.route('nfc.profile.qr', $card->public_id).'" data-qr-url="'.$card->nfcUrl().'"',
@@ -329,6 +329,24 @@ class NfcProfileTest extends TestCase
         $this->assertStringNotContainsString('class="tagline"', $body);
     }
 
+    /**
+     * The photo and the card QR are two faces of one disc, and the button
+     * shows whichever face is hidden. It used to be a popover that only a
+     * second press on the same 34px button could dismiss.
+     */
+    public function test_the_avatar_turns_over_to_show_the_card_qr(): void
+    {
+        $card = $this->profileCard();
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('class="face front"', false)
+            ->assertSee('class="face back"', false)
+            // A button with a pressed state, not a <details> that traps itself.
+            ->assertSee('aria-pressed="false"', false)
+            ->assertDontSee('class="qr-pop"', false);
+    }
+
     public function test_the_avatar_falls_back_to_initials_when_there_is_no_photo(): void
     {
         $card = $this->profileCard();
@@ -336,7 +354,8 @@ class NfcProfileTest extends TestCase
         $this->get('/n/'.$card->public_id)
             ->assertOk()
             ->assertSee('UP')
-            ->assertDontSee('class="avatar-img"', false);
+            ->assertSee('class="avatar-fallback"', false)
+            ->assertDontSee('storage/profile-avatars', false);
     }
 
     public function test_the_avatar_renders_the_stored_photo_when_there_is_one(): void
