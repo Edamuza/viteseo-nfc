@@ -111,6 +111,31 @@ class NfcProfileTest extends TestCase
         $this->assertNull($stored->brand_color, 'brand_color is derived, never submitted');
     }
 
+    /**
+     * The menu is ONE element that CSS puts in two places: inside the cover on
+     * a phone, and in the screen's own corner from tablet up, where aligning
+     * it to the 680px column left it floating in the middle of a monitor.
+     *
+     * It stays parented to .wrap rather than to .cover, because both .cover
+     * and .card clip their overflow and a menu inside either would have its
+     * dropdown sliced off at the bottom of the band.
+     */
+    public function test_the_profile_menu_moves_by_breakpoint_from_one_place_in_the_markup(): void
+    {
+        $body = $this->get('/n/'.$this->profileCard()->public_id)->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($body, 'class="topbar"'), 'one menu, not one per breakpoint');
+        $this->assertStringContainsString('.topbar{position:absolute;top:14px;right:14px', $body);
+        $this->assertStringContainsString('@media (min-width:768px){', $body);
+        $this->assertStringContainsString('.topbar{position:fixed;top:20px;right:20px}', $body);
+
+        // Parented to the wrap: the clipping ancestors must not be between them.
+        $this->assertLessThan(
+            strpos($body, '<section class="card">'),
+            strpos($body, 'class="topbar"'),
+        );
+    }
+
     // --- Contact details on a profile page -----------------------------------
 
     /**

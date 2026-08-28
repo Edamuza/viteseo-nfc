@@ -43,13 +43,35 @@ body{
   -webkit-font-smoothing:antialiased;
   padding:26px 20px calc(38px + env(safe-area-inset-bottom));
 }
-.wrap{max-width:680px;margin:0 auto}
+.wrap{max-width:680px;margin:0 auto;position:relative}
 
-.topbar{display:flex;justify-content:flex-end;margin-bottom:14px}
+/* The menu is one element in one place in the DOM, put where it belongs by
+   CSS alone.
+
+   On a phone it sits INSIDE the cover, in its top-right - which is why it is
+   positioned against .wrap rather than parented to .cover: both .cover and
+   .card clip their overflow, and a menu parented to either would have its
+   dropdown sliced off at the bottom of the band.
+
+   The card starts at the top of .wrap once this leaves the flow, so 14px from
+   the wrap's top-right IS the cover's top-right. */
+.topbar{position:absolute;top:14px;right:14px;z-index:30;margin:0}
 details.menu{position:relative}
 details.menu>summary{
   list-style:none;cursor:pointer;width:40px;height:40px;border-radius:50%;
-  display:grid;place-items:center;background:rgba(255,255,255,.16);color:var(--on-brand);
+  display:grid;place-items:center;
+  /* A dark scrim, because on a phone this sits on the cover - which is the
+     owner's own photo, blurred, and may be any colour at all. The translucent
+     white below is for the brand-coloured page it sits on from tablet up. */
+  background:rgba(20,20,20,.45);color:#fff;
+}
+/* Tablet and up: the corner of the SCREEN, not the corner of the 680px column
+   the page is centred in, where it read as floating in the middle of nowhere
+   on a wide monitor. */
+@media (min-width:768px){
+  .topbar{position:fixed;top:20px;right:20px}
+  details.menu>summary{background:rgba(255,255,255,.16);color:var(--on-brand)}
+  .menu-panel{right:0}
 }
 details.menu>summary::-webkit-details-marker{display:none}
 .menu-panel{
