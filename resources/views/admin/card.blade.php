@@ -239,6 +239,14 @@
             <label><span>{{ $label }}</span><input type="text" name="{{ $field }}" maxlength="{{ $max }}"
               placeholder="{{ $placeholder }}" value="{{ old($field, $nfcProfile?->$field) }}"></label>
           @endforeach
+          {{-- Typed inputs, so a phone gets a phone keypad and an email gets
+               checked by the browser before the server has to say so. --}}
+          <label><span>Contact number <span class="muted">(optional)</span></span>
+            <input type="tel" name="phone" maxlength="40" placeholder="+63 917 123 4567"
+                   value="{{ old('phone', $nfcProfile?->phone) }}"></label>
+          <label><span>Email <span class="muted">(optional)</span></span>
+            <input type="email" name="email" maxlength="190" placeholder="john@example.com"
+                   value="{{ old('email', $nfcProfile?->email) }}"></label>
         </div>
 
         <p class="fld">Avatar</p>
@@ -285,7 +293,7 @@
       </form>
       @if ($nfcProfile)
         <form id="del-profile" method="POST" action="{{ route('admin.cards.profile.delete', $card->public_id) }}"
-              onsubmit="return confirm('Delete the profile page for this card?\n\nCLEARED: every profile page field, and the uploaded image if there is one. Nothing of the profile is kept.\nKEPT: all NFC links, the QR destination, and the contact / phone / email data.\n\nThis is permanent. Switching modes does not do this — only this button does.')">
+              onsubmit="return confirm('Delete the profile page for this card?\n\nCLEARED: every profile page field, and the uploaded image if there is one. Nothing of the profile is kept.\nKEPT: all NFC links, the QR destination, and every other mode\'s saved data.\n\nThis is permanent. Switching modes does not do this — only this button does.')">
           @csrf @method('DELETE')
         </form>
         <form id="del-profile-avatar" method="POST" action="{{ route('admin.cards.profile.avatar.delete', $card->public_id) }}"

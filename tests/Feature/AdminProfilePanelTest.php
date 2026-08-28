@@ -284,6 +284,44 @@ class AdminProfilePanelTest extends TestCase
         $this->assertSame(1, substr_count($body, '>Save changes<'));
     }
 
+    // --- Contact details -----------------------------------------------------
+
+    public function test_an_admin_can_set_the_profile_phone_and_email(): void
+    {
+        $card = $this->profileCard();
+
+        $this->assertStringContainsString('name="phone"', $this->page($card));
+
+        $this->actingAs($this->admin())
+            ->patch('/admin/cards/'.$card->public_id.'/profile', [
+                'display_name' => 'John Doe',
+                'phone' => '+63 917 123 4567',
+                'email' => 'john@example.com',
+            ])->assertSessionHasNoErrors();
+
+        $profile = $card->fresh()->profile;
+        $this->assertSame('+63 917 123 4567', $profile->phone);
+        $this->assertSame('john@example.com', $profile->email);
+    }
+
+    public function test_a_malformed_phone_or_email_is_refused(): void
+    {
+        $card  = $this->profileCard();
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->from('/admin/cards/'.$card->public_id)
+            ->patch('/admin/cards/'.$card->public_id.'/profile', [
+                'display_name' => 'John Doe', 'phone' => 'javascript:alert(1)',
+            ])->assertSessionHasErrors('phone');
+
+        $this->actingAs($admin)->from('/admin/cards/'.$card->public_id)
+            ->patch('/admin/cards/'.$card->public_id.'/profile', [
+                'display_name' => 'John Doe', 'email' => 'not-an-address',
+            ])->assertSessionHasErrors('email');
+
+        $this->assertNull($card->fresh()->profile->phone);
+    }
+
     // --- The per-mode delete -------------------------------------------------
 
     /**

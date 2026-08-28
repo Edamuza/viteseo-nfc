@@ -6,6 +6,7 @@ use App\Exceptions\UnreadableImageException;
 use App\Http\Controllers\Controller;
 use App\Models\Card;
 use App\Rules\SafeExternalUrl;
+use App\Rules\SafePhoneNumber;
 use App\Services\CardResetService;
 use App\Services\DominantColor;
 use App\Services\ImageIngest;
@@ -46,6 +47,8 @@ class CardProfileController extends Controller
             'username' => ['nullable', 'string', 'max:60'],
             'location' => ['nullable', 'string', 'max:100'],
             'tagline' => ['nullable', 'string', 'max:200'],
+            'phone' => ['nullable', 'string', new SafePhoneNumber()],
+            'email' => ['nullable', 'email:rfc', 'max:190'],
             'welcome_eyebrow' => ['nullable', 'string', 'max:60'],
             'welcome_heading' => ['nullable', 'string', 'max:200'],
             'welcome_body' => ['nullable', 'string', 'max:600'],
@@ -184,6 +187,7 @@ class CardProfileController extends Controller
             } else {
                 $profileData = Arr::only((array) $profileData, [
                     'display_name', 'headline', 'username', 'location', 'tagline',
+                    'phone', 'email',
                     'welcome_eyebrow', 'welcome_heading', 'welcome_body',
                     'welcome_cta_label', 'welcome_cta_url', 'avatar_path', 'brand_color',
                 ]);

@@ -117,6 +117,16 @@
               <input id="tagline" name="tagline" type="text" maxlength="200"
                      placeholder="e.g. Always happy to connect" value="{{ old('tagline', $profile?->tagline) }}">
             </div>
+            <div>
+              <label for="phone">Contact number <span class="opt">(optional)</span></label>
+              <input id="phone" name="phone" type="tel" maxlength="40"
+                     placeholder="+63 917 123 4567" value="{{ old('phone', $profile?->phone) }}">
+            </div>
+            <div>
+              <label for="email">Email <span class="opt">(optional)</span></label>
+              <input id="email" name="email" type="email" maxlength="190"
+                     placeholder="john@example.com" value="{{ old('email', $profile?->email) }}">
+            </div>
             <div class="wide-field">
               <label for="avatar">Your photo <span class="opt">(JPG, PNG or WebP, up to 2 MB)</span></label>
               <input id="avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp">

@@ -200,14 +200,27 @@
     var location = field('location');
     var tagline = field('tagline');
 
-    return '<div class="pv-cover"></div>'
+    var phone = field('phone');
+    var email = field('email');
+
+    var html = '<div class="pv-cover"></div>'
       + '<div class="pv-head"><span class="pv-ava"></span>'
       + '<p class="pv-name">' + esc(name) + '</p>'
       + (headline ? '<p class="pv-sub">' + esc(headline) + '</p>' : '')
       + (location ? '<p class="pv-sub">' + esc(location) + '</p>' : '')
       + (tagline ? '<p class="pv-sub">' + esc(tagline) + '</p>' : '')
-      + '</div><div class="pv-link pv-primary">Save contact</div>'
-      + buttons(rows());
+      + '</div>';
+
+    // Call and Email share a line above the primary action, the way the real
+    // page lays them out.
+    if (phone || email) {
+      html += '<div class="pv-row">'
+        + (phone ? '<div class="pv-link">Call</div>' : '')
+        + (email ? '<div class="pv-link">Email</div>' : '')
+        + '</div>';
+    }
+
+    return html + '<div class="pv-link pv-primary">Save contact</div>' + buttons(rows());
   }
 
   function render() {

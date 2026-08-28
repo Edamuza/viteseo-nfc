@@ -451,6 +451,8 @@ class NfcProfileEditTest extends TestCase
             ->assertSee('name="username"', false)
             ->assertSee('name="location"', false)
             ->assertSee('name="tagline"', false)
+            ->assertSee('name="phone"', false)
+            ->assertSee('name="email"', false)
             ->assertSee('name="avatar"', false)
             ->assertSee('name="remove_avatar"', false)
             ->assertSee('name="links[0][title]"', false)
@@ -463,6 +465,45 @@ class NfcProfileEditTest extends TestCase
 
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
     }
+
+    /**
+     * The owner can put their own number and address on the page, not just the
+     * admin. Everything else on this page is theirs to edit; these are too.
+     */
+    public function test_the_owner_can_save_a_phone_and_email(): void
+    {
+        $card = $this->card(['display_name' => 'John Doe']);
+        $this->unlock($card);
+
+        $this->patch('/n/'.$card->public_id.'/edit', [
+            'display_name' => 'John Doe',
+            'phone' => '+63 917 123 4567',
+            'email' => 'john@example.com',
+        ])->assertSessionHasNoErrors();
+
+        $profile = $card->fresh()->profile;
+        $this->assertSame('+63 917 123 4567', $profile->phone);
+        $this->assertSame('john@example.com', $profile->email);
+
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('href="tel:+639171234567"', false);
+    }
+
+    public function test_the_owner_cannot_save_a_malformed_phone_or_email(): void
+    {
+        $card = $this->card(['display_name' => 'John Doe']);
+        $this->unlock($card);
+
+        $this->from('/n/'.$card->public_id.'/edit')
+            ->patch('/n/'.$card->public_id.'/edit', ['display_name' => 'John Doe', 'phone' => '<script>'])
+            ->assertSessionHasErrors('phone');
+
+        $this->from('/n/'.$card->public_id.'/edit')
+            ->patch('/n/'.$card->public_id.'/edit', ['display_name' => 'John Doe', 'email' => 'nope'])
+            ->assertSessionHasErrors('email');
+
+        $this->assertNull($card->fresh()->profile->phone);
+    }
+
 
     public function test_only_an_admin_can_restore_the_newest_snapshot_exactly_and_consume_it(): void
     {

@@ -37,6 +37,10 @@
       <p class="pv-sub">Owner at Acme Inc.</p>
       <p class="pv-sub">Manila</p>
     </div>
+    <div class="pv-row">
+      <div class="pv-link">Call</div>
+      <div class="pv-link">Email</div>
+    </div>
     <div class="pv-link pv-primary">Save contact</div>
     <div class="pv-link"><span class="pv-ic"><x-platform-icon platform="web" /></span>Our website</div>
     <div class="pv-link"><span class="pv-ic"><x-platform-icon platform="facebook" /></span>Facebook</div>

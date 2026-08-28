@@ -23,6 +23,7 @@ class NfcProfile extends Model
      */
     protected $fillable = [
         'display_name', 'headline', 'username', 'location', 'tagline',
+        'phone', 'email',
         'welcome_eyebrow', 'welcome_heading', 'welcome_body',
         'welcome_cta_label', 'welcome_cta_url',
     ];

@@ -111,6 +111,51 @@ class NfcProfileTest extends TestCase
         $this->assertNull($stored->brand_color, 'brand_color is derived, never submitted');
     }
 
+    // --- Contact details on a profile page -----------------------------------
+
+    /**
+     * A profile page is a business card. Until now it could carry every link a
+     * person has and no way to phone them.
+     */
+    public function test_a_profile_shows_call_and_email_when_it_has_them(): void
+    {
+        $card = $this->profileCard();
+        $card->profile->forceFill(['phone' => '+63 917 123 4567', 'email' => 'john@example.com'])->save();
+
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('href="tel:+639171234567"', false)
+            ->assertSee('href="mailto:john@example.com"', false);
+    }
+
+    public function test_a_profile_without_them_shows_neither_button(): void
+    {
+        $card = $this->profileCard();
+
+        // Not "no mailto anywhere": the Share sheet composes one of its own,
+        // which is a different thing from the owner's own address.
+        $this->get('/n/'.$card->public_id)
+            ->assertOk()
+            ->assertDontSee('class="reach"', false)
+            ->assertDontSee('href="tel:', false)
+            ->assertSee('Share');
+    }
+
+    /**
+     * Save contact is the point of the button, so the file has to carry the
+     * two things worth saving.
+     */
+    public function test_the_profile_vcard_carries_the_phone_and_email(): void
+    {
+        $card = $this->profileCard();
+        $card->profile->forceFill(['phone' => '+63 917 123 4567', 'email' => 'john@example.com'])->save();
+
+        $body = $this->get('/n/'.$card->public_id.'/profile.vcf')->assertOk()->getContent();
+
+        $this->assertStringContainsString('TEL;TYPE=CELL:+63 917 123 4567', $body);
+        $this->assertStringContainsString('EMAIL;TYPE=INTERNET:john@example.com', $body);
+    }
+
     public function test_default_brand_color_constant(): void
     {
         // The platform's dark surface: a card with no photo to take a colour

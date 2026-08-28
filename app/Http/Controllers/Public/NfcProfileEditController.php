@@ -7,6 +7,7 @@ use App\Exceptions\UnreadableImageException;
 use App\Http\Controllers\Controller;
 use App\Models\Card;
 use App\Rules\SafeExternalUrl;
+use App\Rules\SafePhoneNumber;
 use App\Services\CardGenerationService;
 use App\Services\CardOwnerGate;
 use App\Services\LinkPlatform;
@@ -132,6 +133,8 @@ class NfcProfileEditController extends Controller
             'username' => ['nullable', 'string', 'max:60'],
             'location' => ['nullable', 'string', 'max:100'],
             'tagline' => ['nullable', 'string', 'max:200'],
+            'phone' => ['nullable', 'string', new SafePhoneNumber()],
+            'email' => ['nullable', 'email:rfc', 'max:190'],
             'avatar' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:2048', 'dimensions:max_width=4000,max_height=4000'],
             'remove_avatar' => ['nullable', 'boolean'],
             'links' => ['array', 'max:12'],
@@ -185,6 +188,8 @@ class NfcProfileEditController extends Controller
                     'username' => $this->singleLineOrNull($data['username'] ?? null),
                     'location' => $this->singleLineOrNull($data['location'] ?? null),
                     'tagline' => $this->singleLineOrNull($data['tagline'] ?? null),
+                    'phone' => $this->singleLineOrNull($data['phone'] ?? null),
+                    'email' => $this->singleLineOrNull($data['email'] ?? null),
                 ]);
 
                 $lockedCard->profileEdits()->create([
@@ -272,6 +277,8 @@ class NfcProfileEditController extends Controller
                 'username' => $profile->username,
                 'location' => $profile->location,
                 'tagline' => $profile->tagline,
+                'phone' => $profile->phone,
+                'email' => $profile->email,
                 'welcome_eyebrow' => $profile->welcome_eyebrow,
                 'welcome_heading' => $profile->welcome_heading,
                 'welcome_body' => $profile->welcome_body,

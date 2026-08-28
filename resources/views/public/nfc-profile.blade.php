@@ -136,9 +136,15 @@ h1{font-size:2.3125rem;line-height:1.15;font-weight:700;margin:0;letter-spacing:
 .sharebtn{
   display:flex;align-items:center;justify-content:center;margin-top:22px;
   min-height:54px;border:1px solid #d9dde1;border-radius:14px;
-  font-weight:570;font-size:1.04rem;color:var(--text);text-decoration:none;
+  font-weight:600;font-size:1rem;color:var(--text);text-decoration:none;
 }
 .sharebtn:hover{background:#f7f8f9}
+/* Call and Email sit on their own line above Share, not beside it: three
+   controls across is cramped on the narrowest phone this page is built for,
+   and these two are the ones a visitor came to use. */
+.reach{display:flex;gap:9px;margin-top:22px}
+.reach .sharebtn{flex:1;margin-top:0}
+.reach + .sharebtn{margin-top:9px}
 
 .card-pad{padding:24px 28px}
 h2{font-size:1.3125rem;line-height:1.25;font-weight:700;margin:0 0 6px;letter-spacing:-.01em}
@@ -345,6 +351,19 @@ footer a:hover{text-decoration:underline}
       @endif
 
       @if ($profile->tagline)<p class="tagline">{{ $profile->tagline }}</p>@endif
+
+      @php
+        // tel: needs the number stripped to something dialable; the display
+        // form keeps whatever spacing its owner typed.
+        $dialable = $profile->phone ? \App\Rules\SafePhoneNumber::toDialable($profile->phone) : null;
+      @endphp
+      @if ($dialable || $profile->email)
+        <div class="reach">
+          @if ($dialable)<a class="sharebtn" href="tel:{{ $dialable }}">Call</a>@endif
+          @if ($profile->email)<a class="sharebtn" href="mailto:{{ $profile->email }}">Email</a>@endif
+        </div>
+      @endif
+
       <a class="sharebtn" href="#share" aria-haspopup="dialog" aria-controls="share">Share</a>
     </div>
   </section>

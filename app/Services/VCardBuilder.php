@@ -114,6 +114,16 @@ class VCardBuilder
             }
         }
 
+        $phone = trim((string) $profile->phone);
+        if ($phone !== '') {
+            $lines[] = 'TEL;TYPE=CELL:'.$this->esc($phone);
+        }
+
+        $email = trim((string) $profile->email);
+        if ($email !== '') {
+            $lines[] = 'EMAIL;TYPE=INTERNET:'.$this->esc($email);
+        }
+
         foreach ($links as $link) {
             $url = trim((string) $link->url);
             if ($url !== '') {
