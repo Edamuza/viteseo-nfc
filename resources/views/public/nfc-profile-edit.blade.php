@@ -52,10 +52,8 @@
 
       @if ($unlocked)
         <h1>Your profile page</h1>
-        <p class="sub">Fill in what you want people to see.</p>
       @else
         <h1>Unlock your card</h1>
-        <p class="sub">You picked <strong>{{ \App\Enums\NfcMode::Profile->label() }}</strong>. Enter your card PIN to continue.</p>
       @endif
 
       @if ($errors->any())
@@ -69,9 +67,6 @@
           <label for="activation_pin">{{ $card->pinIsPersonalized() ? 'Your card PIN' : 'Activation PIN' }}</label>
           <input class="pin" id="activation_pin" name="activation_pin" type="tel" inputmode="numeric"
                  maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN" required autofocus>
-          @unless ($card->pinIsPersonalized())
-            <p class="pin-hint">This is the number printed on the sheet that came with your card.</p>
-          @endunless
           @include('public.partials.new-pin')
           <div class="actions">
             @include('public.partials.back-to-types')

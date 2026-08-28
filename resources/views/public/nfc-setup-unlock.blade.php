@@ -7,7 +7,6 @@
   @include('public.partials.steps', ['step' => 2])
 
   <h1>Unlock your card</h1>
-  <p class="sub">You picked <strong>{{ $mode->label() }}</strong>. Enter your card PIN to continue.</p>
 
   @if ($errors->any())
     <div class="err"><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
@@ -18,9 +17,6 @@
     <label for="activation_pin">{{ $card->pinIsPersonalized() ? 'Your card PIN' : 'Activation PIN' }}</label>
     <input class="pin" id="activation_pin" name="activation_pin" type="tel" inputmode="numeric"
            maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN" required autofocus>
-    @unless ($card->pinIsPersonalized())
-      <p class="pin-hint">This is the number printed on the sheet that came with your card.</p>
-    @endunless
     @include('public.partials.new-pin')
     <div class="actions">
       @include('public.partials.back-to-types')

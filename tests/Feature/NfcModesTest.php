@@ -111,10 +111,10 @@ class NfcModesTest extends TestCase
         $this->get('/n/'.$card->public_id)
             ->assertOk()
             ->assertSee('What should your card do?')
-            ->assertSee('Full profile page')
+            ->assertSee('Profile page')
             ->assertSee('Contact card')
-            ->assertDontSee('My phone number')
-            ->assertDontSee('My email address');
+            ->assertDontSee('Phone number')
+            ->assertDontSee('Email address');
     }
 
     public function test_public_setup_post_is_rejected_when_the_current_mode_is_configured(): void

@@ -29,8 +29,13 @@ body{
   font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased;
   padding:32px 16px calc(48px + env(safe-area-inset-bottom));
+  min-height:100dvh; display:flex;
 }
-.wrap{max-width:430px;margin:0 auto}
+/* margin:auto on a flex child centres it in both directions and, unlike
+   justify-content, never clips the top when the content outgrows the screen.
+   Without it a short screen - the PIN, the chooser, the done page - sat
+   pinned to the top of a desktop monitor with everything else empty. */
+.wrap{width:100%;max-width:430px;margin:auto}
 .card{
   background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
   padding:26px 22px; box-shadow:0 1px 3px rgba(16,24,40,.06);
@@ -97,7 +102,6 @@ button.primary:focus-visible,a.primary:focus-visible{outline:2px solid var(--acc
 .cardid{text-align:center;color:var(--muted);font-size:.78rem;margin:16px 0 0;line-height:1.5}
 .cardid code{font-size:.95em}
 .cardid-hint{display:block}
-.pin-hint{color:var(--muted);font-size:.8rem;margin:8px 0 0;line-height:1.45}
 /* One link = one grouped card: label + URL (+ remove) on the first line, the
    logo dropdown on its own line below. Loose bare fields read as separate
    questions; the border is what makes the three of them one link. */
@@ -236,6 +240,25 @@ code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radi
   .setup{grid-template-columns:minmax(0,1fr) 290px;align-items:start;gap:22px}
   .setup .setup-main{order:1;min-width:0}
   .setup .pv-side{order:2;position:sticky;top:24px}
+}
+
+/* A laptop or a monitor. The column stays a column - a form 900px wide is
+   harder to read, not easier - but it stops looking like a phone screenshot
+   dropped onto a desktop: more padding, slightly larger type, and a preview
+   big enough to actually judge. */
+@media (min-width:1000px){
+  body{padding:48px 24px}
+  .wrap{max-width:470px}
+  .wrap.wide{max-width:1020px}
+  .card{padding:32px 30px}
+  h1{font-size:1.34rem}
+  .sub{font-size:.95rem}
+  .choice-go{padding:17px}
+  .choice .ct{font-size:1.02rem}
+  .choice .cd{font-size:.87rem}
+  .setup{grid-template-columns:minmax(0,1fr) 320px;gap:30px}
+  .pv-phone{width:280px}
+  .pv-screen{height:420px}
 }
 </style>
 </head>

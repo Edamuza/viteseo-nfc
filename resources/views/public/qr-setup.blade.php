@@ -3,11 +3,6 @@
 @section('body')
 <div class="card">
   <h1>Set up your QR code</h1>
-  <p class="sub">
-    The QR code printed on your card opens one web address. Tell us which one, and
-    anyone who scans the card goes straight there.
-  </p>
-
   @if ($errors->any())
     <div class="err"><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
   @endif
@@ -21,13 +16,6 @@
     <label for="activation_pin">{{ $card->pinIsPersonalized() ? 'Your card PIN' : 'Activation PIN' }}</label>
     <input class="pin" id="activation_pin" name="activation_pin" type="tel" inputmode="numeric"
            maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN" required>
-    <p class="pin-hint">
-      @if ($card->pinIsPersonalized())
-        The PIN you chose when you set up this card.
-      @else
-        This is the number printed on the sheet that came with your card.
-      @endif
-    </p>
 
     <label for="destination">Where should the QR code go?</label>
     <input id="destination" name="destination" type="url" inputmode="url"

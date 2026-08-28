@@ -382,7 +382,7 @@ class AdminProfilePanelTest extends TestCase
     {
         $body = $this->page($this->profileCard());
 
-        $this->assertStringContainsString('NFC&nbsp;&middot;&nbsp;Full profile page', $body);
+        $this->assertStringContainsString('NFC&nbsp;&middot;&nbsp;Profile page', $body);
     }
 
     // --- Writing the display name --------------------------------------------

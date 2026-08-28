@@ -8,5 +8,4 @@
   <label for="new_pin_confirmation">Repeat your new PIN</label>
   <input class="pin" id="new_pin_confirmation" name="new_pin_confirmation" type="tel" inputmode="numeric"
          maxlength="6" autocomplete="new-password" placeholder="Repeat new PIN" required>
-  <p class="pin-hint">You&rsquo;ll use this PIN to change your card later. Keep it safe.</p>
 @endunless

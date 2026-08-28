@@ -13,7 +13,6 @@
       @include('public.partials.steps', ['step' => 3])
 
       <h1>Add your links</h1>
-      <p class="sub">Each link becomes a button.</p>
 
       @if ($errors->any())
         <div class="err"><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>

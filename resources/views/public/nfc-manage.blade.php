@@ -22,7 +22,6 @@
         'href' => route('nfc.show', $card->public_id), 'label' => 'Back to my card', 'iconOnly' => true,
       ])
       <h1>My card</h1>
-      <p class="sub">Enter your PIN to change your card.</p>
     </div>
     <form method="POST" action="{{ route('nfc.manage.unlock', $card->public_id) }}">
       @csrf

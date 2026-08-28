@@ -88,7 +88,7 @@ class NfcSetupFlowTest extends TestCase
         // "redirect" were the two that came back from customers.
         $this->get('/n/'.$card->public_id)
             ->assertOk()
-            ->assertSee('My links')
+            ->assertSee('Links')
             ->assertSee('Contact card')
             ->assertDontSee('Multi-Link')
             ->assertDontSee('redirect');

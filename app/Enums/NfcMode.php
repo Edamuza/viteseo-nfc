@@ -24,15 +24,19 @@ enum NfcMode: string
      * "multi-link", no "digital". The admin screens use these same names on
      * purpose - one vocabulary means an owner on the phone and an admin on
      * the dashboard are talking about the same thing.
+     *
+     * Plain nouns, and all three the same kind of noun. "My links" beside
+     * "Contact card" read as two different sorts of thing, and the "Full" in
+     * "Full profile page" had nothing left to be full compared to.
      */
     public function label(): string
     {
         return match ($this) {
-            self::Links   => 'My links',
+            self::Links   => 'Links',
             self::Contact => 'Contact card',
-            self::Phone   => 'My phone number',
-            self::Email   => 'My email address',
-            self::Profile => 'Full profile page',
+            self::Phone   => 'Phone number',
+            self::Email   => 'Email address',
+            self::Profile => 'Profile page',
         };
     }
 
