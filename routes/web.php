@@ -132,10 +132,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::patch('/email',  [CardController::class, 'updateEmail'])->name('email.update');
             Route::delete('/email', [CardController::class, 'deleteEmail'])->name('email.delete');
 
-            Route::post('/nfc-links',                    [CardController::class, 'addNfcLink'])->name('nfc.add');
-            Route::patch('/nfc-links/{link}',            [CardController::class, 'updateNfcLink'])->name('nfc.update');
-            Route::delete('/nfc-links/{link}',           [CardController::class, 'deleteNfcLink'])->name('nfc.delete');
-            Route::patch('/nfc-links/{link}/move',       [CardController::class, 'moveNfcLink'])->name('nfc.move');
+            // One route for the whole table. Per-row save, per-row delete and
+            // the two move endpoints are gone: the editor submits every row it
+            // has, in the order it has them, so a drag needs no request at all.
+            Route::patch('/nfc-links', [CardController::class, 'saveNfcLinks'])->name('nfc.links.save');
             Route::delete('/nfc',                        [CardController::class, 'resetNfc'])->name('nfc.reset');
 
             // No PIN regeneration route: every card uses the universal PIN.

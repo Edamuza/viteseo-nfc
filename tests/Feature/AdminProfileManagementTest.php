@@ -204,7 +204,7 @@ class AdminProfileManagementTest extends TestCase
         $card->profile->forceFill(['avatar_path' => 'profile-avatars/avatar.jpg'])->save();
 
         $body = $this->actingAs($this->admin())
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->getContent();
 

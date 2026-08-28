@@ -339,7 +339,7 @@ class StickerTemplateLibraryTest extends TestCase
         );
 
         $this->actingAs($this->admin())
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertSee($active->name)
             ->assertSee(route('admin.sticker-templates.index'), false);
     }

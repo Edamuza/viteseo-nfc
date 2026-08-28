@@ -339,7 +339,7 @@ class CardReviewStickerTest extends TestCase
         $card = $this->card();
 
         $body = $this->actingAs($this->admin())
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->getContent();
 
@@ -363,7 +363,7 @@ class CardReviewStickerTest extends TestCase
         ])->save();
 
         $this->actingAs($this->admin())
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->assertDontSee('scans open the setup page until a destination is set');
     }

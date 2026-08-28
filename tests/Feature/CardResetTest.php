@@ -509,7 +509,7 @@ class CardResetTest extends TestCase
     private function confirmTextFor(Card $card, string $action): string
     {
         $body = $this->actingAs($this->admin())
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->getContent();
 
@@ -605,7 +605,7 @@ class CardResetTest extends TestCase
         $card = $this->fullyPopulatedCard();
 
         $body = $this->actingAs($this->admin())
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->getContent();
 
@@ -663,7 +663,7 @@ class CardResetTest extends TestCase
         $card->forceFill(['nfc_mode' => $mode])->save();
 
         $body = $this->actingAs($this->admin())
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->getContent();
 
@@ -693,7 +693,7 @@ class CardResetTest extends TestCase
     {
         $partial = file_get_contents(resource_path('views/admin/partials/nfc-links.blade.php'));
 
-        $this->assertStringContainsString('admin.cards.nfc.add', $partial, 'the add form is the point of it');
+        $this->assertStringContainsString('links[__I__][title]', $partial, 'adding a row is the point of it');
         $this->assertStringNotContainsString('admin.cards.nfc.reset', $partial, 'card-wide reset is not link editing');
         $this->assertStringNotContainsString('admin.cards.reset', $partial, 'card-wide reset is not link editing');
         $this->assertStringNotContainsString('admin.cards.profile.delete', $partial);

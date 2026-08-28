@@ -1,4 +1,5 @@
-{{-- The NFC link editor: the ordered table plus the add-link form.
+{{-- The NFC link editor: every row of the table as plain form fields, with no
+     form of its own.
 
      Shared by Links mode and Profile mode, because both publish these same
      nfc_links rows - Links mode as buttons or a redirect, Profile mode as the
@@ -7,88 +8,180 @@
      reach the table, which would change what the live public URL serves while
      they work.
 
-     The table and the add form, and nothing else. "Reset NFC" used to sit in
-     the Add link row here; it clears every mode and returns the card to Links,
-     which is card-wide destruction shown in a place scoped to links, twice over
-     now that two modes include this file. It lives in the Danger zone.
+     It carries no <form> so that the enclosing one owns it: in Profile mode
+     that is the profile form, and the single Save at its foot writes the
+     profile and its links in one request. There is no per-row Save and no
+     up/down arrows - the rows submit in the order they appear, so dragging one
+     costs nothing until Save.
 
-     Expects $card and $links (all of them, active and not - the table shows
-     both, with a checkbox for the state). --}}
-
-@if ($links->count())
-  <div class="section-sep">
-    <label class="fld">Links</label>
-    <div class="tablewrap">
-    <table>
-      <thead><tr><th style="width:1%">#</th><th>Label</th><th>URL</th><th style="width:1%">Active</th><th style="width:1%"></th></tr></thead>
-      <tbody>
-      @foreach ($links as $i => $link)
-        <tr>
-          <td data-label="#" class="mono muted">{{ $i + 1 }}</td>
-          <td colspan="3" style="padding-top:8px;padding-bottom:8px">
-            <form method="POST" action="{{ route('admin.cards.nfc.update', [$card->public_id, $link->id]) }}" class="row row-tight">
-              @csrf @method('PATCH')
-              <input type="text" name="title" value="{{ $link->title }}" maxlength="120" style="width:140px" aria-label="Link label" required>
-              <input type="url" name="url" value="{{ $link->url }}" style="flex:1;min-width:180px" aria-label="Link URL" required>
-              <select name="icon" aria-label="Logo" style="width:130px">
-                <option value="">Auto logo</option>
-                @foreach (\App\Services\LinkPlatform::iconChoices() as $key => $label)
-                  <option value="{{ $key }}" @selected($link->icon === $key)>{{ $label }}</option>
-                @endforeach
-              </select>
-              <label class="small row row-tight" style="gap:5px;white-space:nowrap">
-                <input type="checkbox" name="is_active" value="1" @checked($link->is_active) style="width:auto"> on
-              </label>
-              <button class="btn btn-sm" type="submit">Save</button>
-            </form>
-          </td>
-          <td>
-            <div class="row row-tight" style="flex-wrap:nowrap;justify-content:flex-end">
-              @if (! $loop->first)
-                <form method="POST" action="{{ route('admin.cards.nfc.move', [$card->public_id, $link->id]) }}">
-                  @csrf @method('PATCH')<input type="hidden" name="direction" value="up">
-                  <button class="btn btn-sm btn-ghost" type="submit" title="Move up" aria-label="Move up">&uarr;</button>
-                </form>
-              @endif
-              @if (! $loop->last)
-                <form method="POST" action="{{ route('admin.cards.nfc.move', [$card->public_id, $link->id]) }}">
-                  @csrf @method('PATCH')<input type="hidden" name="direction" value="down">
-                  <button class="btn btn-sm btn-ghost" type="submit" title="Move down" aria-label="Move down">&darr;</button>
-                </form>
-              @endif
-              <form method="POST" action="{{ route('admin.cards.nfc.delete', [$card->public_id, $link->id]) }}"
-                    onsubmit="return confirm('Delete this link?')">
-                @csrf @method('DELETE')
-                <button class="btn btn-sm btn-d" type="submit">Delete</button>
-              </form>
-            </div>
-          </td>
-        </tr>
-      @endforeach
-      </tbody>
-    </table>
-    </div>
-  </div>
-@endif
+     Expects $card, $links (all of them, active and not) and $editing. --}}
 
 <div class="section-sep">
-  <form method="POST" action="{{ route('admin.cards.nfc.add', $card->public_id) }}">
-    @csrf
-    <label class="fld">Add link</label>
-    <div class="row row-tight">
-      <input type="text" name="title" placeholder="Label (e.g. Instagram)" maxlength="120" style="width:170px" required>
-      <input type="url" name="url" placeholder="https://…" style="flex:1;min-width:200px" required>
-      <select name="icon" aria-label="Logo" style="width:130px">
+  <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+    <label class="fld" style="margin:0">Links</label>
+    @if ($editing)
+      <button class="btn btn-sm" type="button" id="lnk-add">Add link</button>
+    @endif
+  </div>
+
+  @if ($editing)
+    <p class="small muted" style="margin:0 0 10px">
+      Drag a row by its handle &mdash; or hold it and move &mdash; to reorder.
+      &ldquo;Auto logo&rdquo; matches the URL to a known platform and shows a globe otherwise.
+    </p>
+  @endif
+
+  <div id="lnk-list" class="lnk-list">
+    @foreach ($links as $i => $link)
+      <div class="lnk">
+        <button class="grab" type="button" aria-label="Reorder link {{ $i + 1 }}" tabindex="{{ $editing ? 0 : -1 }}">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+        </button>
+        <input type="text" name="links[{{ $i }}][title]" value="{{ $link->title }}" maxlength="120"
+               class="lnk-t" aria-label="Link label" placeholder="Label">
+        <input type="url" name="links[{{ $i }}][url]" value="{{ $link->url }}" maxlength="500"
+               class="lnk-u" aria-label="Link URL" placeholder="https://…">
+        <select name="links[{{ $i }}][icon]" aria-label="Logo" class="lnk-i">
+          <option value="">Auto logo</option>
+          @foreach (\App\Services\LinkPlatform::iconChoices() as $key => $label)
+            <option value="{{ $key }}" @selected($link->icon === $key)>{{ $label }}</option>
+          @endforeach
+        </select>
+        <input type="hidden" name="links[{{ $i }}][is_active]" value="0">
+        <label class="lnk-on small"><input type="checkbox" name="links[{{ $i }}][is_active]" value="1" @checked($link->is_active)> on</label>
+        <button class="rm" type="button" aria-label="Remove link">&times;</button>
+      </div>
+    @endforeach
+  </div>
+
+  @unless ($links->count())
+    <p class="small muted" id="lnk-empty" style="margin:0">No links yet.</p>
+  @endunless
+</div>
+
+@if ($editing)
+  {{-- __I__ is replaced with a fresh index. It only has to be unique, not
+       sequential: rows submit in document order, and the writer numbers them
+       from that. --}}
+  <template id="lnk-new">
+    <div class="lnk">
+      <button class="grab" type="button" aria-label="Reorder link">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+      </button>
+      <input type="text" name="links[__I__][title]" maxlength="120" class="lnk-t" aria-label="Link label" placeholder="Label">
+      <input type="url" name="links[__I__][url]" maxlength="500" class="lnk-u" aria-label="Link URL" placeholder="https://…">
+      <select name="links[__I__][icon]" aria-label="Logo" class="lnk-i">
         <option value="">Auto logo</option>
         @foreach (\App\Services\LinkPlatform::iconChoices() as $key => $label)
           <option value="{{ $key }}">{{ $label }}</option>
         @endforeach
       </select>
-      <button class="btn btn-sm btn-p" type="submit">Add link</button>
+      <input type="hidden" name="links[__I__][is_active]" value="0">
+      <label class="lnk-on small"><input type="checkbox" name="links[__I__][is_active]" value="1" checked> on</label>
+      <button class="rm" type="button" aria-label="Remove link">&times;</button>
     </div>
-    <p class="small muted" style="margin:7px 0 0">
-      “Auto logo” matches the URL to a known platform and shows a globe otherwise.
-      Pick a logo to override it, or “No logo” to show the label as plain text.
-    </p>
-  </form>
-</div>
+  </template>
+@endif
+
+@if ($editing)
+<script>
+(function () {
+  var list = document.getElementById('lnk-list');
+  var add = document.getElementById('lnk-add');
+  var tpl = document.getElementById('lnk-new');
+  if (! list || ! add || ! tpl) return;
+
+  var MAX = {{ \App\Services\NfcLinkWriter::MAX }};
+
+  add.addEventListener('click', function () {
+    if (list.children.length >= MAX) return;
+
+    var empty = document.getElementById('lnk-empty');
+    if (empty) empty.remove();
+
+    list.insertAdjacentHTML('beforeend', tpl.innerHTML.replace(/__I__/g, Date.now().toString()));
+    var row = list.lastElementChild;
+    row.querySelector('.lnk-t').focus();
+  });
+
+  list.addEventListener('click', function (event) {
+    var remove = event.target.closest('.rm');
+    if (remove) remove.closest('.lnk').remove();
+  });
+
+  /* ---- Reordering ----------------------------------------------------
+     No request, and no arrows: the rows submit in the order they sit in,
+     so moving one is only ever a DOM move that Save then writes down.
+
+     The handle drags immediately, because that is what a handle is for; a
+     press anywhere else on the row starts a drag after a short hold, which
+     is how it works on a phone, and any movement before the hold completes
+     is treated as the scroll it probably was. */
+  var row = null, hold = null, dragging = false;
+
+  function begin(event) {
+    dragging = true;
+    row.classList.add('dragging');
+    try { row.setPointerCapture(event.pointerId); } catch (error) { /* not fatal */ }
+  }
+
+  list.addEventListener('pointerdown', function (event) {
+    var target = event.target.closest('.lnk');
+    if (! target) return;
+
+    row = target;
+
+    if (event.target.closest('.grab')) { begin(event); return; }
+    if (event.target.closest('input,select,button,label,textarea')) { row = null; return; }
+
+    hold = window.setTimeout(function () { begin(event); }, 350);
+  });
+
+  list.addEventListener('pointermove', function (event) {
+    if (! dragging) {
+      // Moved before the hold finished: a scroll, not a drag.
+      if (hold) { window.clearTimeout(hold); hold = null; }
+      return;
+    }
+
+    event.preventDefault();
+
+    var over = document.elementFromPoint(event.clientX, event.clientY);
+    over = over && over.closest ? over.closest('.lnk') : null;
+    if (! over || over === row || ! list.contains(over)) return;
+
+    var box = over.getBoundingClientRect();
+    list.insertBefore(row, event.clientY > box.top + box.height / 2 ? over.nextSibling : over);
+  });
+
+  function stop() {
+    if (hold) { window.clearTimeout(hold); hold = null; }
+    if (row) row.classList.remove('dragging');
+    row = null;
+    dragging = false;
+  }
+
+  list.addEventListener('pointerup', stop);
+  list.addEventListener('pointercancel', stop);
+
+  // The handle is a real button, so a keyboard can move a row too - the
+  // arrows were the only way to do that before, and dropping them without
+  // this would have left keyboard users unable to reorder at all.
+  list.addEventListener('keydown', function (event) {
+    var handle = event.target.closest('.grab');
+    if (! handle) return;
+
+    var up = event.key === 'ArrowUp';
+    if (! up && event.key !== 'ArrowDown') return;
+
+    event.preventDefault();
+    var moving = handle.closest('.lnk');
+    var neighbour = up ? moving.previousElementSibling : moving.nextElementSibling;
+    if (! neighbour) return;
+
+    list.insertBefore(up ? moving : neighbour, up ? neighbour : moving);
+    handle.focus();
+  });
+})();
+</script>
+@endif

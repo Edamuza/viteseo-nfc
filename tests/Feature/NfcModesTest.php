@@ -226,14 +226,14 @@ class NfcModesTest extends TestCase
 
         // Hidden, not removed: no fresh card can be switched to Email...
         $this->actingAs($this->admin())
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->assertDontSee('value="email"', false);
 
         // ...but a card already serving it keeps the option visible.
         $card->forceFill(['nfc_mode' => 'email', 'nfc_email_address' => 'hi@example.com'])->save();
         $this->actingAs($this->admin())
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->assertSee('value="email"', false);
     }

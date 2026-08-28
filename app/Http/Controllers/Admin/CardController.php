@@ -7,13 +7,12 @@ use App\Exceptions\UnreadableImageException;
 use App\Http\Controllers\Controller;
 use App\Models\Card;
 use App\Models\StickerTemplate;
-use App\Models\NfcLink;
 use App\Rules\SafeExternalUrl;
 use App\Rules\SafePhoneNumber;
 use App\Services\CardGenerationService;
 use App\Services\CardReviewStickerService;
 use App\Services\CardResetService;
-use App\Services\LinkPlatform;
+use App\Services\NfcLinkWriter;
 use App\Services\PublicImageStorage;
 use App\Services\ImageIngest;
 use App\Services\QrCodeService;
@@ -35,13 +34,22 @@ class CardController extends Controller
         private readonly PublicImageStorage $photos,
         private readonly ImageIngest $images,
         private readonly CardReviewStickerService $stickers,
+        private readonly NfcLinkWriter $links,
     ) {}
 
-    public function show(Card $card): Response
+    /**
+     * GET /admin/cards/{card}
+     *
+     * Opens read-only. ?edit=1 is what unlocks the fields, so a card being
+     * looked up - the common case, and the one where a stray keystroke used
+     * to land in a live customer's page - cannot be changed by accident.
+     */
+    public function show(Request $request, Card $card): Response
     {
         $card->load('nfcLinks');
 
         return response()->view('admin.card', [
+            'editing' => $request->boolean('edit'),
             'card' => $card,
             'qrSvg' => $this->qr->svgForCard($card),
             'latestProfileEdit' => $card->profileEdits()->first(),
@@ -82,81 +90,32 @@ class CardController extends Controller
     // --- NFC -----------------------------------------------------------------
 
     /** POST /admin/cards/{card}/nfc-links */
-    public function addNfcLink(Request $request, Card $card): RedirectResponse
+    /**
+     * PATCH /admin/cards/{card}/nfc-links
+     *
+     * The whole table in one request: labels, URLs, logos, active flags and
+     * the order, which is simply the order the rows arrived in. That is what
+     * replaced the per-row Save and the up/down arrows - a drag reorders rows
+     * on screen and costs nothing until this Save.
+     */
+    public function saveNfcLinks(Request $request, Card $card): RedirectResponse
     {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:120'],
-            'url'   => ['required', 'string', new SafeExternalUrl()],
-            'icon'  => ['nullable', 'string', Rule::in(array_keys(LinkPlatform::iconChoices()))],
-        ]);
+        $request->merge(['links' => $this->links->normalize($request->input('links'))]);
 
-        $card->nfcLinks()->create([
-            'title'      => trim($data['title']),
-            'url'        => trim($data['url']),
-            'icon'       => $data['icon'] ?? null,
-            'sort_order' => (int) ($card->nfcLinks()->max('sort_order') ?? -1) + 1,
-            'is_active'  => true,
-        ]);
+        $data = $request->validate($this->links->rules(), $this->links->messages());
+        $rows = $data['links'] ?? [];
 
-        if ($card->nfc_configured_at === null) {
-            $card->forceFill(['nfc_configured_at' => now()])->save();
-        }
+        DB::transaction(function () use ($card, $rows): void {
+            $this->links->replace($card, $rows);
 
-        return back()->with('status', 'Link added.');
-    }
+            // Links are what configures a Links card, so emptying the table
+            // returns it to unconfigured and the next tap shows the chooser.
+            $card->forceFill([
+                'nfc_configured_at' => $rows === [] ? null : ($card->nfc_configured_at ?? now()),
+            ])->save();
+        });
 
-    /** PATCH /admin/cards/{card}/nfc-links/{link} */
-    public function updateNfcLink(Request $request, Card $card, NfcLink $link): RedirectResponse
-    {
-        abort_unless($link->card_id === $card->id, 404);
-
-        $data = $request->validate([
-            'title'     => ['required', 'string', 'max:120'],
-            'url'       => ['required', 'string', new SafeExternalUrl()],
-            'icon'      => ['nullable', 'string', Rule::in(array_keys(LinkPlatform::iconChoices()))],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
-        $link->update([
-            'title'     => trim($data['title']),
-            'url'       => trim($data['url']),
-            'icon'      => $data['icon'] ?? null,
-            'is_active' => $request->boolean('is_active'),
-        ]);
-
-        return back()->with('status', 'Link updated.');
-    }
-
-    /** DELETE /admin/cards/{card}/nfc-links/{link} */
-    public function deleteNfcLink(Card $card, NfcLink $link): RedirectResponse
-    {
-        abort_unless($link->card_id === $card->id, 404);
-        $link->delete();
-
-        return back()->with('status', 'Link deleted.');
-    }
-
-    /** PATCH /admin/cards/{card}/nfc-links/{link}/move */
-    public function moveNfcLink(Request $request, Card $card, NfcLink $link): RedirectResponse
-    {
-        abort_unless($link->card_id === $card->id, 404);
-        $request->validate(['direction' => ['required', 'in:up,down']]);
-
-        $ordered = $card->nfcLinks()->get()->values();
-        $index   = $ordered->search(fn ($l) => $l->id === $link->id);
-        $swap    = $request->input('direction') === 'up' ? $index - 1 : $index + 1;
-
-        if ($index !== false && isset($ordered[$swap])) {
-            DB::transaction(function () use ($ordered, $index, $swap) {
-                $a = $ordered[$index];
-                $b = $ordered[$swap];
-                [$a->sort_order, $b->sort_order] = [$b->sort_order, $a->sort_order];
-                $a->save();
-                $b->save();
-            });
-        }
-
-        return back()->with('status', 'Link order updated.');
+        return back()->with('status', 'Links saved.');
     }
 
     /**

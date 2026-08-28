@@ -29,12 +29,24 @@
         <span class="badge b-off">Created {{ $card->created_at->format('Y-m-d') }}</span>
       </div>
     </div>
-    {{-- The same back arrow the owner screens use, so both sides of the
-         system point the way out the same way. --}}
-    <a class="btn btn-sm" href="{{ route('admin.dashboard') }}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 19 3 12l7-7"/><path d="M3 12h18"/></svg>
-      All cards
-    </a>
+    <div class="row row-tight" style="flex-wrap:nowrap">
+      {{-- The same back arrow the owner screens use, so both sides of the
+           system point the way out the same way. --}}
+      <a class="btn btn-sm" href="{{ route('admin.dashboard') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 19 3 12l7-7"/><path d="M3 12h18"/></svg>
+        All cards
+      </a>
+      {{-- Viewing and editing are different jobs. This card belongs to a
+           customer and is live; opening it should not put a cursor in it. --}}
+      @if ($editing)
+        <a class="btn btn-sm" href="{{ route('admin.cards.show', $card->public_id) }}">Done editing</a>
+      @else
+        <a class="btn btn-sm btn-p" href="{{ route('admin.cards.show', $card->public_id) }}?edit=1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Edit card
+        </a>
+      @endif
+    </div>
   </div>
 </div>
 
@@ -75,15 +87,17 @@
 
       <form method="POST" action="{{ route('admin.cards.qr.set', $card->public_id) }}">
         @csrf @method('PATCH')
-        <label class="fld" for="qrdest">{{ $qrOn ? 'Change' : 'Set' }} destination</label>
-        <div class="row row-tight">
-          <input id="qrdest" type="url" name="destination" placeholder="https://example.com"
-                 value="{{ $card->qr_destination }}" style="flex:1;min-width:200px" required>
-          <button class="btn btn-p" type="submit">Save</button>
-          @if ($qrOn)
-            <button class="btn btn-d" type="submit" form="reset-qr">Reset QR</button>
-          @endif
-        </div>
+        <fieldset @disabled(! $editing)>
+          <label class="fld" for="qrdest">{{ $qrOn ? 'Change' : 'Set' }} destination</label>
+          <div class="row row-tight">
+            <input id="qrdest" type="url" name="destination" placeholder="https://example.com"
+                   value="{{ $card->qr_destination }}" style="flex:1;min-width:200px" required>
+            <button class="btn btn-p" type="submit">Save</button>
+            @if ($qrOn)
+              <button class="btn btn-d" type="submit" form="reset-qr">Reset QR</button>
+            @endif
+          </div>
+        </fieldset>
       </form>
       @if ($qrOn)
         <form id="reset-qr" method="POST" action="{{ route('admin.cards.qr.reset', $card->public_id) }}"
@@ -127,6 +141,7 @@
     <label class="fld">NFC Mode</label>
     <form method="POST" action="{{ route('admin.cards.nfc.mode', $card->public_id) }}">
       @csrf @method('PATCH')
+      <fieldset @disabled(! $editing)>
       <div class="modegrid">
         @foreach (\App\Enums\NfcMode::ordered() as $m)
           {{-- A hidden mode is hidden, not removed: no card can be switched
@@ -142,6 +157,7 @@
       </div>
       <button class="btn btn-p" type="submit" style="margin-top:12px">Set mode</button>
       <span class="small muted" style="margin-left:8px">Switching modes keeps every mode’s saved data.</span>
+      </fieldset>
     </form>
   </div>
 
@@ -165,7 +181,15 @@
       @endif
     </div>
 
-    @include('admin.partials.nfc-links', ['card' => $card, 'links' => $links])
+    <form method="POST" action="{{ route('admin.cards.nfc.links.save', $card->public_id) }}">
+      @csrf @method('PATCH')
+      <fieldset @disabled(! $editing)>
+        @include('admin.partials.nfc-links', ['card' => $card, 'links' => $links, 'editing' => $editing])
+        <div class="row" style="margin-top:16px">
+          <button class="btn btn-p" type="submit">Save changes</button>
+        </div>
+      </fieldset>
+    </form>
   @endif
 
   {{-- ================= PROFILE PAGE MODE ================= --}}
@@ -199,6 +223,7 @@
 
       <form method="POST" action="{{ route('admin.cards.profile.update', $card->public_id) }}" enctype="multipart/form-data">
         @csrf @method('PATCH')
+        <fieldset @disabled(! $editing)>
 
         <p class="fld" style="margin-top:4px">Identity</p>
         <div class="fgrid">
@@ -243,12 +268,21 @@
           <label><span>Where the button goes</span><input type="url" name="welcome_cta_url" maxlength="500" placeholder="https://example.com" value="{{ old('welcome_cta_url', $nfcProfile?->welcome_cta_url) }}"></label>
         </div>
 
+        {{-- The public profile page's Accounts panel is these same links, so
+             they are edited here rather than only in Links mode: switching the
+             mode back to reach them would change what the live URL serves
+             mid-edit. They sit INSIDE this form because a profile page and its
+             links are one thing to the person editing them, and were two
+             saves only because they are two tables. --}}
+        @include('admin.partials.nfc-links', ['card' => $card, 'links' => $links, 'editing' => $editing])
+
         <div class="row" style="margin-top:16px">
-          <button class="btn btn-p" type="submit">Save profile</button>
+          <button class="btn btn-p" type="submit">Save changes</button>
           @if ($nfcProfile)
             <button class="btn btn-sm btn-d" type="submit" form="del-profile">Delete profile details</button>
           @endif
         </div>
+        </fieldset>
       </form>
       @if ($nfcProfile)
         <form id="del-profile" method="POST" action="{{ route('admin.cards.profile.delete', $card->public_id) }}"
@@ -262,10 +296,6 @@
       @endif
     </div>
 
-    {{-- The public profile page's Accounts panel is these same links, so they
-         are editable here rather than only in Links mode: switching the mode
-         back to edit them would change what the live URL serves mid-edit. --}}
-    @include('admin.partials.nfc-links', ['card' => $card, 'links' => $links])
   @endif
 
   {{-- ================= CONTACT CARD MODE ================= --}}
@@ -283,6 +313,7 @@
 
       <form method="POST" action="{{ route('admin.cards.contact.update', $card->public_id) }}" enctype="multipart/form-data">
         @csrf @method('PATCH')
+        <fieldset @disabled(! $editing)>
 
         <p class="fld" style="margin-top:4px">Personal</p>
         <div class="fgrid">
@@ -340,11 +371,12 @@
         </div>
 
         <div class="row row-tight">
-          <button class="btn btn-p" type="submit">Save contact details</button>
+          <button class="btn btn-p" type="submit">Save changes</button>
           @if ($profile)
             <button class="btn btn-sm btn-d" type="submit" form="del-contact">Delete contact details</button>
           @endif
         </div>
+        </fieldset>
       </form>
 
       @if ($profile?->photo_path)
@@ -374,6 +406,7 @@
       </p>
       <form method="POST" action="{{ route('admin.cards.phone.update', $card->public_id) }}">
         @csrf @method('PATCH')
+        <fieldset @disabled(! $editing)>
         <label class="fld" for="phonenum">Phone number</label>
         <div class="row row-tight">
           <input id="phonenum" type="tel" name="nfc_phone_number" placeholder="+63 917 123 4567"
@@ -384,6 +417,7 @@
           @endif
         </div>
         <p class="small muted" style="margin:8px 0 0">Digits and <code>+ ( ) - .</code> only. Stored as a phone number, never as a URL.</p>
+        </fieldset>
       </form>
       @if ($card->nfc_phone_number)
         <form id="del-phone" method="POST" action="{{ route('admin.cards.phone.delete', $card->public_id) }}">@csrf @method('DELETE')</form>
@@ -405,6 +439,7 @@
       </p>
       <form method="POST" action="{{ route('admin.cards.email.update', $card->public_id) }}">
         @csrf @method('PATCH')
+        <fieldset @disabled(! $editing)>
         <div class="fgrid">
           <label class="wide"><span>Email address</span>
             <input type="email" name="nfc_email_address" value="{{ old('nfc_email_address', $card->nfc_email_address) }}" required></label>
@@ -419,6 +454,7 @@
             <button class="btn btn-d" type="submit" form="del-email">Clear</button>
           @endif
         </div>
+        </fieldset>
       </form>
       @if ($card->nfc_email_address)
         <form id="del-email" method="POST" action="{{ route('admin.cards.email.delete', $card->public_id) }}">@csrf @method('DELETE')</form>
@@ -456,6 +492,9 @@
 </div>
 
 {{-- ══════════════ DANGER ZONE ══════════════ --}}
+{{-- Only while editing. A card opened to be read should not have two buttons
+     on it that destroy a live customer's page. --}}
+@if ($editing)
 <div class="panel danger-zone">
   <h2>Danger zone</h2>
   {{-- This copy is a promise the admin acts on when re-issuing a card, so it
@@ -497,6 +536,7 @@
     </form>
   </div>
 </div>
+@endif
 
 <style>
 /* ── QR preview sizing ─────────────────────────────────────────

@@ -595,7 +595,7 @@ class NfcProfileEditTest extends TestCase
         $older->forceFill(['created_at' => now()->subMinute()])->save();
 
         $this->actingAs($this->admin())
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->assertSee('Revert latest client edit')
             ->assertSee('2001:db8::20')

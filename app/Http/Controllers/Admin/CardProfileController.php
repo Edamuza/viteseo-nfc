@@ -9,6 +9,7 @@ use App\Rules\SafeExternalUrl;
 use App\Services\CardResetService;
 use App\Services\DominantColor;
 use App\Services\ImageIngest;
+use App\Services\NfcLinkWriter;
 use App\Services\PublicImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,10 +24,22 @@ class CardProfileController extends Controller
         private readonly DominantColor $colors,
         private readonly PublicImageStorage $photos,
         private readonly CardResetService $reset,
+        private readonly NfcLinkWriter $links,
     ) {}
 
     public function update(Request $request, Card $card): RedirectResponse
     {
+        // A profile page IS its links - the public page serves them as its
+        // Accounts panel - so the admin edits both in one form and saves them
+        // in one request. Only a request that actually carries the array
+        // touches the links: this endpoint is still reachable with profile
+        // fields alone, and an absent key must not read as "delete them all".
+        $editsLinks = $request->has('links');
+
+        if ($editsLinks) {
+            $request->merge(['links' => $this->links->normalize($request->input('links'))]);
+        }
+
         $data = $request->validate([
             'display_name' => ['nullable', 'string', 'max:120'],
             'headline' => ['nullable', 'string', 'max:200'],
@@ -39,11 +52,11 @@ class CardProfileController extends Controller
             'welcome_cta_label' => ['nullable', 'string', 'max:60'],
             'welcome_cta_url' => ['nullable', 'string', 'max:500', new SafeExternalUrl()],
             'avatar' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:2048', 'dimensions:max_width=4000,max_height=4000'],
-        ]);
+        ] + ($editsLinks ? $this->links->rules() : []), $this->links->messages());
 
         $clean = [];
 
-        foreach (Arr::except($data, ['avatar', 'welcome_body']) as $key => $value) {
+        foreach (Arr::except($data, ['avatar', 'welcome_body', 'links']) as $key => $value) {
             $clean[$key] = $this->singleLineOrNull(is_string($value) ? $value : null);
         }
         if (array_key_exists('welcome_body', $data)) {
@@ -70,7 +83,9 @@ class CardProfileController extends Controller
         }
 
         try {
-            $result = DB::transaction(function () use ($card, $clean, $stored): array {
+            $rows = $editsLinks ? ($data['links'] ?? []) : null;
+
+            $result = DB::transaction(function () use ($card, $clean, $stored, $rows): array {
                 $lockedCard = Card::query()->whereKey($card->id)->lockForUpdate()->firstOrFail();
                 $profile = $lockedCard->profile()->first() ?: $lockedCard->profile()->make();
                 $oldPath = null;
@@ -89,6 +104,10 @@ class CardProfileController extends Controller
                     $profile->save();
                 } else {
                     $lockedCard->profile()->save($profile);
+                }
+
+                if ($rows !== null) {
+                    $this->links->replace($lockedCard, $rows);
                 }
 
                 return [

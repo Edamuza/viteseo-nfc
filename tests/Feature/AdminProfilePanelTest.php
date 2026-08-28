@@ -62,7 +62,7 @@ class AdminProfilePanelTest extends TestCase
     private function page(Card $card): string
     {
         return $this->actingAs($this->admin())
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->getContent();
     }
@@ -190,76 +190,98 @@ class AdminProfilePanelTest extends TestCase
 
     /**
      * The Accounts panel on the public profile page is driven by nfc_links, so
-     * an admin who cannot reach the link table from Profile mode has to switch
-     * the card back to Links mode to edit it - changing what the live public
+     * an admin who cannot reach the link rows from Profile mode has to switch
+     * the card back to Links mode to edit them - changing what the live public
      * URL serves while they work.
      */
-    public function test_the_profile_panel_carries_the_link_table(): void
+    public function test_the_profile_panel_carries_the_link_rows(): void
     {
         $card = $this->profileCard();
-        $link = $this->link($card);
+        $this->link($card);
 
         $body = $this->page($card->fresh());
 
         $this->assertStringContainsString('https://x.com/its_uriel26', $body);
-        $this->assertHasForm(
-            $body,
-            route('admin.cards.nfc.update', [$card->public_id, $link->id]),
-            'PATCH',
-            'each row must be editable without leaving Profile mode'
-        );
-        $this->assertHasForm(
-            $body,
-            route('admin.cards.nfc.delete', [$card->public_id, $link->id]),
-            'DELETE',
-            'each row must be deletable without leaving Profile mode'
-        );
+        $this->assertStringContainsString('name="links[0][title]"', $body);
+        $this->assertStringContainsString('name="links[0][url]"', $body);
     }
 
-    public function test_the_profile_panel_carries_the_add_link_form(): void
+    /**
+     * A profile page and its links are one thing to the person editing them,
+     * and were two saves only because they are two tables. The rows live
+     * inside the profile form, so one Save writes both.
+     */
+    public function test_the_profile_and_its_links_share_one_save(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card);
+
+        $body = $this->page($card->fresh());
+        $form = strpos($body, route('admin.cards.profile.update', $card->public_id));
+
+        $this->assertIsInt($form);
+        $this->assertGreaterThan($form, strpos($body, 'name="links[0][title]"'), 'the rows are inside the profile form');
+        $this->assertLessThan(
+            strpos($body, '</form>', (int) strpos($body, 'name="links[0][title]"')),
+            strpos($body, 'name="links[0][title]"'),
+        );
+        $this->assertSame(1, substr_count($body, '>Save changes<'), 'one Save, not one per table');
+    }
+
+    public function test_the_profile_panel_can_gain_a_first_link(): void
     {
         $card = $this->profileCard();
 
-        $this->assertHasForm(
-            $this->page($card),
-            route('admin.cards.nfc.add', $card->public_id),
-            null,
-            'a Profile card must be able to gain its first link without a mode switch'
-        );
+        $body = $this->page($card);
+
+        // The blank row is added from this template, so a Profile card can
+        // gain its first link without a mode switch.
+        $this->assertStringContainsString('id="lnk-new"', $body);
+        $this->assertStringContainsString('id="lnk-add"', $body);
     }
 
-    public function test_the_profile_panel_can_reorder_links(): void
+    /**
+     * Order decides the order of the public page's Accounts panel. There is no
+     * move endpoint any more: the rows are saved in the order they arrive, so
+     * dragging one is a DOM move that the next Save writes down.
+     */
+    public function test_saving_the_rows_in_a_new_order_reorders_the_public_panel(): void
     {
-        $card  = $this->profileCard();
-        $first = $this->link($card, 'https://x.com/one');
-        $card->nfcLinks()->create([
-            'title' => 'GitHub', 'url' => 'https://github.com/two', 'sort_order' => 1, 'is_active' => true,
-        ]);
+        $card = $this->profileCard();
+        $card->nfcLinks()->create(['title' => 'One', 'url' => 'https://example.com/one', 'sort_order' => 0, 'is_active' => true]);
+        $card->nfcLinks()->create(['title' => 'Two', 'url' => 'https://example.com/two', 'sort_order' => 1, 'is_active' => true]);
 
-        $this->assertHasForm(
-            $this->page($card->fresh()),
-            route('admin.cards.nfc.move', [$card->public_id, $first->id]),
-            'PATCH',
-            'link order decides the order of the public page Accounts panel'
+        $this->actingAs($this->admin())
+            ->patch('/admin/cards/'.$card->public_id.'/profile', [
+                'display_name' => 'Uriel Papa',
+                'links' => [
+                    ['title' => 'Two', 'url' => 'https://example.com/two', 'is_active' => '1'],
+                    ['title' => 'One', 'url' => 'https://example.com/one', 'is_active' => '1'],
+                ],
+            ])->assertSessionHasNoErrors();
+
+        $this->assertSame(
+            ['Two', 'One'],
+            $card->fresh()->nfcLinks()->orderBy('sort_order')->pluck('title')->all()
         );
     }
 
     /**
-     * The table and the add form are shared markup, so Links mode must still
-     * render them after the extraction. This is the regression the extraction
-     * could plausibly cause.
+     * The rows are shared markup, so Links mode must still render them - and
+     * there it has a Save of its own, because there is no profile form to
+     * carry it.
      */
-    public function test_links_mode_still_renders_the_link_table_and_the_add_form(): void
+    public function test_links_mode_still_renders_the_rows_and_its_own_save(): void
     {
         $card = $this->card();
-        $link = $this->link($card, 'https://example.com/a');
+        $this->link($card, 'https://example.com/a');
 
         $body = $this->page($card->fresh());
 
         $this->assertStringContainsString('https://example.com/a', $body);
-        $this->assertHasForm($body, route('admin.cards.nfc.update', [$card->public_id, $link->id]), 'PATCH', 'edit a link');
-        $this->assertHasForm($body, route('admin.cards.nfc.delete', [$card->public_id, $link->id]), 'DELETE', 'delete a link');
-        $this->assertHasForm($body, route('admin.cards.nfc.add', $card->public_id), null, 'add a link');
+        $this->assertStringContainsString('name="links[0][title]"', $body);
+        $this->assertStringContainsString(route('admin.cards.nfc.links.save', $card->public_id), $body);
+        $this->assertSame(1, substr_count($body, '>Save changes<'));
     }
 
     // --- The per-mode delete -------------------------------------------------
@@ -680,12 +702,11 @@ class AdminProfilePanelTest extends TestCase
         $this->assertStringContainsString('name="display_name"', $body);
         $this->get('/n/'.$card->public_id)->assertOk()->assertSee('What should your card do?');
 
+        // Name and link in ONE save, which is the whole point of the merged
+        // form: two saves for one page was the complaint that produced it.
         $this->actingAs($admin)->patch('/admin/cards/'.$card->public_id.'/profile', [
             'display_name' => 'Uriel Papa',
-        ])->assertSessionHasNoErrors();
-
-        $this->actingAs($admin)->post('/admin/cards/'.$card->public_id.'/nfc-links', [
-            'title' => 'X', 'url' => 'https://x.com/its_uriel26',
+            'links' => [['title' => 'X', 'url' => 'https://x.com/its_uriel26', 'is_active' => '1']],
         ])->assertSessionHasNoErrors();
 
         $this->assertSame(NfcMode::Profile, $card->fresh()->nfcMode(), 'the admin never left the mode');

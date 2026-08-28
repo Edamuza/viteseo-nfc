@@ -94,6 +94,7 @@ h2{font-size:.95rem;font-weight:620;margin:0 0 16px;letter-spacing:-.005em}
 .btn:hover{background:var(--surface-sunken);border-color:var(--muted);text-decoration:none}
 /* An icon inside a button sizes with the label, never to its own viewBox. */
 .btn svg{width:14px;height:14px;flex:0 0 auto}
+
 .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn-p{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn-p:hover{background:var(--accent-press);border-color:var(--accent-press);color:#fff}
@@ -102,6 +103,48 @@ h2{font-size:.95rem;font-weight:620;margin:0 0 16px;letter-spacing:-.005em}
 .btn-sm{padding:5px 10px;font-size:.8rem}
 .btn-ghost{border-color:transparent;background:transparent;color:var(--text-soft)}
 .btn-ghost:hover{background:var(--surface-sunken)}
+/* ---- Read-only until Edit ----
+   The whole card opens as a page you can read, and a disabled fieldset is
+   what locks it: native, no JavaScript, and nothing inside one can be
+   submitted either, so a locked field cannot be edited by hand or by
+   devtools. */
+fieldset{border:0;padding:0;margin:0;min-width:0}
+fieldset:disabled input,fieldset:disabled select,fieldset:disabled textarea{
+  background:var(--surface-sunken);color:var(--text);opacity:1;cursor:default;
+  border-color:var(--line);
+}
+fieldset:disabled .btn{display:none}
+
+/* ---- Link editor ----
+   One row per link, dragged by its handle. No per-row Save and no arrows:
+   the rows submit in the order they sit in. */
+.lnk-list{display:flex;flex-direction:column;gap:8px}
+.lnk{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface);
+}
+.lnk.dragging{opacity:.9;border-color:var(--accent);box-shadow:var(--shadow)}
+.lnk .lnk-t{flex:0 1 150px;min-width:120px}
+.lnk .lnk-u{flex:1 1 220px;min-width:0}
+.lnk .lnk-i{flex:0 0 140px}
+.lnk-on{display:flex;align-items:center;gap:5px;white-space:nowrap;margin:0}
+.lnk-on input{width:auto}
+.grab{
+  flex:0 0 auto;width:26px;height:32px;display:grid;place-items:center;padding:0;
+  border:0;background:none;color:var(--muted);cursor:grab;touch-action:none;
+}
+.grab:active{cursor:grabbing}
+.grab svg{width:17px;height:17px}
+.grab:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:6px}
+.rm{
+  flex:0 0 auto;width:32px;height:32px;border-radius:8px;cursor:pointer;font-family:inherit;
+  border:1px solid var(--danger-line);background:var(--surface);color:var(--danger);
+  font-size:1.05rem;line-height:1;
+}
+.rm:hover{background:var(--danger-soft)}
+/* Locked: the controls that only make sense while editing simply are not there. */
+fieldset:disabled .grab,fieldset:disabled .rm{display:none}
+@media (max-width:700px){.lnk .lnk-t,.lnk .lnk-i{flex-basis:100%}}
 
 /* ── Forms ─────────────────────────────────────────────────── */
 input[type=text],input[type=url],input[type=email],input[type=password],input[type=number],

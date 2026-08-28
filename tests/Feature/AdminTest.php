@@ -234,7 +234,7 @@ class AdminTest extends TestCase
         $admin = $this->admin();
 
         // Fresh card: ships on the universal PIN, no reset button yet.
-        $this->actingAs($admin)->get('/admin/cards/'.$card->public_id)
+        $this->actingAs($admin)->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->assertSee('Cards ship with the universal activation PIN')
             ->assertSee('000000')
@@ -244,7 +244,7 @@ class AdminTest extends TestCase
 
         // Personalized card: badge flips and the support reset appears.
         app(\App\Services\CardGenerationService::class)->personalizePin($card, '445566');
-        $this->actingAs($admin)->get('/admin/cards/'.$card->public_id)
+        $this->actingAs($admin)->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->assertSee('Personalized')
             ->assertSee('/pin/reset', false);
@@ -386,7 +386,7 @@ class AdminTest extends TestCase
 
         // The page now intentionally documents the universal PIN in help text, but
         // the PIN field itself must still start masked and the hash must never appear.
-        $this->actingAs($this->admin())->get('/admin/cards/'.$card->public_id)
+        $this->actingAs($this->admin())->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->assertDontSee($card->activation_pin_hash)
             ->assertDontSee($card->getAttributes()['activation_pin_encrypted'])
@@ -394,6 +394,105 @@ class AdminTest extends TestCase
     }
 
     /** Symfony normalises and alphabetises Cache-Control, so assert on semantics. */
+    // --- The link table saves as one -----------------------------------------
+
+    /**
+     * One request writes the whole table: the rows that stayed, in the order
+     * they arrived, and nothing else. A row left out was deleted by its author,
+     * and the arrows are gone because position in the payload IS the order.
+     */
+    public function test_saving_the_link_rows_writes_order_and_drops_what_is_missing(): void
+    {
+        $card = $this->card();
+        foreach ([['A', 'https://example.com/a'], ['B', 'https://example.com/b'], ['C', 'https://example.com/c']] as $i => [$title, $url]) {
+            $card->nfcLinks()->create(['title' => $title, 'url' => $url, 'sort_order' => $i, 'is_active' => true]);
+        }
+
+        $this->actingAs($this->admin())
+            ->patch('/admin/cards/'.$card->public_id.'/nfc-links', [
+                'links' => [
+                    ['title' => 'C', 'url' => 'https://example.com/c', 'is_active' => '1'],
+                    ['title' => 'A', 'url' => 'https://example.com/a', 'is_active' => '0'],
+                ],
+            ])->assertSessionHasNoErrors();
+
+        $rows = $card->fresh()->nfcLinks()->orderBy('sort_order')->get();
+
+        $this->assertSame(['C', 'A'], $rows->pluck('title')->all(), 'B was dropped, and C now leads');
+        $this->assertSame([0, 1], $rows->pluck('sort_order')->all());
+        $this->assertFalse($rows[1]->is_active, 'an unticked box submits its hidden 0');
+    }
+
+    /**
+     * The editor keeps a blank row for the next link. Submitting one is not an
+     * attempt to save a link with no URL and must not fail the form.
+     */
+    public function test_a_blank_row_is_not_a_validation_error(): void
+    {
+        $card = $this->card();
+
+        $this->actingAs($this->admin())
+            ->patch('/admin/cards/'.$card->public_id.'/nfc-links', [
+                'links' => [
+                    ['title' => 'Real', 'url' => 'https://example.com/real', 'is_active' => '1'],
+                    ['title' => '', 'url' => ''],
+                ],
+            ])->assertSessionHasNoErrors();
+
+        $this->assertSame(1, $card->fresh()->nfcLinks()->count());
+    }
+
+    public function test_emptying_the_table_returns_the_card_to_unconfigured(): void
+    {
+        $card = $this->card();
+        $card->nfcLinks()->create(['title' => 'A', 'url' => 'https://example.com/a', 'sort_order' => 0, 'is_active' => true]);
+        $card->forceFill(['nfc_configured_at' => now()])->save();
+
+        $this->actingAs($this->admin())
+            ->patch('/admin/cards/'.$card->public_id.'/nfc-links', ['links' => []])
+            ->assertSessionHasNoErrors();
+
+        $card->refresh();
+        $this->assertSame(0, $card->nfcLinks()->count());
+        $this->assertNull($card->nfc_configured_at, 'the next tap shows the chooser again');
+    }
+
+    // --- Read-only until Edit -------------------------------------------------
+
+    /**
+     * A card page opens as something you read. These belong to customers and
+     * are live; looking one up should not put a cursor in it, and a stray
+     * keystroke in a form that saves on Enter should not be able to change
+     * what a stranger sees when they tap the card.
+     */
+    public function test_a_card_opens_read_only(): void
+    {
+        $card = $this->card();
+        $card->forceFill(['qr_destination' => 'https://example.com/q', 'qr_configured_at' => now()])->save();
+
+        $this->actingAs($this->admin())
+            ->get('/admin/cards/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('Edit card')
+            // Locked natively, so nothing inside can be submitted either.
+            ->assertSee('<fieldset disabled>', false)
+            // Still a page you can read: the values are all there.
+            ->assertSee('https://example.com/q')
+            ->assertDontSee('Reset entire card');
+    }
+
+    public function test_the_edit_view_unlocks_the_fields_and_the_danger_zone(): void
+    {
+        $card = $this->card();
+
+        $this->actingAs($this->admin())
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
+            ->assertOk()
+            ->assertSee('Done editing')
+            ->assertDontSee('<fieldset disabled>', false)
+            ->assertSee('Reset entire card');
+    }
+
     /**
      * The admin selector hides the same modes the customer chooser does, so a
      * card cannot be pushed into one an owner could never have chosen - but a
@@ -408,7 +507,7 @@ class AdminTest extends TestCase
         $admin = $this->admin();
 
         $this->actingAs($admin)
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->assertSee('value="profile"', false)
             ->assertDontSee('value="phone"', false)
@@ -417,7 +516,7 @@ class AdminTest extends TestCase
         $card->forceFill(['nfc_mode' => \App\Enums\NfcMode::Phone])->save();
 
         $this->actingAs($admin)
-            ->get('/admin/cards/'.$card->public_id)
+            ->get('/admin/cards/'.$card->public_id.'?edit=1')
             ->assertOk()
             ->assertSee('value="phone"', false);
     }
