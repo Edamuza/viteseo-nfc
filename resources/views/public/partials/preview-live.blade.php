@@ -210,9 +210,11 @@
       + buttons(rows());
   }
 
-  var removeAvatar = document.querySelector('[name="remove_avatar"]');
-
   function render() {
+    // Looked up per render, not once at load: this script runs before the
+    // form exists, so anything cached here would be cached as null.
+    var removeAvatar = document.querySelector('[name="remove_avatar"]');
+
     screen.innerHTML = kind === 'contact' ? renderContact()
       : kind === 'phone' ? renderPhone()
       : kind === 'profile' ? renderProfile()
@@ -234,18 +236,6 @@
   // event of its own; the timeout lets that handler finish first.
   document.addEventListener('click', function () { window.setTimeout(render, 0); });
 
-  var avatar = document.getElementById('avatar');
-  if (avatar) {
-    avatar.addEventListener('change', function () {
-      var file = avatar.files && avatar.files[0];
-      if (! file) return;
-
-      var reader = new FileReader();
-      reader.onload = function () { avatarUrl = String(reader.result); render(); };
-      reader.readAsDataURL(file);
-    });
-  }
-
   var toggle = document.getElementById('pv-toggle');
   toggle.addEventListener('click', function () {
     var collapsed = side.dataset.collapsed === '1';
@@ -253,6 +243,36 @@
     toggle.textContent = collapsed ? 'Hide' : 'Show';
   });
 
-  render();
+  /**
+   * Everything that needs the form to exist.
+   *
+   * This partial is rendered ABOVE the form - on a phone the preview rides
+   * along the top of the screen - so when this script runs, not one field it
+   * reads has been parsed yet. Without the wait, a card that already HAS
+   * details drew an empty phone until the owner touched an input, and the
+   * photo picker was never wired up at all.
+   */
+  function start() {
+    var avatar = document.getElementById('avatar');
+
+    if (avatar) {
+      avatar.addEventListener('change', function () {
+        var file = avatar.files && avatar.files[0];
+        if (! file) return;
+
+        var reader = new FileReader();
+        reader.onload = function () { avatarUrl = String(reader.result); render(); };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    render();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
 })();
 </script>

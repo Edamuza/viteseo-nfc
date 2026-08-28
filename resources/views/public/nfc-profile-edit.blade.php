@@ -95,17 +95,17 @@
             <div>
               <label for="display_name">Your name</label>
               <input id="display_name" name="display_name" type="text" maxlength="120"
-                     placeholder="e.g. Juan Dela Cruz" value="{{ old('display_name', $profile?->display_name) }}">
+                     placeholder="e.g. John Doe" value="{{ old('display_name', $profile?->display_name) }}">
             </div>
             <div>
               <label for="username">Username <span class="opt">(optional)</span></label>
               <input id="username" name="username" type="text" maxlength="60"
-                     placeholder="e.g. juandelacruz" value="{{ old('username', $profile?->username) }}">
+                     placeholder="e.g. johndoe" value="{{ old('username', $profile?->username) }}">
             </div>
             <div class="wide-field">
               <label for="headline">What you do <span class="opt">(optional)</span></label>
               <input id="headline" name="headline" type="text" maxlength="200"
-                     placeholder="e.g. Owner at Juan&rsquo;s Coffee" value="{{ old('headline', $profile?->headline) }}">
+                     placeholder="e.g. Owner at Acme Inc." value="{{ old('headline', $profile?->headline) }}">
             </div>
             <div>
               <label for="location">Where you are <span class="opt">(optional)</span></label>
@@ -115,7 +115,7 @@
             <div>
               <label for="tagline">Short line about you <span class="opt">(optional)</span></label>
               <input id="tagline" name="tagline" type="text" maxlength="200"
-                     placeholder="e.g. Coffee, every morning" value="{{ old('tagline', $profile?->tagline) }}">
+                     placeholder="e.g. Always happy to connect" value="{{ old('tagline', $profile?->tagline) }}">
             </div>
             <div class="wide-field">
               <label for="avatar">Your photo <span class="opt">(JPG, PNG or WebP, up to 2 MB)</span></label>

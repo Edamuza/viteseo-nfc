@@ -203,11 +203,14 @@
         <p class="fld" style="margin-top:4px">Identity</p>
         <div class="fgrid">
           @foreach ([
-            ['display_name','Name on the page',120,'e.g. Uriel Papa'],
-            ['headline','What they do',200,'e.g. CEO, ViteSEO'],
-            ['username','Username',60,'e.g. yurielyel'],
-            ['location','Where they are',100,'e.g. Philippines'],
-            ['tagline','Short line about them',200,'A short personal line'],
+            // One made-up person across the whole system, admin side and
+            // customer side: a real name in a placeholder reads as somebody's
+            // actual card, and this one is nobody's.
+            ['display_name','Name on the page',120,'e.g. John Doe'],
+            ['headline','What they do',200,'e.g. Owner at Acme Inc.'],
+            ['username','Username',60,'e.g. johndoe'],
+            ['location','Where they are',100,'e.g. Manila'],
+            ['tagline','Short line about them',200,'e.g. Always happy to connect'],
           ] as [$field,$label,$max,$placeholder])
             <label><span>{{ $label }}</span><input type="text" name="{{ $field }}" maxlength="{{ $max }}"
               placeholder="{{ $placeholder }}" value="{{ old($field, $nfcProfile?->$field) }}"></label>

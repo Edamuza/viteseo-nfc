@@ -35,6 +35,13 @@ class CardResetTest extends TestCase
      * Mode switching is lossless by design, so this is a realistic state
      * for a re-issued card.
      */
+    /**
+     * A card whose every field holds a value no screen could ever print on
+     * its own. The reset tests below assert that NONE of it survives, so the
+     * sentinels must not collide with the system's own placeholder person -
+     * "John Doe" appears in the chooser's sample previews, and a leak
+     * assertion would match that instead of a leak.
+     */
     private function fullyPopulatedCard(): Card
     {
         $card = $this->card();
@@ -47,7 +54,7 @@ class CardResetTest extends TestCase
         Storage::disk('public')->put('logos/acme.png', 'not-really-a-png');
 
         $profile = $card->contactProfile()->make([
-            'first_name' => 'John', 'last_name' => 'Doe', 'company' => 'Acme Ltd',
+            'first_name' => 'Prevhold', 'last_name' => 'Sentinel', 'company' => 'Sentinel Holdings',
         ]);
         $profile->photo_path = 'contact-photos/old.jpg';
         $card->contactProfile()->save($profile);
@@ -68,7 +75,7 @@ class CardResetTest extends TestCase
 
         Storage::disk('public')->put('profile-avatars/old.jpg', 'not-really-a-jpeg');
 
-        $profile = $card->profile()->make(['display_name' => 'John Doe', 'headline' => 'CEO, Acme Ltd']);
+        $profile = $card->profile()->make(['display_name' => 'Prevhold Sentinel', 'headline' => 'Chief of Sentinels']);
         $profile->avatar_path = 'profile-avatars/old.jpg';
         $card->profile()->save($profile);
 
@@ -393,23 +400,23 @@ class CardResetTest extends TestCase
         // never the card's nfc_* ones, so the profile carries them here.
         $card->contactProfile->fill([
             'mobile_phone'   => '+639171112222',
-            'personal_email' => 'john@example.com',
+            'personal_email' => 'prevhold@example.com',
         ])->save();
 
         // Before: every value asserted below is on the live page.
         $this->get('/n/'.$card->public_id)
             ->assertOk()
-            ->assertSee('John Doe')
-            ->assertSee('Acme Ltd')
+            ->assertSee('Prevhold Sentinel')
+            ->assertSee('Sentinel Holdings')
             ->assertSee('+639171112222')
-            ->assertSee('john@example.com');
+            ->assertSee('prevhold@example.com');
 
         $this->actingAs($this->admin())->delete('/admin/cards/'.$card->public_id.'/reset');
         $this->selectNfcMode($card, 'contact');
 
         $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
 
-        foreach (['John Doe', 'Acme Ltd', '+639171112222', 'john@example.com'] as $leaked) {
+        foreach (['Prevhold Sentinel', 'Sentinel Holdings', '+639171112222', 'prevhold@example.com'] as $leaked) {
             $this->assertStringNotContainsString($leaked, $body, $leaked.' survived the reset');
         }
     }
@@ -705,7 +712,7 @@ class CardResetTest extends TestCase
         $card = $this->fullyPopulatedCard();
         $card->forceFill(['nfc_mode' => 'profile'])->save();
 
-        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('John Doe');
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Prevhold Sentinel');
 
         $this->actingAs($this->admin())
             ->delete('/admin/cards/'.$card->public_id.'/nfc')
@@ -724,7 +731,7 @@ class CardResetTest extends TestCase
         $this->assertNull($card->nfc_phone_number, 'saved phone');
 
         $this->assertStringNotContainsString(
-            'John Doe',
+            'Prevhold Sentinel',
             $this->get('/n/'.$card->public_id)->assertOk()->getContent()
         );
     }
@@ -748,14 +755,14 @@ class CardResetTest extends TestCase
 
         // The "before" half is what makes the "after" half meaningful: the page
         // demonstrably served this name a moment ago.
-        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('John Doe');
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Prevhold Sentinel');
 
         $this->actingAs($this->admin())->delete('/admin/cards/'.$card->public_id.'/reset');
         $this->selectNfcMode($card, 'profile');
 
         $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
 
-        $this->assertStringNotContainsString('John Doe', $body, 'name survived the reset');
-        $this->assertStringNotContainsString('CEO, Acme Ltd', $body, 'headline survived the reset');
+        $this->assertStringNotContainsString('Prevhold Sentinel', $body, 'name survived the reset');
+        $this->assertStringNotContainsString('Chief of Sentinels', $body, 'headline survived the reset');
     }
 }

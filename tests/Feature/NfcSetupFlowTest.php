@@ -370,6 +370,30 @@ class NfcSetupFlowTest extends TestCase
             ->assertDontSee('&larr;', false);
     }
 
+    /**
+     * The preview is rendered ABOVE the form - on a phone it rides along the
+     * top of the screen - so its script runs before a single field it reads
+     * exists. It has to wait for the parse, or a card that already has
+     * details draws an empty phone until the owner touches an input.
+     */
+    public function test_the_preview_waits_for_the_form_it_reads(): void
+    {
+        $card = $this->card();
+
+        $this->post('/n/'.$card->public_id.'/setup/links/unlock', [
+            'activation_pin' => '000000', 'new_pin' => '222222', 'new_pin_confirmation' => '222222',
+        ]);
+
+        $body = $this->get('/n/'.$card->public_id.'/setup/links')->assertOk()->getContent();
+
+        $this->assertLessThan(
+            strpos($body, 'name="links[0][title]"'),
+            strpos($body, 'id="pv-screen"'),
+            'the preview comes first in the markup, which is why the wait is needed'
+        );
+        $this->assertStringContainsString('DOMContentLoaded', $body);
+    }
+
     public function test_the_progress_bar_counts_the_three_steps(): void
     {
         $card = $this->card();

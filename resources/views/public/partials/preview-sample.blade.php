@@ -8,9 +8,9 @@
   @case('contact')
     <div class="pv-head">
       <span class="pv-ava"></span>
-      <p class="pv-name">Juan Dela Cruz</p>
+      <p class="pv-name">John Doe</p>
       <p class="pv-sub">Owner</p>
-      <p class="pv-sub">Juan&rsquo;s Coffee</p>
+      <p class="pv-sub">Acme Inc.</p>
     </div>
     <div class="pv-link pv-primary">Save to Contacts</div>
     <div class="pv-row">
@@ -19,7 +19,7 @@
     </div>
     <div class="pv-panel">
       <div class="pv-f"><span class="pv-k">Mobile</span><span class="pv-v">+63 917 123 4567</span></div>
-      <div class="pv-f"><span class="pv-k">Email</span><span class="pv-v">juan@example.com</span></div>
+      <div class="pv-f"><span class="pv-k">Email</span><span class="pv-v">john@example.com</span></div>
     </div>
     @break
 
@@ -33,9 +33,9 @@
     <div class="pv-cover"></div>
     <div class="pv-head">
       <span class="pv-ava"></span>
-      <p class="pv-name">Juan Dela Cruz</p>
-      <p class="pv-sub">Owner at Juan&rsquo;s Coffee</p>
-      <p class="pv-sub">Manila, Philippines</p>
+      <p class="pv-name">John Doe</p>
+      <p class="pv-sub">Owner at Acme Inc.</p>
+      <p class="pv-sub">Manila</p>
     </div>
     <div class="pv-link pv-primary">Save contact</div>
     <div class="pv-link"><span class="pv-ic"><x-platform-icon platform="web" /></span>Our website</div>
@@ -45,8 +45,8 @@
 
   @default
     <div class="pv-head">
-      <p class="pv-name">Juan&rsquo;s Coffee</p>
-      <p class="pv-sub">Fresh beans, Manila</p>
+      <p class="pv-name">Acme Inc.</p>
+      <p class="pv-sub">Open daily, 8am to 6pm</p>
     </div>
     <div class="pv-link"><span class="pv-ic"><x-platform-icon platform="web" /></span>Order online</div>
     <div class="pv-link"><span class="pv-ic"><x-platform-icon platform="facebook" /></span>Facebook</div>

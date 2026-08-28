@@ -24,11 +24,11 @@
 
         <label for="page_title">Title at the top <span class="opt">(optional)</span></label>
         <input id="page_title" name="page_title" type="text" maxlength="120"
-               placeholder="e.g. Juan&rsquo;s Coffee" value="{{ old('page_title', $card->nfc_page_title) }}">
+               placeholder="e.g. Acme Inc." value="{{ old('page_title', $card->nfc_page_title) }}">
 
         <label for="page_subtitle">One line under the title <span class="opt">(optional)</span></label>
         <input id="page_subtitle" name="page_subtitle" type="text" maxlength="200"
-               placeholder="e.g. Fresh beans, Manila" value="{{ old('page_subtitle', $card->nfc_page_subtitle) }}">
+               placeholder="e.g. Open daily, 8am to 6pm" value="{{ old('page_subtitle', $card->nfc_page_subtitle) }}">
 
         <label>Your buttons</label>
         <div id="links">
