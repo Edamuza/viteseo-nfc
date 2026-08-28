@@ -60,17 +60,19 @@ details.menu{position:relative}
 details.menu>summary{
   list-style:none;cursor:pointer;width:40px;height:40px;border-radius:50%;
   display:grid;place-items:center;
-  /* A dark scrim, because on a phone this sits on the cover - which is the
-     owner's own photo, blurred, and may be any colour at all. The translucent
-     white below is for the brand-coloured page it sits on from tablet up. */
-  background:rgba(20,20,20,.45);color:#fff;
+  /* Solid white, not a tint of whatever is behind it. This button lands on
+     three different things - the brand-coloured page, the owner's own photo
+     blurred into the cover, and any colour that photo happens to be - and a
+     translucent fill disappeared into the light ones. The shadow is what
+     keeps it off a white cover. */
+  background:#fff;color:var(--text);
+  box-shadow:0 2px 10px rgba(0,0,0,.22);
 }
 /* Tablet and up: the corner of the SCREEN, not the corner of the 680px column
    the page is centred in, where it read as floating in the middle of nowhere
    on a wide monitor. */
 @media (min-width:768px){
   .topbar{position:fixed;top:20px;right:20px}
-  details.menu>summary{background:rgba(255,255,255,.16);color:var(--on-brand)}
   .menu-panel{right:0}
 }
 details.menu>summary::-webkit-details-marker{display:none}
