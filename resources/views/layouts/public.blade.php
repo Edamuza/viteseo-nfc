@@ -239,7 +239,14 @@ code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radi
   .wrap.wide{max-width:900px}
   .setup{grid-template-columns:minmax(0,1fr) 290px;align-items:start;gap:22px}
   .setup .setup-main{order:1;min-width:0}
-  .setup .pv-side{order:2;position:sticky;top:24px}
+  /* A panel of its own beside the form's panel. Bare on the page, the phone
+     read as something that had come loose from the layout rather than as the
+     other half of it. */
+  .setup .pv-side{
+    order:2;position:sticky;top:24px;
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:15px 14px 18px;box-shadow:0 1px 3px rgba(16,24,40,.06);
+  }
 }
 
 /* A laptop or a monitor. The column stays a column - a form 900px wide is
@@ -259,6 +266,16 @@ code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radi
   .setup{grid-template-columns:minmax(0,1fr) 320px;gap:30px}
   .pv-phone{width:280px}
   .pv-screen{height:420px}
+  /* Room for all three controls on one line, so a link reads as one thing
+     rather than as a field with a dropdown parked underneath it. */
+  .linkrow{flex-wrap:nowrap}
+  .linkrow .t{flex:0 0 165px;min-width:0}
+  .linkrow input[type=url]{flex:1 1 auto;min-width:0}
+  .linkrow select{flex:0 0 175px;order:2}
+  /* Remove goes last on one line. It sits next to the fields on a phone,
+     where the dropdown is on its own line below and the end of the row is
+     the end of the URL. */
+  .linkrow .remove-link{order:3}
 }
 </style>
 </head>

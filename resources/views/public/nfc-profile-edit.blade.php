@@ -37,8 +37,13 @@
 </style>
 
 {{-- Profile is set up in the same three steps as the other card types; this
-     page is both step 2 (the PIN) and step 3 (the details). --}}
-<div class="setup">
+     page is both step 2 (the PIN) and step 3 (the details).
+
+     The two-column grid goes on ONLY when there is a preview to put in the
+     second column. Locked, this screen is one card and nothing else, and a
+     grid with two tracks and one child squeezed that card into a sliver of
+     the first track on every screen wide enough to have both. --}}
+<div @class(['setup' => $unlocked])>
   @if ($unlocked)
     @include('public.partials.preview-live', [
       'kind' => 'profile',
