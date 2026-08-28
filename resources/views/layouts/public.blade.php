@@ -8,6 +8,7 @@
 <meta name="robots" content="@yield('robots', 'noindex, nofollow')">
 <meta name="color-scheme" content="light">
 <title>@yield('title', 'Card Setup')</title>
+@include('partials.exo2')
 @yield('head')
 <style>
 /* Public setup pages: light, mobile-first, deliberately plain.
@@ -23,6 +24,13 @@
   --ok-ink:#0f7a33; --ok-soft:#e4f8ec; --ok-line:#a9e6bf;
   --danger:#f34444; --danger-ink:#c02626; --danger-soft:#fde7e7; --danger-line:#f7b4b4;
   --radius:14px; --radius-ctl:10px;
+
+  /* The Style Guide's type scale, same steps as the platform and the admin.
+     An owner screen is a CARD, so its title takes the card-title step (h2)
+     rather than the 37px page title, which would outweigh the card it sits
+     in on a phone. */
+  --t-h1:2.3125rem; --t-h2:1.6875rem; --t-h3:1.3125rem;
+  --t-body:1.1875rem; --t-table:1rem; --t-caption:.9375rem; --t-label:.8125rem;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -31,7 +39,7 @@ a:hover{text-decoration:underline}
 a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
 body{
   margin:0; background:var(--bg); color:var(--text);
-  font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font:var(--t-table)/1.55 "Exo 2",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased;
   padding:32px 16px calc(48px + env(safe-area-inset-bottom));
   min-height:100dvh; display:flex;
@@ -45,21 +53,21 @@ body{
   background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
   padding:26px 22px; box-shadow:0 1px 3px rgba(16,24,40,.06);
 }
-h1{font-size:1.2rem;font-weight:640;margin:0 0 6px;letter-spacing:-.02em}
-.sub{color:var(--muted);font-size:.9rem;margin:0 0 20px;line-height:1.5}
-label{display:block;font-weight:570;font-size:.85rem;margin:16px 0 6px;color:var(--text-soft)}
+h1{font-size:var(--t-h2);line-height:1.2;font-weight:700;margin:0 0 8px;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:var(--t-caption);margin:0 0 20px;line-height:1.4}
+label{display:block;font-weight:500;font-size:.875rem;margin:16px 0 6px;color:var(--text-soft)}
 label .opt{font-weight:400;color:var(--muted)}
 input[type=text],input[type=url],input[type=tel],input[type=password],select{
-  width:100%;padding:12px 13px;font-size:1rem;border:1px solid var(--line-strong);
-  border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;
+  width:100%;padding:12px 13px;font-size:var(--t-table);border:1px solid var(--line-strong);
+  border-radius:var(--radius-ctl);background:var(--surface);color:var(--text);font-family:inherit;
 }
 input::placeholder{color:#9aa1ac}
 input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .pin{letter-spacing:.34em;text-align:center;font-size:1.15rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 button.primary,a.primary{
   display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;
-  width:100%;margin-top:22px;padding:13px;font-size:.98rem;font-weight:580;
-  border:0;border-radius:9px;background:var(--accent);color:var(--on-accent);cursor:pointer;
+  width:100%;margin-top:22px;padding:13px;font-size:var(--t-table);font-weight:600;
+  border:0;border-radius:var(--radius-ctl);background:var(--accent);color:var(--on-accent);cursor:pointer;
   min-height:46px;font-family:inherit;text-decoration:none;
 }
 button.primary:hover,a.primary:hover{background:var(--accent-press)}
@@ -73,7 +81,7 @@ button.primary:focus-visible,a.primary:focus-visible{outline:2px solid var(--acc
   flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;
   min-height:46px;padding:13px 15px;border:1px solid var(--line-strong);border-radius:9px;
   background:var(--surface);color:var(--text-soft);
-  font:inherit;font-size:.9rem;font-weight:550;text-decoration:none;cursor:pointer;
+  font:inherit;font-size:.875rem;font-weight:600;text-decoration:none;cursor:pointer;
 }
 .btn-2:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);text-decoration:none}
 .btn-2:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -103,8 +111,8 @@ button.primary:focus-visible,a.primary:focus-visible{outline:2px solid var(--acc
   padding:11px 13px;border-radius:9px;margin-bottom:18px;font-size:.87rem;
 }
 .err ul{margin:0;padding-left:18px}
-.foot{text-align:center;color:var(--muted);font-size:.76rem;margin-top:20px}
-.cardid{text-align:center;color:var(--muted);font-size:.78rem;margin:16px 0 0;line-height:1.5}
+.foot{text-align:center;color:var(--muted);font-size:var(--t-label);margin-top:20px}
+.cardid{text-align:center;color:var(--muted);font-size:var(--t-caption);margin:16px 0 0;line-height:1.4}
 .cardid code{font-size:.95em}
 /* One link = one grouped card: label + URL (+ remove) on the first line, the
    logo dropdown on its own line below. Loose bare fields read as separate
@@ -131,7 +139,8 @@ code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radi
    that asked for a PIN, a new PIN and every detail at once; the bar is what
    tells them how much is left. */
 .steps{display:flex;gap:7px;list-style:none;margin:0 0 20px;padding:0;
- font-size:.71rem;font-weight:600;color:var(--muted)}
+ font-size:var(--t-label);line-height:1.3;font-weight:700;text-transform:uppercase;
+ letter-spacing:.04em;color:var(--muted)}
 .steps li{flex:1;display:flex;flex-direction:column;gap:6px;line-height:1.3}
 .steps .bar{height:4px;border-radius:999px;background:var(--line)}
 .steps .done .bar,.steps .now .bar{background:var(--accent)}
@@ -149,8 +158,8 @@ code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radi
   color:var(--text);text-decoration:none;font-weight:500;
 }
 .choice-go:hover{text-decoration:none;background:var(--accent-soft)}
-.choice .ct{display:block;font-weight:600;font-size:.97rem;margin-bottom:2px}
-.choice .cd{display:block;color:var(--muted);font-size:.83rem;line-height:1.4;font-weight:400}
+.choice .ct{display:block;font-weight:600;font-size:var(--t-table);margin-bottom:3px}
+.choice .cd{display:block;color:var(--muted);font-size:var(--t-caption);line-height:1.4;font-weight:400}
 .choice .arrow{margin-left:auto;color:var(--muted);flex:0 0 auto}
 .now-badge{
   margin-left:auto;flex:0 0 auto;font-size:.72rem;font-weight:600;color:var(--accent-ink);

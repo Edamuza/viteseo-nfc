@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="light">
+@include('partials.exo2')
 <title>{{ $profile->displayName() ?: $profile->company }}</title>
 <style>
 /* Digital business card. Light, mobile-first, no JavaScript, no admin surface. */
@@ -20,7 +21,7 @@
 *{box-sizing:border-box}
 body{
   margin:0;background:var(--bg);color:var(--text);
-  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font:1rem/1.5 "Exo 2",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased;
   padding:32px 18px calc(40px + env(safe-area-inset-bottom));
 }
@@ -28,15 +29,15 @@ body{
 header{text-align:center;margin-bottom:22px}
 .photo{width:96px;height:96px;border-radius:50%;object-fit:cover;margin:0 auto 14px;
  display:block;border:1px solid var(--line);background:var(--surface)}
-h1{font-size:1.45rem;font-weight:650;margin:0;letter-spacing:-.02em;overflow-wrap:anywhere}
-.title{color:var(--text-soft);margin:5px 0 0;font-size:.98rem;overflow-wrap:anywhere}
-.org{color:var(--muted);margin:2px 0 0;font-size:.92rem;overflow-wrap:anywhere}
+h1{font-size:1.6875rem;line-height:1.2;font-weight:700;margin:0;letter-spacing:-.02em;overflow-wrap:anywhere}
+.title{color:var(--text-soft);margin:5px 0 0;font-size:1rem;overflow-wrap:anywhere}
+.org{color:var(--muted);margin:2px 0 0;font-size:.9375rem;overflow-wrap:anywhere}
 
 /* Primary actions sit above the fold on a phone. */
 .actions{display:flex;flex-direction:column;gap:9px;margin-bottom:22px}
 .act{
   display:flex;align-items:center;justify-content:center;min-height:52px;
-  padding:14px 18px;border-radius:12px;text-decoration:none;font-weight:570;font-size:1rem;
+  padding:14px 18px;border-radius:12px;text-decoration:none;font-weight:600;font-size:1rem;
   border:1px solid var(--line-strong);background:var(--surface);color:var(--text);
   box-shadow:0 1px 2px rgba(16,24,40,.04);
 }
@@ -52,14 +53,14 @@ h1{font-size:1.45rem;font-weight:650;margin:0;letter-spacing:-.02em;overflow-wra
 .field{display:flex;justify-content:space-between;gap:14px;padding:12px 0;
  border-bottom:1px solid var(--line);align-items:flex-start}
 .panel .field:last-child{border-bottom:0}
-.field .k{color:var(--muted);font-size:.82rem;flex:0 0 auto;padding-top:1px}
-.field .v{text-align:right;overflow-wrap:anywhere;font-size:.94rem}
+.field .k{color:var(--muted);font-size:.8125rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;flex:0 0 auto;padding-top:2px}
+.field .v{text-align:right;overflow-wrap:anywhere;font-size:.9375rem}
 .field .v a{color:var(--accent-ink);text-decoration:none}
 .field .v a:hover{text-decoration:underline}
-.sec{font-size:.75rem;font-weight:620;color:var(--muted);margin:20px 4px 8px}
+.sec{font-size:.8125rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:20px 4px 8px}
 .note{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.92rem;color:var(--text-soft);padding:12px 0}
 .hint{text-align:center;color:var(--muted);font-size:.78rem;margin:16px 6px 0;line-height:1.45}
-footer{text-align:center;color:var(--muted);font-size:.73rem;margin-top:22px}
+footer{text-align:center;color:var(--muted);font-size:.8125rem;margin-top:22px}
 footer .own{color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:7px}
 footer .own:hover{color:var(--text);text-decoration:underline}
 @media (prefers-reduced-motion:reduce){.act{transition:none}}

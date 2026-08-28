@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="light">
+@include('partials.exo2')
 <title>{{ $profile->display_name }}</title>
 {{-- The brand colour is derived from the avatar and normalised into a dark
      band, so --on-brand can be a fixed light value with no luminance branch.
@@ -38,7 +39,7 @@
 *{box-sizing:border-box}
 body{
   margin:0;background:var(--brand);color:var(--text);
-  font:17px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font:1rem/1.55 "Exo 2",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased;
   padding:26px 20px calc(38px + env(safe-area-inset-bottom));
 }
@@ -123,15 +124,15 @@ details.menu>summary::-webkit-details-marker{display:none}
   .flip,.flip-in,.face,.qrtoggle{transition:none}
 }
 
-h1{font-size:1.95rem;font-weight:680;margin:0;letter-spacing:-.024em;overflow-wrap:anywhere}
-.headline{color:var(--soft);margin:7px 0 0;font-size:1.02rem;overflow-wrap:anywhere}
-.meta{color:var(--muted);margin:4px 0 0;font-size:.94rem}
+h1{font-size:2.3125rem;line-height:1.15;font-weight:700;margin:0;letter-spacing:-.02em;overflow-wrap:anywhere}
+.headline{color:var(--soft);margin:8px 0 0;font-size:1.1875rem;line-height:1.5;overflow-wrap:anywhere}
+.meta{color:var(--muted);margin:5px 0 0;font-size:.9375rem}
 
 .iconrow{display:flex;align-items:center;gap:17px;margin:18px 0 0;flex-wrap:wrap}
 .iconrow a{color:#20262e;display:grid;place-items:center}
 .iconrow svg{width:19px;height:19px;fill:currentColor;display:block}
 
-.tagline{margin:20px 0 0;font-size:1.02rem;color:var(--soft);overflow-wrap:anywhere}
+.tagline{margin:20px 0 0;font-size:1.1875rem;line-height:1.5;color:var(--soft);overflow-wrap:anywhere}
 .sharebtn{
   display:flex;align-items:center;justify-content:center;margin-top:22px;
   min-height:54px;border:1px solid #d9dde1;border-radius:14px;
@@ -140,12 +141,12 @@ h1{font-size:1.95rem;font-weight:680;margin:0;letter-spacing:-.024em;overflow-wr
 .sharebtn:hover{background:#f7f8f9}
 
 .card-pad{padding:24px 28px}
-h2{font-size:1.14rem;font-weight:650;margin:0 0 6px;letter-spacing:-.012em}
+h2{font-size:1.3125rem;line-height:1.25;font-weight:700;margin:0 0 6px;letter-spacing:-.01em}
 .acct{display:flex;gap:15px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--line)}
 .acct:last-child{border-bottom:0}
 .acct-ico{flex:0 0 auto;width:21px;padding-top:2px;color:#20262e}
 .acct-ico svg{width:21px;height:21px;fill:currentColor;display:block}
-.acct-name{font-size:1rem;font-weight:610}
+.acct-name{font-size:1rem;font-weight:600}
 .acct-url{font-size:.9rem;color:var(--muted);overflow-wrap:anywhere;text-decoration:none;display:block;margin-top:2px}
 .acct-url:hover{text-decoration:underline}
 /* A destination that cannot be followed. Struck through and never underlined

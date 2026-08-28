@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="light">
 <title>Sign in &middot; NFC Cards</title>
+@include('partials.exo2')
 <style>
 /* The ViteSEO palette; the teal is a fill, --on-accent the ink on it. */
 :root{--bg:#fafafe;--surface:#ffffff;--text:#111827;--muted:#6b7280;--line:#e5e7ea;
@@ -14,13 +15,13 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);min-height:100dvh;display:flex;
  align-items:center;justify-content:center;padding:24px;
- font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+ font:1rem/1.55 "Exo 2",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
  -webkit-font-smoothing:antialiased}
 .box{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:30px;
  width:100%;max-width:370px;box-shadow:0 1px 3px rgba(16,24,40,.08)}
-h1{font-size:1.15rem;font-weight:640;margin:0 0 4px;letter-spacing:-.02em}
-.sub{color:var(--muted);font-size:.85rem;margin:0 0 22px}
-label{display:block;font-weight:570;font-size:.83rem;margin:14px 0 6px}
+h1{font-size:1.6875rem;line-height:1.2;font-weight:700;margin:0 0 6px;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:.9375rem;margin:0 0 22px}
+label{display:block;font-weight:500;font-size:.875rem;margin:14px 0 6px}
 input{width:100%;padding:10px 12px;font-size:.95rem;border:1px solid var(--line-strong);
  border-radius:8px;background:var(--surface);color:var(--text)}
 input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
