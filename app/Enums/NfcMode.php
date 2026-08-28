@@ -17,25 +17,39 @@ enum NfcMode: string
     case Email   = 'email';
     case Profile = 'profile';
 
+    /**
+     * The name a card owner sees.
+     *
+     * Written for someone who has never built a web page: no slashes, no
+     * "multi-link", no "digital". The admin screens use these same names on
+     * purpose - one vocabulary means an owner on the phone and an admin on
+     * the dashboard are talking about the same thing.
+     */
     public function label(): string
     {
         return match ($this) {
-            self::Links   => 'Links / Multi-Link',
-            self::Contact => 'Digital Contact Card',
-            self::Phone   => 'Phone / Call',
-            self::Email   => 'Email',
-            self::Profile => 'Profile Page',
+            self::Links   => 'My links',
+            self::Contact => 'Contact card',
+            self::Phone   => 'My phone number',
+            self::Email   => 'My email address',
+            self::Profile => 'Full profile page',
         };
     }
 
+    /**
+     * One plain sentence about what the other person sees after the tap.
+     *
+     * Always phrased from the visitor's side ("they see..."), because that is
+     * the question an owner is actually asking while choosing.
+     */
     public function description(): string
     {
         return match ($this) {
-            self::Links   => 'One link redirects; several show a link menu.',
-            self::Contact => 'Shows a digital business card with a Save to Contacts button.',
-            self::Phone   => 'Shows a single Call button.',
-            self::Email   => 'Shows a single Send Email button.',
-            self::Profile => 'Shows a rich profile page with avatar, bio and a list of linked accounts.',
+            self::Links   => 'They see a list of buttons - your website, Facebook, shop, anything.',
+            self::Contact => 'They see your details and a button that saves you into their phone.',
+            self::Phone   => 'They see one big Call button with your number.',
+            self::Email   => 'They see one big button that starts an email to you.',
+            self::Profile => 'They see your photo, a short line about you, and all your links.',
         };
     }
 

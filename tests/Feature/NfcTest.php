@@ -34,7 +34,7 @@ class NfcTest extends TestCase
         // form the chooser links to, not on the chooser itself.
         $this->get('/n/'.$card->public_id)
             ->assertOk()
-            ->assertSee('Set up your card')
+            ->assertSee('What should your card do?')
             ->assertSee('/n/'.$card->public_id.'/setup/links');
 
         $this->get('/n/'.$card->public_id.'/setup/links')
@@ -254,7 +254,7 @@ class NfcTest extends TestCase
         $card->nfcLinks()->delete();
         $card->forceFill(['nfc_configured_at' => null])->save();
 
-        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Set up your card');
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('What should your card do?');
         $this->get('/n/'.$card->public_id.'/setup/links')->assertOk()->assertSee('Activation PIN');
     }
 

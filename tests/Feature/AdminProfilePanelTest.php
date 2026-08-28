@@ -360,7 +360,7 @@ class AdminProfilePanelTest extends TestCase
     {
         $body = $this->page($this->profileCard());
 
-        $this->assertStringContainsString('NFC&nbsp;&middot;&nbsp;Profile Page', $body);
+        $this->assertStringContainsString('NFC&nbsp;&middot;&nbsp;Full profile page', $body);
     }
 
     // --- Writing the display name --------------------------------------------
@@ -678,7 +678,7 @@ class AdminProfilePanelTest extends TestCase
         $body = $this->page($card->fresh());
         $this->assertStringContainsString('Needs a display name', $body);
         $this->assertStringContainsString('name="display_name"', $body);
-        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Set up your card');
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('What should your card do?');
 
         $this->actingAs($admin)->patch('/admin/cards/'.$card->public_id.'/profile', [
             'display_name' => 'Uriel Papa',
@@ -706,7 +706,7 @@ class AdminProfilePanelTest extends TestCase
         $this->assertSame(1, $card->nfcLinks()->count(), 'a per-mode delete clears one mode');
 
         $end = $this->get('/n/'.$card->public_id)->assertOk();
-        $end->assertSee('Set up your card');
+        $end->assertSee('What should your card do?');
         $end->assertDontSee('Uriel Papa');
         // The chooser lists card types but never renders a PIN field itself.
         $end->assertDontSee('activation_pin', false);

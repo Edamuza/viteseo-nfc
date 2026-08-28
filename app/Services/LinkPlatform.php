@@ -72,6 +72,21 @@ class LinkPlatform
         return 'web';
     }
 
+    /**
+     * platform key => hosts, for the live setup preview.
+     *
+     * The preview has to guess the same icon "Auto" will resolve to once the
+     * form is saved, and it runs in the browser. Handing it this table keeps
+     * one list in one place; a second copy transcribed into JavaScript would
+     * drift the moment a platform is added here.
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function hostMap(): array
+    {
+        return self::HOSTS;
+    }
+
     public static function label(string $key): string
     {
         return self::LABELS[$key] ?? self::LABELS['web'];

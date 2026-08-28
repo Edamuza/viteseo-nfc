@@ -2,21 +2,6 @@
 @section('title','Manage this card')
 @section('body')
 <style>
-  .choice{
-    display:flex;align-items:center;gap:14px;width:100%;
-    padding:15px;margin-top:10px;border:1px solid var(--line-strong);border-radius:12px;
-    background:var(--surface);color:var(--text);text-decoration:none;font-weight:500;
-    transition:border-color .12s ease,background .12s ease;
-  }
-  .choice:hover{border-color:var(--accent);background:var(--accent-soft);text-decoration:none}
-  .choice .ct{display:block;font-weight:600;font-size:.96rem;margin-bottom:2px}
-  .choice .cd{display:block;color:var(--muted);font-size:.83rem;line-height:1.4}
-  .choice .arrow{margin-left:auto;color:var(--muted);flex:0 0 auto}
-  .choice.now{border-color:var(--accent)}
-  .now-badge{
-    margin-left:auto;flex:0 0 auto;font-size:.72rem;font-weight:600;color:var(--accent);
-    background:var(--accent-soft);border:1px solid var(--accent);border-radius:999px;padding:3px 10px;
-  }
   .status{background:#ecfdf3;border:1px solid #abefc6;color:#067647;padding:11px 13px;border-radius:9px;margin-bottom:18px}
   .sect{margin-top:26px;padding-top:18px;border-top:1px solid var(--line)}
   .sect h2{font-size:1rem;margin:0 0 4px}
@@ -30,38 +15,46 @@
   @endif
 
   @if (! $unlocked)
-    <p class="sub">Enter your card PIN to change what this card does or to change the PIN itself.</p>
+    <p class="sub">Enter your card PIN to change what this card does, or to change the PIN itself.</p>
     <form method="POST" action="{{ route('nfc.manage.unlock', $card->public_id) }}">
       @csrf
       <label for="activation_pin">{{ $card->pinIsPersonalized() ? 'Your card PIN' : 'Activation PIN' }}</label>
       <input class="pin" id="activation_pin" name="activation_pin" type="tel" inputmode="numeric"
-             maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN" required>
+             maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN" required autofocus>
       @include('public.partials.new-pin')
       <button class="primary" type="submit">Continue</button>
     </form>
   @else
-    <p class="sub" style="margin-bottom:4px">What your card does now:</p>
+    <p class="sub" style="margin-bottom:4px">Right now, when someone taps your card:</p>
     <p style="margin:0 0 6px"><strong>{{ $card->nfcMode()->label() }}</strong>
       <span class="sub" style="display:inline">&mdash; {{ $card->nfcMode()->description() }}</span></p>
 
     <div class="sect">
-      <h2>Change what this card does</h2>
-      <p class="sub">Your saved details are kept for every type &mdash; switching back later restores them.</p>
+      <h2>Change what your card does</h2>
+      <p class="sub">Tap <strong>Preview</strong> to see a type before you switch to it. Anything you
+        already filled in is kept &mdash; switching back later brings it straight home.</p>
       @foreach (\App\Enums\NfcMode::selfSetup() as $mode)
-        <a class="choice {{ $card->nfcMode() === $mode ? 'now' : '' }}"
-           href="{{ $mode === \App\Enums\NfcMode::Profile
-                ? route('nfc.profile.edit', $card->public_id)
-                : route('nfc.setup', [$card->public_id, $mode->value]) }}">
-          <span>
-            <span class="ct">{{ $mode->label() }}</span>
-            <span class="cd">{{ $mode->description() }}</span>
-          </span>
-          @if ($card->nfcMode() === $mode)
-            <span class="now-badge">Current</span>
-          @else
-            <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
-          @endif
-        </a>
+        <div class="choice {{ $card->nfcMode() === $mode ? 'now' : '' }}">
+          <a class="choice-go"
+             href="{{ $mode === \App\Enums\NfcMode::Profile
+                  ? route('nfc.profile.edit', $card->public_id)
+                  : route('nfc.setup', [$card->public_id, $mode->value]) }}">
+            <span>
+              <span class="ct">{{ $mode->label() }}</span>
+              <span class="cd">{{ $mode->description() }}</span>
+            </span>
+            @if ($card->nfcMode() === $mode)
+              <span class="now-badge">Current</span>
+            @else
+              <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+            @endif
+          </a>
+          <button class="eye" type="button" data-preview="{{ $mode->value }}"
+                  aria-label="Preview {{ $mode->label() }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            Preview
+          </button>
+        </div>
       @endforeach
     </div>
 
@@ -86,4 +79,7 @@
 
   @include('public.partials.card-id')
 </div>
+@if ($unlocked)
+  @include('public.partials.preview-dialogs')
+@endif
 @endsection

@@ -38,6 +38,10 @@ a.link{
 }
 a.link .ic{display:inline-flex;flex:0 0 auto;color:#20262e}
 a.link .ic svg{width:19px;height:19px;fill:currentColor;display:block}
+/* An outlined mark declares fill="none" and draws with its stroke; the
+   blanket fill above would turn the globe and the Instagram square into
+   solid blobs, so it is handed back to the attribute. */
+a.link .ic svg[fill="none"]{fill:none}
 a.link:hover{background:var(--surface-hover);border-color:var(--muted)}
 a.link:active{transform:scale(.99)}
 a.link:focus-visible{outline:2px solid var(--text);outline-offset:2px}

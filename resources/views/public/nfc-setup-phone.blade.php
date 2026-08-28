@@ -1,31 +1,35 @@
 @extends('layouts.public')
-@section('title','Set up this card — Phone')
+@section('title','Add your phone number')
+@section('wrapclass','wide')
 @section('body')
-<div class="card">
-  <h1>Phone / Call</h1>
-  <p class="sub">Tapping your card will show a Call Now button for this number.</p>
+<div class="setup">
+  @include('public.partials.preview-live', ['kind' => 'phone'])
 
-  @if ($errors->any())
-    <div class="err"><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
-  @endif
+  <div class="setup-main">
+    <div class="card">
+      @include('public.partials.steps', ['step' => 3])
 
-  <form method="POST" action="{{ route('nfc.setup.phone', $card->public_id) }}">
-    @csrf
-    <label for="activation_pin">{{ $card->pinIsPersonalized() ? 'Your card PIN' : 'Activation PIN' }}</label>
-    <input class="pin" id="activation_pin" name="activation_pin" type="tel" inputmode="numeric"
-           maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN" required>
-    @include('public.partials.new-pin')
+      <h1>Add your phone number</h1>
+      <p class="sub">Anyone who taps your card gets one big Call button for this number.</p>
 
-    <label for="nfc_phone_number">Phone number</label>
-    <input id="nfc_phone_number" name="nfc_phone_number" type="tel" placeholder="+63 917 123 4567"
-           value="{{ old('nfc_phone_number', $card->nfc_phone_number) }}" required>
+      @if ($errors->any())
+        <div class="err"><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
+      @endif
 
-    <button class="primary" type="submit">Save my card</button>
-  </form>
+      <form method="POST" action="{{ route('nfc.setup.phone', $card->public_id) }}">
+        @csrf
+        <label for="nfc_phone_number">Phone number</label>
+        <input id="nfc_phone_number" name="nfc_phone_number" type="tel" placeholder="+63 917 123 4567"
+               value="{{ old('nfc_phone_number', $card->nfc_phone_number) }}" required autofocus>
 
-  <p style="text-align:center;margin:18px 0 0;font-size:.88rem">
-    <a href="{{ route('nfc.show', $card->public_id) }}">&larr; Choose a different card type</a>
-  </p>
-  @include('public.partials.card-id')
+        <button class="primary" type="submit">Save and go live</button>
+      </form>
+
+      <p style="text-align:center;margin:18px 0 0;font-size:.88rem">
+        <a href="{{ route('nfc.show', $card->public_id) }}">&larr; Pick a different type</a>
+      </p>
+      @include('public.partials.card-id')
+    </div>
+  </div>
 </div>
 @endsection

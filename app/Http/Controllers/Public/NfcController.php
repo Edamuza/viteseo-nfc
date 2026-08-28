@@ -224,8 +224,19 @@ class NfcController extends Controller
             return redirect()->route('nfc.show', $card->public_id);
         }
 
-        // Prefilled with whatever the card already holds for that mode, so
-        // switching modes from the manage page starts from the saved data.
+        // Step 2 of 3. One question per screen: owners were abandoning setup
+        // on a single page that asked for a PIN, a new PIN and every detail
+        // at once. The PIN is settled here, then the details screen is about
+        // the card alone.
+        if (! $this->gate->isUnlocked($request, $card)) {
+            return $this->noStore(response()->view('public.nfc-setup-unlock', [
+                'card' => $card,
+                'mode' => $this->modeFor($mode),
+            ]));
+        }
+
+        // Step 3, prefilled with whatever the card already holds for that mode,
+        // so switching modes from the manage page starts from the saved data.
         return $this->noStore(response()->view(match ($mode) {
             'phone'   => 'public.nfc-setup-phone',
             'contact' => 'public.nfc-setup-contact',
@@ -237,6 +248,49 @@ class NfcController extends Controller
                 ? $card->nfcLinks()->orderBy('sort_order')->get()
                 : collect(),
         ]));
+    }
+
+    /**
+     * POST /n/{public_id}/setup/{links|phone|contact}/unlock
+     *
+     * Step 2's only job: prove ownership once, and retire the universal PIN
+     * while doing it. Success opens the same session unlock the manage page
+     * and the profile editor use, so the details screen that follows asks for
+     * no PIN at all.
+     */
+    public function unlockSetup(Request $request, Card $card, string $mode): RedirectResponse
+    {
+        if ($this->setupBlocked($request, $card)) {
+            return redirect()->route('nfc.show', $card->public_id);
+        }
+
+        if ($response = $this->tooManyAttempts($request, $card)) {
+            return $response;
+        }
+
+        $data = $request->validate(
+            ['activation_pin' => ['required', 'string', 'digits:6']] + $this->newPinRulesFor($card),
+            $this->cards->newPinMessages(),
+            ['activation_pin' => 'activation PIN', 'new_pin' => 'new PIN']
+        );
+
+        if ($response = $this->rejectWrongPin($request, $card, $data['activation_pin'])) {
+            return $response;
+        }
+
+        $this->personalizeIfProvided($card, $data);
+        $this->gate->unlock($request, $card);
+
+        return redirect()->route('nfc.setup', [$card->public_id, $mode]);
+    }
+
+    private function modeFor(string $mode): NfcMode
+    {
+        return match ($mode) {
+            'phone'   => NfcMode::Phone,
+            'contact' => NfcMode::Contact,
+            default   => NfcMode::Links,
+        };
     }
 
     /** POST /n/{public_id}/setup/phone */
@@ -251,15 +305,14 @@ class NfcController extends Controller
         }
 
         $data = $request->validate([
-            'activation_pin'   => ['required', 'string', 'digits:6'],
             'nfc_phone_number' => ['required', 'string', new SafePhoneNumber()],
-        ] + $this->newPinRulesFor($card), $this->cards->newPinMessages(), [
+        ] + $this->pinRuleFor($request, $card) + $this->newPinRulesFor($card), $this->cards->newPinMessages(), [
             'activation_pin' => 'activation PIN',
             'nfc_phone_number' => 'phone number',
             'new_pin' => 'new PIN',
         ]);
 
-        if ($response = $this->rejectWrongPin($request, $card, $data['activation_pin'])) {
+        if ($response = $this->rejectUnverified($request, $card, $data)) {
             return $response;
         }
 
@@ -286,7 +339,6 @@ class NfcController extends Controller
         }
 
         $data = $request->validate([
-            'activation_pin' => ['required', 'string', 'digits:6'],
             'first_name'     => ['nullable', 'required_without:company', 'string', 'max:80'],
             'last_name'      => ['nullable', 'string', 'max:80'],
             'job_title'      => ['nullable', 'string', 'max:120'],
@@ -294,12 +346,12 @@ class NfcController extends Controller
             'mobile_phone'   => ['nullable', 'string', new SafePhoneNumber()],
             'personal_email' => ['nullable', 'email:rfc', 'max:190'],
             'website'        => ['nullable', 'string', 'max:500', new SafeExternalUrl()],
-        ] + $this->newPinRulesFor($card), [
+        ] + $this->pinRuleFor($request, $card) + $this->newPinRulesFor($card), [
             'first_name.required_without' => 'Add at least a name or a company.',
             'company.required_without'    => 'Add at least a name or a company.',
         ] + $this->cards->newPinMessages(), ['activation_pin' => 'activation PIN', 'new_pin' => 'new PIN']);
 
-        if ($response = $this->rejectWrongPin($request, $card, $data['activation_pin'])) {
+        if ($response = $this->rejectUnverified($request, $card, $data)) {
             return $response;
         }
 
@@ -333,6 +385,40 @@ class NfcController extends Controller
     private function newPinRulesFor(Card $card): array
     {
         return $card->pinIsPersonalized() ? [] : $this->cards->newPinRules();
+    }
+
+    /**
+     * The activation-PIN rule for a save.
+     *
+     * An owner who cleared step 2 proved ownership for this session, so the
+     * details screen carries no PIN field at all. The rule stays `required`
+     * for anyone posting to the endpoint without that unlock - which is also
+     * the one-page path every earlier client used.
+     *
+     * @return array<string, array<int, string>>
+     */
+    private function pinRuleFor(Request $request, Card $card): array
+    {
+        return ['activation_pin' => [
+            $this->gate->isUnlocked($request, $card) ? 'nullable' : 'required',
+            'string',
+            'digits:6',
+        ]];
+    }
+
+    /**
+     * Refuse the save unless this request proved ownership - by session unlock
+     * or by a correct PIN in the payload.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function rejectUnverified(Request $request, Card $card, array $data): ?RedirectResponse
+    {
+        $pin = (string) ($data['activation_pin'] ?? '');
+
+        // Empty is only reachable when pinRuleFor() made the field optional,
+        // which happens only for an already-unlocked session.
+        return $pin === '' ? null : $this->rejectWrongPin($request, $card, $pin);
     }
 
     /** @param  array<string, mixed>  $data */
@@ -413,28 +499,21 @@ class NfcController extends Controller
         }
 
         $data = $request->validate([
-            'activation_pin' => ['required', 'string', 'digits:6'],
             'page_title'     => ['nullable', 'string', 'max:120'],
             'page_subtitle'  => ['nullable', 'string', 'max:200'],
             'links'                => ['required', 'array', 'min:1', 'max:12'],
             'links.*.title'        => ['required', 'string', 'max:120'],
             'links.*.url'          => ['required', 'string', new SafeExternalUrl()],
             'links.*.icon'         => ['nullable', 'string', Rule::in(array_keys(LinkPlatform::iconChoices()))],
-        ] + $this->newPinRulesFor($card), [
+        ] + $this->pinRuleFor($request, $card) + $this->newPinRulesFor($card), [
             'links.required'       => 'Please add at least one link.',
             'links.*.title.required' => 'Every link needs a label.',
             'links.*.url.required'   => 'Every link needs a URL.',
         ] + $this->cards->newPinMessages(), ['activation_pin' => 'activation PIN', 'new_pin' => 'new PIN']);
 
-        if (! $this->cards->verifyPin($card, $data['activation_pin'])) {
-            RateLimiter::hit($this->throttleKey($request, $card), 900);
-
-            return back()
-                ->withErrors(['activation_pin' => 'That activation PIN is not correct.'])
-                ->withInput($request->except('activation_pin'));
+        if ($response = $this->rejectUnverified($request, $card, $data)) {
+            return $response;
         }
-
-        RateLimiter::clear($this->throttleKey($request, $card));
 
         DB::transaction(function () use ($card, $data) {
             // The form is the full picture of what the card's links should

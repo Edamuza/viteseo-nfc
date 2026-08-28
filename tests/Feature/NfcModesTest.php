@@ -49,7 +49,7 @@ class NfcModesTest extends TestCase
 
     public function test_links_mode_zero_links_still_shows_setup(): void
     {
-        $this->get('/n/'.$this->card()->public_id)->assertOk()->assertSee('Set up your card');
+        $this->get('/n/'.$this->card()->public_id)->assertOk()->assertSee('What should your card do?');
     }
 
     public function test_links_mode_one_link_still_redirects(): void
@@ -109,10 +109,10 @@ class NfcModesTest extends TestCase
         // mode: the chooser lists the card types, with Email hidden.
         $this->get('/n/'.$card->public_id)
             ->assertOk()
-            ->assertSee('Set up your card')
-            ->assertSee('Digital Contact Card')
-            ->assertSee('Phone / Call')
-            ->assertSee('Profile Page')
+            ->assertSee('What should your card do?')
+            ->assertSee('Contact card')
+            ->assertSee('My phone number')
+            ->assertSee('Full profile page')
             ->assertDontSee('Send Email button');
     }
 
@@ -273,7 +273,7 @@ class NfcModesTest extends TestCase
         $card = $this->card();
         $card->forceFill(['nfc_mode' => 'phone'])->save();
 
-        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Set up your card');
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('What should your card do?');
     }
 
     /** @return array<int, array{string}> */

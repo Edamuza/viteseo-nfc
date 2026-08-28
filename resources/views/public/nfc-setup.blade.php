@@ -1,64 +1,74 @@
 @extends('layouts.public')
-@section('title','Set up this card')
+@section('title','Add your links')
+@section('wrapclass','wide')
 @section('body')
-<div class="card">
-  <h1>Set up your card</h1>
-  <p class="sub">Add one link to go straight there, or several to show a simple menu when someone taps your card.</p>
+{{-- Step 3 of 3: details only. The PIN was settled on the unlock screen, so
+     everything here is about the card itself, beside a preview that redraws
+     on every keystroke. --}}
+<div class="setup">
+  @include('public.partials.preview-live', ['kind' => 'links'])
 
-  @if ($errors->any())
-    <div class="err"><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
-  @endif
+  <div class="setup-main">
+    <div class="card">
+      @include('public.partials.steps', ['step' => 3])
 
-  <form method="POST" action="{{ route('nfc.store', $card->public_id) }}">
-    @csrf
-    <label for="activation_pin">{{ $card->pinIsPersonalized() ? 'Your card PIN' : 'Activation PIN' }}</label>
-    <input class="pin" id="activation_pin" name="activation_pin" type="tel" inputmode="numeric"
-           maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN" required>
-    @include('public.partials.new-pin')
+      <h1>Add your links</h1>
+      <p class="sub">Each link becomes a button on your page. Watch the preview to see it take shape.</p>
 
-    <label for="page_title">Business name <span class="opt">(optional)</span></label>
-    <input id="page_title" name="page_title" type="text" maxlength="120" value="{{ old('page_title') }}">
+      @if ($errors->any())
+        <div class="err"><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
+      @endif
 
-    <label for="page_subtitle">Short tagline <span class="opt">(optional)</span></label>
-    <input id="page_subtitle" name="page_subtitle" type="text" maxlength="200" value="{{ old('page_subtitle') }}">
+      <form method="POST" action="{{ route('nfc.store', $card->public_id) }}">
+        @csrf
 
-    <label>Your links</label>
-    <p class="sub" style="margin:0 0 10px;font-size:.82rem">
-      The logo dropdown decides the icon shown next to each link: pick a platform,
-      the globe for your own site or portfolio, or “No logo” for plain text.
-      “Auto” matches the URL to a known platform by itself.
-    </p>
-    <div id="links">
-      @php
-        // Prefilled with the card's saved links when switching modes from
-        // the manage page; a fresh card starts with one empty row.
-        $existing = ($existingLinks ?? collect())
-            ->map(fn ($l) => ['title' => $l->title, 'url' => $l->url, 'icon' => (string) $l->icon])
-            ->values()->all();
-        $old = old('links', $existing ?: [['title'=>'','url'=>'','icon'=>'']]);
-      @endphp
-      @foreach ($old as $i => $row)
-        <div class="linkrow">
-          <input class="t" name="links[{{ $i }}][title]" type="text" placeholder="Label" maxlength="120" value="{{ $row['title'] ?? '' }}" required>
-          <input name="links[{{ $i }}][url]" type="url" inputmode="url" placeholder="https://…" value="{{ $row['url'] ?? '' }}" required>
-          <select class="ico" name="links[{{ $i }}][icon]" aria-label="Logo">
-            <option value="">Auto</option>
-            @foreach (\App\Services\LinkPlatform::iconChoices() as $key => $label)
-              <option value="{{ $key }}" @selected(($row['icon'] ?? '') === $key)>{{ $label }}</option>
-            @endforeach
-          </select>
+        <label for="page_title">Title at the top <span class="opt">(optional)</span></label>
+        <input id="page_title" name="page_title" type="text" maxlength="120"
+               placeholder="e.g. Juan&rsquo;s Coffee" value="{{ old('page_title', $card->nfc_page_title) }}">
+
+        <label for="page_subtitle">One line under the title <span class="opt">(optional)</span></label>
+        <input id="page_subtitle" name="page_subtitle" type="text" maxlength="200"
+               placeholder="e.g. Fresh beans, Manila" value="{{ old('page_subtitle', $card->nfc_page_subtitle) }}">
+
+        <label>Your buttons</label>
+        <p class="sub" style="margin:0 0 10px;font-size:.82rem">
+          The <em>name</em> is the words people see on the button. The <em>link</em> is where
+          it takes them. The <em>logo</em> is the small picture beside the name &mdash; leave it on
+          &ldquo;Pick automatically&rdquo; and we match it to the link for you.
+        </p>
+        <div id="links">
+          @php
+            // Prefilled with the card's saved links when switching modes from
+            // the manage page; a fresh card starts with one empty row.
+            $existing = ($existingLinks ?? collect())
+                ->map(fn ($l) => ['title' => $l->title, 'url' => $l->url, 'icon' => (string) $l->icon])
+                ->values()->all();
+            $old = old('links', $existing ?: [['title'=>'','url'=>'','icon'=>'']]);
+          @endphp
+          @foreach ($old as $i => $row)
+            <div class="linkrow">
+              <input class="t" name="links[{{ $i }}][title]" type="text" placeholder="Button name" maxlength="120" value="{{ $row['title'] ?? '' }}" required>
+              <input name="links[{{ $i }}][url]" type="url" inputmode="url" placeholder="https://…" value="{{ $row['url'] ?? '' }}" required>
+              <select class="ico" name="links[{{ $i }}][icon]" aria-label="Logo">
+                <option value="">Pick automatically</option>
+                @foreach (\App\Services\LinkPlatform::iconChoices() as $key => $label)
+                  <option value="{{ $key }}" @selected(($row['icon'] ?? '') === $key)>{{ $label }}</option>
+                @endforeach
+              </select>
+            </div>
+          @endforeach
         </div>
-      @endforeach
+        <button type="button" class="ghost" id="add">+ Add another button</button>
+
+        <button class="primary" type="submit">Save and go live</button>
+      </form>
+
+      <p style="text-align:center;margin:18px 0 0;font-size:.88rem">
+        <a href="{{ route('nfc.show', $card->public_id) }}">&larr; Pick a different type</a>
+      </p>
+      @include('public.partials.card-id')
     </div>
-    <button type="button" class="ghost" id="add">+ Add another link</button>
-
-    <button class="primary" type="submit">Save my card</button>
-  </form>
-
-  <p style="text-align:center;margin:18px 0 0;font-size:.88rem">
-    <a href="{{ route('nfc.show', $card->public_id) }}">&larr; Choose a different card type</a>
-  </p>
-  @include('public.partials.card-id')
+  </div>
 </div>
 
 <script>
@@ -71,7 +81,7 @@
     var row = document.createElement('div');
     row.className = 'linkrow';
     var t = document.createElement('input');
-    t.className = 't'; t.type = 'text'; t.placeholder = 'Label';
+    t.className = 't'; t.type = 'text'; t.placeholder = 'Button name';
     t.maxLength = 120; t.required = true; t.name = 'links[' + i + '][title]';
     var u = document.createElement('input');
     u.type = 'url'; u.placeholder = 'https://…'; u.required = true;

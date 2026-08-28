@@ -35,12 +35,17 @@ Route::get('/q/{card}/done',  [QrController::class, 'done'])->name('qr.done');
 Route::get('/n/{card}',       [NfcController::class, 'show'])->name('nfc.show');
 Route::post('/n/{card}',      [NfcController::class, 'store'])->middleware('throttle:20,1')->name('nfc.store');
 
-// Self-service setup for an unconfigured card: the tap shows a chooser and
-// each choice leads to a PIN-gated form. The mode is only ever changed by a
-// POST that carried the correct activation PIN.
+// Self-service setup for an unconfigured card, in three steps: the tap shows
+// a chooser (1), each choice asks for the PIN (2), and only then the details
+// form (3). The mode is only ever changed by a POST from an unlocked session
+// or one carrying the correct activation PIN.
 Route::get('/n/{card}/setup/{mode}', [NfcController::class, 'setupForm'])
     ->whereIn('mode', ['links', 'phone', 'contact'])
     ->name('nfc.setup');
+Route::post('/n/{card}/setup/{mode}/unlock', [NfcController::class, 'unlockSetup'])
+    ->whereIn('mode', ['links', 'phone', 'contact'])
+    ->middleware('throttle:20,1')
+    ->name('nfc.setup.unlock');
 Route::post('/n/{card}/setup/phone',   [NfcController::class, 'storePhone'])->middleware('throttle:20,1')->name('nfc.setup.phone');
 Route::post('/n/{card}/setup/contact', [NfcController::class, 'storeContact'])->middleware('throttle:20,1')->name('nfc.setup.contact');
 

@@ -170,6 +170,13 @@ h2{font-size:1.14rem;font-weight:650;margin:0 0 6px;letter-spacing:-.012em}
 .modal-row:last-of-type{border-bottom:0}
 .modal-row .ri{width:21px;color:var(--muted);flex:0 0 auto}
 .modal-row .ri svg{width:21px;height:21px;fill:currentColor;display:block}
+/* An outlined mark declares fill="none" and draws with its stroke; the
+   blanket fill above would turn the globe and the Instagram square into
+   solid blobs, so it is handed back to the attribute. */
+.menu-panel svg[fill="none"]{fill:none}
+.iconrow svg[fill="none"]{fill:none}
+.acct-ico svg[fill="none"]{fill:none}
+.modal-row .ri svg[fill="none"]{fill:none}
 .modal-row .rt{font-weight:560;flex:1}
 .modal-row .rc{color:var(--muted)}
 .linkbar{

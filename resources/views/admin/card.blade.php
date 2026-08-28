@@ -198,11 +198,11 @@
         <p class="fld" style="margin-top:4px">Identity</p>
         <div class="fgrid">
           @foreach ([
-            ['display_name','Display name',120,'e.g. Uriel Papa'],
-            ['headline','Headline',200,'e.g. CEO, ViteSEO'],
+            ['display_name','Name on the page',120,'e.g. Uriel Papa'],
+            ['headline','What they do',200,'e.g. CEO, ViteSEO'],
             ['username','Username',60,'e.g. yurielyel'],
-            ['location','Location',100,'e.g. Philippines'],
-            ['tagline','Tagline',200,'A short personal line'],
+            ['location','Where they are',100,'e.g. Philippines'],
+            ['tagline','Short line about them',200,'A short personal line'],
           ] as [$field,$label,$max,$placeholder])
             <label><span>{{ $label }}</span><input type="text" name="{{ $field }}" maxlength="{{ $max }}"
               placeholder="{{ $placeholder }}" value="{{ old($field, $nfcProfile?->$field) }}"></label>
@@ -220,16 +220,19 @@
         <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp">
         <p class="small muted" style="margin:7px 0 14px">JPEG, PNG or WebP, up to 2 MB. The page colour is derived automatically.</p>
 
-        <p class="fld">Welcome panel in Advanced details</p>
+        {{-- Field names stay (welcome_eyebrow and friends are columns); the
+             labels do not. "Eyebrow" is a typographer's word, and the people
+             filling this in read it as the one above an eye. --}}
+        <p class="fld">Welcome message, shown inside the Advanced details panel</p>
         <div class="fgrid">
-          <label><span>Eyebrow</span><input type="text" name="welcome_eyebrow" maxlength="60" value="{{ old('welcome_eyebrow', $nfcProfile?->welcome_eyebrow) }}"></label>
-          <label><span>Heading</span><input type="text" name="welcome_heading" maxlength="200" value="{{ old('welcome_heading', $nfcProfile?->welcome_heading) }}"></label>
+          <label><span>Small line above the title</span><input type="text" name="welcome_eyebrow" maxlength="60" placeholder="e.g. Welcome" value="{{ old('welcome_eyebrow', $nfcProfile?->welcome_eyebrow) }}"></label>
+          <label><span>Big title</span><input type="text" name="welcome_heading" maxlength="200" placeholder="e.g. Let&rsquo;s work together" value="{{ old('welcome_heading', $nfcProfile?->welcome_heading) }}"></label>
         </div>
-        <label class="fld" for="welcome-body">Body</label>
+        <label class="fld" for="welcome-body">Message</label>
         <textarea id="welcome-body" name="welcome_body" rows="5" maxlength="600">{{ old('welcome_body', $nfcProfile?->welcome_body) }}</textarea>
         <div class="fgrid" style="margin-top:12px">
-          <label><span>CTA label</span><input type="text" name="welcome_cta_label" maxlength="60" value="{{ old('welcome_cta_label', $nfcProfile?->welcome_cta_label) }}"></label>
-          <label><span>CTA URL</span><input type="url" name="welcome_cta_url" maxlength="500" placeholder="https://example.com" value="{{ old('welcome_cta_url', $nfcProfile?->welcome_cta_url) }}"></label>
+          <label><span>Button text</span><input type="text" name="welcome_cta_label" maxlength="60" placeholder="e.g. Book a call" value="{{ old('welcome_cta_label', $nfcProfile?->welcome_cta_label) }}"></label>
+          <label><span>Where the button goes</span><input type="url" name="welcome_cta_url" maxlength="500" placeholder="https://example.com" value="{{ old('welcome_cta_url', $nfcProfile?->welcome_cta_url) }}"></label>
         </div>
 
         <div class="row" style="margin-top:16px">

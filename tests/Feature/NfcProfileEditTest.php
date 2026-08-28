@@ -64,7 +64,7 @@ class NfcProfileEditTest extends TestCase
         // card is a dead end the customer cannot configure.
         $this->get('/n/'.$card->public_id)
             ->assertOk()
-            ->assertSee('Set up your card')
+            ->assertSee('What should your card do?')
             ->assertSee('/n/'.$card->public_id.'/edit');
 
         // And the editor genuinely works from empty: unlock, save, live page.
