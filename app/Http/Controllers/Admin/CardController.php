@@ -192,7 +192,7 @@ class CardController extends Controller
             'tiktok_url'    => $url, 'x_url'         => $url, 'youtube_url'  => $url,
             'other_social_url' => $url,
 
-            'photo' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:2048', 'dimensions:max_width=4000,max_height=4000'],
+            'photo' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:5120', 'dimensions:max_width=8000,max_height=8000'],
         ]);
 
         $profile = $card->contactProfile ?: $card->contactProfile()->make();

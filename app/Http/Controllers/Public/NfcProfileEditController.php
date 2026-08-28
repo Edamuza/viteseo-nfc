@@ -135,7 +135,7 @@ class NfcProfileEditController extends Controller
             'tagline' => ['nullable', 'string', 'max:200'],
             'phone' => ['nullable', 'string', new SafePhoneNumber()],
             'email' => ['nullable', 'email:rfc', 'max:190'],
-            'avatar' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:2048', 'dimensions:max_width=4000,max_height=4000'],
+            'avatar' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:5120', 'dimensions:max_width=8000,max_height=8000'],
             'remove_avatar' => ['nullable', 'boolean'],
             'links' => ['array', 'max:12'],
             'links.*' => ['array'],

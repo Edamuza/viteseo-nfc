@@ -128,8 +128,8 @@
                      placeholder="john@example.com" value="{{ old('email', $profile?->email) }}">
             </div>
             <div class="wide-field">
-              <label for="avatar">Your photo <span class="opt">(JPG, PNG or WebP, up to 2 MB)</span></label>
-              <input id="avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp">
+              <label for="avatar">Your photo <span class="opt">(JPG, PNG or WebP, up to 5 MB)</span></label>
+              <input id="avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" data-crop>
               @if ($profile?->avatar_path)
                 <img class="avatar-preview" src="{{ asset('storage/'.$profile->avatar_path) }}" alt="Your current photo">
                 <label class="check"><input name="remove_avatar" type="checkbox" value="1"> Remove this photo</label>
@@ -203,4 +203,5 @@
     </div>
   </div>
 </div>
+@include('partials.photo-cropper')
 @endsection

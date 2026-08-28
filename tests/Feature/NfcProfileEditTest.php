@@ -466,6 +466,48 @@ class NfcProfileEditTest extends TestCase
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
     }
 
+    // --- Photo size and framing ----------------------------------------------
+
+    /**
+     * A photo straight off a phone is the normal case, and the old ceiling
+     * turned it away twice over: 2 MB was under what a phone produces, and a
+     * 4000px cap rejects an iPhone's 4032x3024 outright.
+     */
+    public function test_a_phone_sized_photo_is_accepted(): void
+    {
+        $card = $this->card(['display_name' => 'John Doe']);
+        $this->unlock($card);
+
+        // 4032 wide, the shape a phone actually hands over.
+        $image = imagecreatetruecolor(4032, 3024);
+        imagefilledrectangle($image, 0, 0, 4031, 3023, imagecolorallocate($image, 90, 150, 200));
+        $path = tempnam(sys_get_temp_dir(), 'phone-photo').'.jpg';
+        imagejpeg($image, $path, 92);
+
+        $this->patch('/n/'.$card->public_id.'/edit', [
+            'display_name' => 'John Doe',
+            'avatar' => new UploadedFile($path, 'photo.jpg', 'image/jpeg', null, true),
+        ])->assertSessionHasNoErrors();
+
+        $this->assertNotNull($card->fresh()->profile->avatar_path);
+    }
+
+    public function test_the_editor_offers_to_frame_the_photo(): void
+    {
+        $card = $this->card(['display_name' => 'John Doe']);
+        $this->unlock($card);
+
+        $this->get('/n/'.$card->public_id.'/edit')
+            ->assertOk()
+            // The input opts in, and the cropper it opens is on the page.
+            ->assertSee('data-crop', false)
+            ->assertSee('id="cropper"', false)
+            ->assertSee('Move and zoom to frame your photo')
+            // Still an ordinary file input underneath, so a browser without
+            // the pieces the cropper needs uploads the photo whole.
+            ->assertSee('type="file"', false);
+    }
+
     /**
      * The owner can put their own number and address on the page, not just the
      * admin. Everything else on this page is theirs to edit; these are too.

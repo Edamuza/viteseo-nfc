@@ -54,7 +54,7 @@ class CardProfileController extends Controller
             'welcome_body' => ['nullable', 'string', 'max:600'],
             'welcome_cta_label' => ['nullable', 'string', 'max:60'],
             'welcome_cta_url' => ['nullable', 'string', 'max:500', new SafeExternalUrl()],
-            'avatar' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:2048', 'dimensions:max_width=4000,max_height=4000'],
+            'avatar' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:5120', 'dimensions:max_width=8000,max_height=8000'],
         ] + ($editsLinks ? $this->links->rules() : []), $this->links->messages());
 
         $clean = [];

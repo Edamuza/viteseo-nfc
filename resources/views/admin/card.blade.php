@@ -257,8 +257,8 @@
             @if ($nfcProfile->brand_color)<code>{{ $nfcProfile->brandColor() }}</code>@endif
           </div>
         @endif
-        <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp">
-        <p class="small muted" style="margin:7px 0 14px">Up to 2 MB. The page colour is taken from the photo.</p>
+        <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp" data-crop>
+        <p class="small muted" style="margin:7px 0 14px">Up to 5 MB. The page colour is taken from the photo.</p>
 
         {{-- Field names stay (welcome_eyebrow and friends are columns); the
              labels do not. "Eyebrow" is a typographer's word, and the people
@@ -542,6 +542,8 @@
   </div>
 </div>
 @endif
+
+@include('partials.photo-cropper')
 
 <style>
 /* ── QR preview sizing ─────────────────────────────────────────
