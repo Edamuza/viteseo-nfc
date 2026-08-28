@@ -394,6 +394,34 @@ class AdminTest extends TestCase
     }
 
     /** Symfony normalises and alphabetises Cache-Control, so assert on semantics. */
+    /**
+     * The admin selector hides the same modes the customer chooser does, so a
+     * card cannot be pushed into one an owner could never have chosen - but a
+     * card ALREADY in one keeps its option, or the admin could see the mode
+     * and not change it.
+     */
+    public function test_hidden_modes_stay_out_of_the_admin_selector_until_a_card_is_in_one(): void
+    {
+        $card  = $this->card();
+        // Created once: the helper inserts, so a second call collides on the
+        // unique email.
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->get('/admin/cards/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('value="profile"', false)
+            ->assertDontSee('value="phone"', false)
+            ->assertDontSee('value="email"', false);
+
+        $card->forceFill(['nfc_mode' => \App\Enums\NfcMode::Phone])->save();
+
+        $this->actingAs($admin)
+            ->get('/admin/cards/'.$card->public_id)
+            ->assertOk()
+            ->assertSee('value="phone"', false);
+    }
+
     private function assertNoStore(\Illuminate\Testing\TestResponse $response): void
     {
         $cc = (string) $response->headers->get('Cache-Control');

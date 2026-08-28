@@ -7,10 +7,7 @@
   @include('public.partials.steps', ['step' => 2])
 
   <h1>Unlock your card</h1>
-  <p class="sub">
-    You picked <strong>{{ $mode->label() }}</strong>.
-    Enter the 6-digit PIN that came with your card to continue.
-  </p>
+  <p class="sub">You picked <strong>{{ $mode->label() }}</strong>. Enter your card PIN to continue.</p>
 
   @if ($errors->any())
     <div class="err"><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>

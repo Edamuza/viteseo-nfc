@@ -106,14 +106,15 @@ class NfcModesTest extends TestCase
         $card->forceFill(['nfc_mode' => 'contact'])->save();
 
         // An unconfigured card is the owner's starting point in every visible
-        // mode: the chooser lists the card types, with Email hidden.
+        // mode. The profile leads, and the two hidden modes - Email, and Phone
+        // as a contact card with one field - are absent.
         $this->get('/n/'.$card->public_id)
             ->assertOk()
             ->assertSee('What should your card do?')
-            ->assertSee('Contact card')
-            ->assertSee('My phone number')
             ->assertSee('Full profile page')
-            ->assertDontSee('Send Email button');
+            ->assertSee('Contact card')
+            ->assertDontSee('My phone number')
+            ->assertDontSee('My email address');
     }
 
     public function test_public_setup_post_is_rejected_when_the_current_mode_is_configured(): void

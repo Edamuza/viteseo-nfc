@@ -5,10 +5,7 @@
   @include('public.partials.steps', ['step' => 1])
 
   <h1>What should your card do?</h1>
-  <p class="sub" style="margin-bottom:10px">
-    Pick what the other person sees when they tap your card. Not sure? Tap
-    <strong>Preview</strong> to see an example first. You can change your mind later.
-  </p>
+  <p class="sub" style="margin-bottom:10px">Not sure? Tap <strong>Preview</strong>. You can change this later.</p>
 
   @foreach (\App\Enums\NfcMode::selfSetup() as $mode)
     <div class="choice">

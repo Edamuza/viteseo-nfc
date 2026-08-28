@@ -13,7 +13,7 @@
       @include('public.partials.steps', ['step' => 3])
 
       <h1>Add your links</h1>
-      <p class="sub">Each link becomes a button on your page. Watch the preview to see it take shape.</p>
+      <p class="sub">Each link becomes a button.</p>
 
       @if ($errors->any())
         <div class="err"><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
@@ -31,11 +31,6 @@
                placeholder="e.g. Fresh beans, Manila" value="{{ old('page_subtitle', $card->nfc_page_subtitle) }}">
 
         <label>Your buttons</label>
-        <p class="sub" style="margin:0 0 10px;font-size:.82rem">
-          The <em>name</em> is the words people see on the button. The <em>link</em> is where
-          it takes them. The <em>logo</em> is the small picture beside the name &mdash; leave it on
-          &ldquo;Pick automatically&rdquo; and we match it to the link for you.
-        </p>
         <div id="links">
           @php
             // Prefilled with the card's saved links when switching modes from

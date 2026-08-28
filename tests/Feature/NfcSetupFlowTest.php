@@ -44,6 +44,42 @@ class NfcSetupFlowTest extends TestCase
         $response->assertDontSee('data-preview="email"', false);
     }
 
+    public function test_the_profile_page_leads_the_list(): void
+    {
+        $body = $this->get('/n/'.$this->card()->public_id)->assertOk()->getContent();
+
+        // It is the card type that makes the product look like a product, so
+        // it is the first thing an owner is offered.
+        $this->assertLessThan(
+            strpos($body, NfcMode::Contact->label()),
+            strpos($body, NfcMode::Profile->label()),
+        );
+    }
+
+    /**
+     * Phone is a contact card with one field filled in, so it is out of the
+     * chooser - but out of the chooser is all it is. A card already serving
+     * it keeps working, and its own setup screen still saves.
+     */
+    public function test_a_hidden_type_is_hidden_and_not_removed(): void
+    {
+        $this->get('/n/'.$this->card()->public_id)
+            ->assertOk()
+            ->assertDontSee('data-preview="phone"', false);
+
+        $card = $this->card();
+
+        $this->post('/n/'.$card->public_id.'/setup/phone/unlock', [
+            'activation_pin' => '000000', 'new_pin' => '222222', 'new_pin_confirmation' => '222222',
+        ]);
+        $this->post('/n/'.$card->public_id.'/setup/phone', [
+            'nfc_phone_number' => '+63 917 123 4567',
+        ])->assertRedirect('/n/'.$card->public_id.'/done');
+
+        $this->assertSame(NfcMode::Phone, $card->fresh()->nfcMode());
+        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Call Now');
+    }
+
     public function test_the_chooser_speaks_plainly(): void
     {
         $card = $this->card();
@@ -202,7 +238,9 @@ class NfcSetupFlowTest extends TestCase
             ->assertOk()
             ->assertSee(route('nfc.show', $card->public_id), false)
             ->assertSee(route('nfc.manage', $card->public_id), false)
-            ->assertSee($card->public_id);
+            // The ID, without the line that used to explain it on every screen.
+            ->assertSee($card->public_id)
+            ->assertDontSee('give this ID to support');
     }
 
     public function test_the_unlock_step_refuses_a_card_that_is_already_live(): void

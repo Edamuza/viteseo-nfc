@@ -123,11 +123,11 @@
     <form method="POST" action="{{ route('admin.cards.nfc.mode', $card->public_id) }}">
       @csrf @method('PATCH')
       <div class="modegrid">
-        @foreach (\App\Enums\NfcMode::all() as $m)
-          {{-- Email mode is hidden, not removed: no new card can be switched
-               to it from here, but a card already serving it keeps its option
-               visible so the admin can see and change what it is. --}}
-          @continue($m === $M::Email && $mode !== $M::Email)
+        @foreach (\App\Enums\NfcMode::ordered() as $m)
+          {{-- A hidden mode is hidden, not removed: no card can be switched
+               INTO one from here, but a card already serving it keeps its
+               option visible so the admin can see and change what it is. --}}
+          @continue($m->isHidden() && $mode !== $m)
           <label class="modeopt {{ $mode === $m ? 'on' : '' }}">
             <input type="radio" name="nfc_mode" value="{{ $m->value }}" @checked($mode === $m)>
             <span class="mt">{{ $m->label() }}</span>

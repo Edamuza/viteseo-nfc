@@ -7,14 +7,11 @@
 <div class="card">
   <div class="ok" aria-hidden="true">&#10003;</div>
   <h1 style="text-align:center">Your card is live</h1>
-  <p class="sub" style="text-align:center">
-    Tap your card on any phone and this is what shows up.
-  </p>
 
   <a class="primary" href="{{ route('nfc.show', $card->public_id) }}">See my card</a>
 
   <p style="text-align:center;margin:16px 0 0;font-size:.88rem">
-    <a href="{{ route('nfc.manage', $card->public_id) }}">Change what my card does</a>
+    <a href="{{ route('nfc.manage', $card->public_id) }}">Change my card</a>
   </p>
 
   @include('public.partials.card-id')

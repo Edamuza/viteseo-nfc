@@ -52,13 +52,10 @@
 
       @if ($unlocked)
         <h1>Your profile page</h1>
-        <p class="sub">Fill in what you want people to see. The preview updates as you type.</p>
+        <p class="sub">Fill in what you want people to see.</p>
       @else
         <h1>Unlock your card</h1>
-        <p class="sub">
-          You picked <strong>{{ \App\Enums\NfcMode::Profile->label() }}</strong>.
-          Enter the 6-digit PIN that came with your card to continue.
-        </p>
+        <p class="sub">You picked <strong>{{ \App\Enums\NfcMode::Profile->label() }}</strong>. Enter your card PIN to continue.</p>
       @endif
 
       @if ($errors->any())
@@ -132,9 +129,7 @@
               <h2>Your links</h2>
               <button class="ghost" id="add-link" type="button" style="width:auto;margin:0">Add link</button>
             </div>
-            <p class="sub">Up to 12 links. The <em>name</em> is what people see, the <em>link</em> is where it
-              takes them, and the <em>logo</em> is the small picture beside the name &mdash; leave it on
-              &ldquo;Pick automatically&rdquo; and we match it to the link for you.</p>
+            <p class="sub">Up to 12 links.</p>
             <div id="link-rows">
               @foreach ($linkRows as $index => $link)
                 <div class="linkrow">

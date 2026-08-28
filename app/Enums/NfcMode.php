@@ -37,19 +37,20 @@ enum NfcMode: string
     }
 
     /**
-     * One plain sentence about what the other person sees after the tap.
+     * What the other person ends up looking at, in as few words as possible.
      *
-     * Always phrased from the visitor's side ("they see..."), because that is
-     * the question an owner is actually asking while choosing.
+     * Deliberately not a full sentence: every place this is shown now sits
+     * next to a Preview button that answers the question properly, and the
+     * paragraphs these used to be were the clutter owners complained about.
      */
     public function description(): string
     {
         return match ($this) {
-            self::Links   => 'They see a list of buttons - your website, Facebook, shop, anything.',
-            self::Contact => 'They see your details and a button that saves you into their phone.',
-            self::Phone   => 'They see one big Call button with your number.',
-            self::Email   => 'They see one big button that starts an email to you.',
-            self::Profile => 'They see your photo, a short line about you, and all your links.',
+            self::Links   => 'A list of link buttons.',
+            self::Contact => 'Your details, saved to their phone.',
+            self::Phone   => 'One Call button.',
+            self::Email   => 'One Email button.',
+            self::Profile => 'Photo, bio and all your links.',
         };
     }
 
@@ -81,15 +82,44 @@ enum NfcMode: string
     }
 
     /**
-     * Modes a customer may pick when setting up an unconfigured card
-     * themselves. Email is deliberately absent: it is hidden from both the
-     * public chooser and the admin mode selector for now (existing Email
-     * cards keep working; the mode is hidden, not removed).
+     * Every mode in the order pickers show them, best first.
+     *
+     * Profile leads because it is the one that makes a card look like a
+     * product; the enum's own case order stays as it is, because that order
+     * is about the history of the column, not about what to recommend.
+     *
+     * @return array<int, self>
+     */
+    public static function ordered(): array
+    {
+        return [self::Profile, self::Links, self::Contact, self::Phone, self::Email];
+    }
+
+    /**
+     * Kept out of every picker, the admin's included - without being removed.
+     * A card already serving a hidden mode keeps working, keeps rendering,
+     * and still shows its own option in the admin selector so the mode can be
+     * seen and changed.
+     */
+    public function isHidden(): bool
+    {
+        return match ($this) {
+            self::Email => true,
+            // Phone is a contact card with one field filled in. Two choices
+            // that do nearly the same thing is what made the list hard to
+            // read, and the contact card wins: it can still be called.
+            self::Phone => true,
+            self::Links, self::Contact, self::Profile => false,
+        };
+    }
+
+    /**
+     * Modes a customer may pick when setting up a card themselves.
      *
      * @return array<int, self>
      */
     public static function selfSetup(): array
     {
-        return [self::Links, self::Contact, self::Phone, self::Profile];
+        return array_values(array_filter(self::ordered(), fn (self $mode) => ! $mode->isHidden()));
     }
 }

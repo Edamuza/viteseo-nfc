@@ -10,10 +10,7 @@
       @include('public.partials.steps', ['step' => 3])
 
       <h1>Fill in your contact card</h1>
-      <p class="sub">
-        Anyone who taps your card can save you straight into their phone.
-        Fill in only what you want to share &mdash; a name or a company is enough to start.
-      </p>
+      <p class="sub">Fill in what you want to share. A name or a company is enough.</p>
 
       @if ($errors->any())
         <div class="err"><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>

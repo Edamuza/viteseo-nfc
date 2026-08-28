@@ -95,7 +95,7 @@ class NfcOwnerPinTest extends TestCase
         $this->get('/n/'.$card->public_id.'/manage')
             ->assertOk()
             ->assertSee('name="activation_pin"', false)
-            ->assertDontSee('Change your PIN');
+            ->assertDontSee('Change PIN');
 
         // A live card in another mode refuses setup without the unlock.
         $this->get('/n/'.$card->public_id.'/setup/phone')->assertRedirect('/n/'.$card->public_id);
@@ -112,7 +112,7 @@ class NfcOwnerPinTest extends TestCase
         $this->assertTrue($card->fresh()->pinIsPersonalized());
 
         // ...and the unlock opens the manage page and the setup forms.
-        $this->get('/n/'.$card->public_id.'/manage')->assertOk()->assertSee('Change your PIN');
+        $this->get('/n/'.$card->public_id.'/manage')->assertOk()->assertSee('Change PIN');
         $this->get('/n/'.$card->public_id.'/setup/phone')->assertOk();
 
         $this->post('/n/'.$card->public_id.'/setup/phone', [
