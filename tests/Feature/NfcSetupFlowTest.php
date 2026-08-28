@@ -179,9 +179,30 @@ class NfcSetupFlowTest extends TestCase
             ->post('/n/'.$card->public_id, [
                 'links' => [['title' => 'Shop', 'url' => 'https://example.com/shop']],
             ])
-            ->assertSessionHasErrors('activation_pin');
+            // Not "the activation PIN field is required": the details screen
+            // has no such field, so that wording describes nothing the owner
+            // can see. They are bounced to the unlock screen, and the message
+            // has to be about that.
+            ->assertSessionHasErrors([
+                'activation_pin' => 'Your card locked itself again after a while. Please enter your PIN once more.',
+            ]);
 
         $this->assertSame(0, $card->fresh()->nfcLinks()->count());
+    }
+
+    // --- After the save ------------------------------------------------------
+
+    public function test_the_finished_screen_leads_somewhere(): void
+    {
+        $card = $this->card();
+
+        // It used to say "your card is live" and stop there. The two things an
+        // owner wants next are seeing it and changing it.
+        $this->get('/n/'.$card->public_id.'/done')
+            ->assertOk()
+            ->assertSee(route('nfc.show', $card->public_id), false)
+            ->assertSee(route('nfc.manage', $card->public_id), false)
+            ->assertSee($card->public_id);
     }
 
     public function test_the_unlock_step_refuses_a_card_that_is_already_live(): void
@@ -255,6 +276,32 @@ class NfcSetupFlowTest extends TestCase
         foreach (NfcMode::selfSetup() as $mode) {
             $response->assertSee('data-preview="'.$mode->value.'"', false);
         }
+    }
+
+    /**
+     * Mid-switch, "pick a different type" has to lead back to the list of
+     * types. For a live card that list is on the manage page: /n/{id} serves
+     * the card itself, so sending them there drops them on the very page they
+     * were trying to change.
+     */
+    public function test_the_back_link_leads_to_the_list_of_types_that_actually_exists(): void
+    {
+        $fresh = $this->card();
+        $this->get('/n/'.$fresh->public_id.'/setup/links')
+            ->assertOk()
+            ->assertSee(route('nfc.show', $fresh->public_id), false);
+
+        $live = $this->card();
+        $live->nfcLinks()->create(['title' => 'Live', 'url' => 'https://example.com', 'sort_order' => 0, 'is_active' => true]);
+        $live->forceFill(['nfc_configured_at' => now()])->save();
+
+        $this->post('/n/'.$live->public_id.'/manage/unlock', [
+            'activation_pin' => '000000', 'new_pin' => '222222', 'new_pin_confirmation' => '222222',
+        ]);
+
+        $this->get('/n/'.$live->public_id.'/setup/contact')
+            ->assertOk()
+            ->assertSee(route('nfc.manage', $live->public_id), false);
     }
 
     public function test_the_progress_bar_counts_the_three_steps(): void

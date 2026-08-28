@@ -63,9 +63,7 @@
         <button class="primary" type="submit">Save and go live</button>
       </form>
 
-      <p style="text-align:center;margin:18px 0 0;font-size:.88rem">
-        <a href="{{ route('nfc.show', $card->public_id) }}">&larr; Pick a different type</a>
-      </p>
+      @include('public.partials.back-to-types')
       @include('public.partials.card-id')
     </div>
   </div>

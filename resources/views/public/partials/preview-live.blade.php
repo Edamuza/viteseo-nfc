@@ -10,7 +10,12 @@
   </div>
   <div class="pv-phone">
     <div class="pv-bezel"></div>
-    <div class="pv-screen" id="pv-screen"></div>
+    {{-- Server-rendered, so a browser with JavaScript off shows a phone with a
+         sentence in it rather than an empty black frame. The script replaces
+         this on its first render. --}}
+    <div class="pv-screen" id="pv-screen">
+      <div class="pv-empty">Your card shows up here as you fill in the form.</div>
+    </div>
   </div>
 </aside>
 @include('public.partials.preview-icons')

@@ -8,5 +8,6 @@
   @if ($card->qrIsConfigured())
     <p style="text-align:center"><code>{{ $card->qr_destination }}</code></p>
   @endif
+  @include('public.partials.card-id')
 </div>
 @endsection

@@ -306,7 +306,7 @@ class NfcController extends Controller
 
         $data = $request->validate([
             'nfc_phone_number' => ['required', 'string', new SafePhoneNumber()],
-        ] + $this->pinRuleFor($request, $card) + $this->newPinRulesFor($card), $this->cards->newPinMessages(), [
+        ] + $this->pinRuleFor($request, $card) + $this->newPinRulesFor($card), $this->pinMessages() + $this->cards->newPinMessages(), [
             'activation_pin' => 'activation PIN',
             'nfc_phone_number' => 'phone number',
             'new_pin' => 'new PIN',
@@ -349,7 +349,7 @@ class NfcController extends Controller
         ] + $this->pinRuleFor($request, $card) + $this->newPinRulesFor($card), [
             'first_name.required_without' => 'Add at least a name or a company.',
             'company.required_without'    => 'Add at least a name or a company.',
-        ] + $this->cards->newPinMessages(), ['activation_pin' => 'activation PIN', 'new_pin' => 'new PIN']);
+        ] + $this->pinMessages() + $this->cards->newPinMessages(), ['activation_pin' => 'activation PIN', 'new_pin' => 'new PIN']);
 
         if ($response = $this->rejectUnverified($request, $card, $data)) {
             return $response;
@@ -404,6 +404,23 @@ class NfcController extends Controller
             'string',
             'digits:6',
         ]];
+    }
+
+    /**
+     * What a save says when it carries no proof of ownership at all.
+     *
+     * The details screen has no PIN field - step 2 settled that - so an unlock
+     * that expired mid-form would otherwise fail with "the activation PIN
+     * field is required" about a field the owner cannot see. The screen they
+     * land back on IS the unlock screen, so the wording points at it.
+     *
+     * @return array<string, string>
+     */
+    private function pinMessages(): array
+    {
+        return [
+            'activation_pin.required' => 'Your card locked itself again after a while. Please enter your PIN once more.',
+        ];
     }
 
     /**
@@ -509,7 +526,7 @@ class NfcController extends Controller
             'links.required'       => 'Please add at least one link.',
             'links.*.title.required' => 'Every link needs a label.',
             'links.*.url.required'   => 'Every link needs a URL.',
-        ] + $this->cards->newPinMessages(), ['activation_pin' => 'activation PIN', 'new_pin' => 'new PIN']);
+        ] + $this->pinMessages() + $this->cards->newPinMessages(), ['activation_pin' => 'activation PIN', 'new_pin' => 'new PIN']);
 
         if ($response = $this->rejectUnverified($request, $card, $data)) {
             return $response;

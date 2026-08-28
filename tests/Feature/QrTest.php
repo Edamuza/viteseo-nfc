@@ -37,6 +37,31 @@ class QrTest extends TestCase
             ->assertSee('Activation PIN');
     }
 
+    /**
+     * The QR side verifies against the card's CURRENT PIN, and that PIN is
+     * replaced the first time the owner sets up the NFC side. Calling it the
+     * "activation PIN" after that sends them hunting for the printed number
+     * that no longer opens anything.
+     */
+    public function test_the_qr_setup_page_names_the_pin_the_owner_actually_has(): void
+    {
+        $card = $this->card();
+
+        app(CardGenerationService::class)->personalizePin($card, '246810');
+
+        $this->get('/q/'.$card->fresh()->public_id)
+            ->assertOk()
+            ->assertSee('Your card PIN')
+            ->assertDontSee('Activation PIN');
+    }
+
+    public function test_the_qr_setup_page_shows_the_card_id_for_support(): void
+    {
+        $card = $this->card();
+
+        $this->get('/q/'.$card->public_id)->assertOk()->assertSee($card->public_id);
+    }
+
     public function test_wrong_pin_is_rejected_and_does_not_configure(): void
     {
         $card = $this->card();

@@ -17,7 +17,7 @@
     <a class="primary" href="{{ route('nfc.profile.edit', $card->public_id) }}">Set up my profile</a>
   @else
     <p class="sub" style="margin:0">
-      This card has not been configured. Please check back shortly, or contact whoever gave you the card.
+      This card isn&rsquo;t set up yet. Please try again shortly, or ask whoever gave you the card.
     </p>
   @endif
 </div>
