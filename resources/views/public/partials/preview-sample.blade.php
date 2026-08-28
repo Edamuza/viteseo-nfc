@@ -37,9 +37,9 @@
       <p class="pv-sub">Owner at Acme Inc.</p>
       <p class="pv-sub">Manila</p>
     </div>
-    <div class="pv-row">
-      <div class="pv-link">Call</div>
-      <div class="pv-link">Email</div>
+    <div class="pv-panel">
+      <div class="pv-f"><span class="pv-k">Phone</span><span class="pv-v">+63 917 123 4567</span></div>
+      <div class="pv-f"><span class="pv-k">Email</span><span class="pv-v">john@example.com</span></div>
     </div>
     <div class="pv-link pv-primary">Save contact</div>
     <div class="pv-link"><span class="pv-ic"><x-platform-icon platform="web" /></span>Our website</div>

@@ -211,12 +211,13 @@
       + (tagline ? '<p class="pv-sub">' + esc(tagline) + '</p>' : '')
       + '</div>';
 
-    // Call and Email share a line above the primary action, the way the real
-    // page lays them out.
+    // The real page shows the value and puts the action beside it, so the
+    // mock shows the value too - a pair of verbs would preview a page that
+    // no longer exists.
     if (phone || email) {
-      html += '<div class="pv-row">'
-        + (phone ? '<div class="pv-link">Call</div>' : '')
-        + (email ? '<div class="pv-link">Email</div>' : '')
+      html += '<div class="pv-panel">'
+        + (phone ? '<div class="pv-f"><span class="pv-k">Phone</span><span class="pv-v">' + esc(phone) + '</span></div>' : '')
+        + (email ? '<div class="pv-f"><span class="pv-k">Email</span><span class="pv-v">' + esc(email) + '</span></div>' : '')
         + '</div>';
     }
 

@@ -150,7 +150,13 @@ class NfcProfileTest extends TestCase
         $this->get('/n/'.$card->public_id)
             ->assertOk()
             ->assertSee('href="tel:+639171234567"', false)
-            ->assertSee('href="mailto:john@example.com"', false);
+            ->assertSee('href="mailto:john@example.com"', false)
+            // And the values themselves, readable: a visitor who wants to
+            // write the number down rather than dial it gets nothing from a
+            // button that only dials. The number shows as it was typed, not
+            // in the stripped form the tel: link needs.
+            ->assertSee('+63 917 123 4567')
+            ->assertSee('john@example.com');
     }
 
     public function test_a_profile_without_them_shows_neither_button(): void

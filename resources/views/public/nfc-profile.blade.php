@@ -163,12 +163,22 @@ h1{font-size:2.3125rem;line-height:1.15;font-weight:700;margin:0;letter-spacing:
   font-weight:600;font-size:1rem;color:var(--text);text-decoration:none;
 }
 .sharebtn:hover{background:#f7f8f9}
-/* Call and Email sit on their own line above Share, not beside it: three
-   controls across is cramped on the narrowest phone this page is built for,
-   and these two are the ones a visitor came to use. */
-.reach{display:flex;gap:9px;margin-top:22px}
-.reach .sharebtn{flex:1;margin-top:0}
-.reach + .sharebtn{margin-top:9px}
+/* Contact details, shown rather than hidden behind a verb.
+   A "Call" button alone answers only one of the two things a visitor wants:
+   plenty of them are here to WRITE the number down, or to paste the address
+   somewhere, and a button that only dials gives them nothing to read. So the
+   value is the row - selectable text, at full size - and the action is a pill
+   at the end of it. */
+.reach{margin-top:22px;border-top:1px solid var(--line)}
+.reach-row{display:flex;align-items:center;gap:13px;padding:14px 2px;border-bottom:1px solid var(--line)}
+.reach-row .ri{flex:0 0 auto;width:20px;color:var(--muted)}
+.reach-row .ri svg{width:20px;height:20px;fill:currentColor;display:block}
+.reach-row .rv{flex:1;min-width:0;overflow-wrap:anywhere;font-size:1rem;color:var(--text)}
+.reach-row .ra{
+  flex:0 0 auto;padding:7px 15px;border-radius:999px;background:var(--pill);
+  color:var(--text);text-decoration:none;font-size:.875rem;font-weight:600;
+}
+.reach-row .ra:hover{background:#e2e6ea}
 
 .card-pad{padding:24px 28px}
 h2{font-size:1.3125rem;line-height:1.25;font-weight:700;margin:0 0 6px;letter-spacing:-.01em}
@@ -383,8 +393,22 @@ footer a:hover{text-decoration:underline}
       @endphp
       @if ($dialable || $profile->email)
         <div class="reach">
-          @if ($dialable)<a class="sharebtn" href="tel:{{ $dialable }}">Call</a>@endif
-          @if ($profile->email)<a class="sharebtn" href="mailto:{{ $profile->email }}">Email</a>@endif
+          @if ($dialable)
+            <div class="reach-row">
+              <span class="ri" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.2.4 2.4.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .8-.2 1l-2.3 2.2z"/></svg></span>
+              {{-- The number as the owner typed it, selectable: the tel: form
+                   is stripped of spaces and is not what anyone writes down. --}}
+              <span class="rv">{{ $profile->phone }}</span>
+              <a class="ra" href="tel:{{ $dialable }}">Call</a>
+            </div>
+          @endif
+          @if ($profile->email)
+            <div class="reach-row">
+              <span class="ri" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4.2-8 4.8-8-4.8V6l8 4.8L20 6v2.2z"/></svg></span>
+              <span class="rv">{{ $profile->email }}</span>
+              <a class="ra" href="mailto:{{ $profile->email }}">Email</a>
+            </div>
+          @endif
         </div>
       @endif
 

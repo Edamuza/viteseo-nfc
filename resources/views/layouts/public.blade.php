@@ -57,7 +57,12 @@ h1{font-size:var(--t-h2);line-height:1.2;font-weight:700;margin:0 0 8px;letter-s
 .sub{color:var(--muted);font-size:var(--t-caption);margin:0 0 20px;line-height:1.4}
 label{display:block;font-weight:500;font-size:.875rem;margin:16px 0 6px;color:var(--text-soft)}
 label .opt{font-weight:400;color:var(--muted)}
-input[type=text],input[type=url],input[type=tel],input[type=password],select{
+/* Every text-entry type this side actually renders, not a list that grew by
+   accident: an input left off it falls back to the browser's own control and
+   sits in the form looking like it belongs to a different site - which is
+   exactly what the email field did. */
+input[type=text],input[type=url],input[type=tel],input[type=email],
+input[type=search],input[type=number],input[type=password],select{
   width:100%;padding:12px 13px;font-size:var(--t-table);border:1px solid var(--line-strong);
   border-radius:var(--radius-ctl);background:var(--surface);color:var(--text);font-family:inherit;
 }
