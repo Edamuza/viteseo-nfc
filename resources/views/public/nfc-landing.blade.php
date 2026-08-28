@@ -8,9 +8,11 @@
 <title>{{ $card->nfc_page_title ?: 'Links' }}</title>
 <style>
 /* Minimalist multi-link page. Light-first, mobile-first, no JavaScript. */
+/* The ViteSEO palette, same values as the platform. */
 :root{
-  --bg:#f6f7f9; --surface:#fff; --surface-hover:#f3f4f6;
-  --text:#16191d; --muted:#6b7280; --line:#e5e7eb; --line-strong:#d7dbe0;
+  --bg:#fafafe; --surface:#ffffff; --surface-hover:#f1f2f5;
+  --text:#111827; --muted:#6b7280; --line:#e5e7ea; --line-strong:#d3d7de;
+  --accent:#4fdbd7;
   --radius:14px;
 }
 *{box-sizing:border-box}
@@ -42,7 +44,7 @@ a.link .ic svg{width:19px;height:19px;fill:currentColor;display:block}
    blanket fill above would turn the globe and the Instagram square into
    solid blobs, so it is handed back to the attribute. */
 a.link .ic svg[fill="none"]{fill:none}
-a.link:hover{background:var(--surface-hover);border-color:var(--muted)}
+a.link:hover{background:var(--surface-hover);border-color:var(--accent)}
 a.link:active{transform:scale(.99)}
 a.link:focus-visible{outline:2px solid var(--text);outline-offset:2px}
 footer{text-align:center;color:var(--muted);font-size:.73rem;margin-top:26px}

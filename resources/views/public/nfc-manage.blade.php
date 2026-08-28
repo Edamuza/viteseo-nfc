@@ -2,7 +2,7 @@
 @section('title','My card')
 @section('body')
 <style>
-  .status{background:#ecfdf3;border:1px solid #abefc6;color:#067647;padding:11px 13px;border-radius:9px;margin-bottom:18px}
+  .status{background:var(--ok-soft);border:1px solid var(--ok-line);color:var(--ok-ink);padding:11px 13px;border-radius:9px;margin-bottom:18px}
   .sect{margin-top:26px;padding-top:18px;border-top:1px solid var(--line)}
   .sect h2{font-size:.95rem;margin:0 0 2px}
 </style>

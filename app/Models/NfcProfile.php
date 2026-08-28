@@ -12,7 +12,8 @@ class NfcProfile extends Model
     use HasFactory;
 
     /** The page background when no colour has been derived from an avatar. */
-    public const DEFAULT_BRAND_COLOR = '#0f1713';
+    /** The platform's dark surface, for a card with no photo to take a colour from. */
+    public const DEFAULT_BRAND_COLOR = '#141414';
 
     /**
      * Explicit allow-list. card_id, avatar_path and brand_color are deliberately

@@ -113,7 +113,9 @@ class NfcProfileTest extends TestCase
 
     public function test_default_brand_color_constant(): void
     {
-        $this->assertSame('#0f1713', NfcProfile::DEFAULT_BRAND_COLOR);
+        // The platform's dark surface: a card with no photo to take a colour
+        // from still looks like it came from the same house.
+        $this->assertSame('#141414', NfcProfile::DEFAULT_BRAND_COLOR);
     }
 
     public function test_a_card_may_have_only_one_profile(): void

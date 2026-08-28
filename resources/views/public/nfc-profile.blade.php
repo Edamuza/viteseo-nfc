@@ -24,13 +24,15 @@
      half of a contrast pair from the mockup later is how the two drift. */
   --on-brand:#e8f1ec;
   --on-brand-dim:#a9c2b6;
-  --card:#fff;
-  --text:#101418;
-  --soft:#3f4854;
-  --muted:#6b7480;
-  --line:#e6e8eb;
-  --pill:#e9edf0;
-  --ink:#0f1713;
+  /* Neutrals from the ViteSEO palette; --brand above stays per-card,
+     taken from the owner's own photo. */
+  --card:#ffffff;
+  --text:#111827;
+  --soft:#374151;
+  --muted:#6b7280;
+  --line:#e5e7ea;
+  --pill:#f1f2f5;
+  --ink:#141414;
   --radius:20px;
 }
 *{box-sizing:border-box}
@@ -154,7 +156,7 @@ h2{font-size:1.14rem;font-weight:650;margin:0 0 6px;letter-spacing:-.012em}
 .adv-trigger-wrap{margin:6px 0 0;text-align:center}
 .adv-trigger{
   display:inline-flex;align-items:center;gap:8px;text-decoration:none;
-  background:var(--pill);color:#2b333c;border-radius:999px;padding:11px 19px;
+  background:var(--pill);color:var(--text);border-radius:999px;padding:11px 19px;
   font-size:.92rem;font-weight:550;
 }
 .adv-trigger:hover{background:#dfe5e9}
@@ -185,7 +187,7 @@ h2{font-size:1.14rem;font-weight:650;margin:0 0 6px;letter-spacing:-.012em}
 .qr-card .qr-img{position:relative;padding:18px;display:grid;place-items:center}
 .profile-qr{width:186px;height:186px;display:block}
 .qr-card .dl{
-  display:block;text-align:center;background:var(--pill);color:#2b333c;
+  display:block;text-align:center;background:var(--pill);color:var(--text);
   padding:13px;font-size:.92rem;font-weight:560;text-decoration:none;
 }
 .qr-card .dl:hover{background:#dfe5e9}
@@ -217,10 +219,10 @@ h2{font-size:1.14rem;font-weight:650;margin:0 0 6px;letter-spacing:-.012em}
 }
 
 .welcome{
-  background:linear-gradient(158deg,#16211b,#0f1713);
-  border-radius:18px;padding:28px;text-align:left;color:#eaf0ec;
+  background:linear-gradient(158deg,#262626,#141414);
+  border-radius:18px;padding:28px;text-align:left;color:#f3f5f7;
 }
-.welcome-eyebrow{font-size:.96rem;font-weight:600;margin:0 0 10px;color:#a8c0b0}
+.welcome-eyebrow{font-size:.96rem;font-weight:600;margin:0 0 10px;color:#a0aec0}
 .welcome h3{font-size:1.42rem;font-weight:680;margin:0;letter-spacing:-.02em;line-height:1.26}
 .welcome-copy{font-size:.96rem;color:#b8c4bc;margin:12px 0 0;white-space:pre-line}
 .welcome-cta{

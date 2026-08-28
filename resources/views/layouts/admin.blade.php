@@ -9,22 +9,38 @@
 <title>@yield('title','Admin') &middot; NFC Cards</title>
 <style>
 /* ── Light-first admin. Deliberately committed to light: no dark-mode swap. ── */
+/* ── The ViteSEO palette ────────────────────────────────────────────
+   Taken from the platform's own tokens (viteseo-platform2.0, globals.css)
+   so a card page is recognisably from the same house as the rest of the
+   systems: the same near-white page, the same white cards, the same teal.
+
+   The teal is a FILL, never text. #4fdbd7 on white is about 1.9:1, so the
+   platform pairs it with dark-teal ink (--on-accent) on top - and anything
+   that has to BE teal and readable, a link or a small label, uses the
+   darkened --accent-ink instead. Getting that pair the wrong way round is
+   the one mistake this palette invites. */
 :root{
-  --bg:#f7f8fa;
-  --surface:#ffffff;
-  --surface-sunken:#f9fafb;
-  --text:#16191d;
-  --text-soft:#4a5260;
-  --muted:#6b7280;
-  --line:#e5e7eb;
-  --line-strong:#d3d8df;
-  --accent:#2563eb;
-  --accent-soft:#eff4ff;
-  --accent-press:#1d4ed8;
-  --ok:#047857;      --ok-soft:#ecfdf5;   --ok-line:#a7f3d0;
-  --warn:#b45309;    --warn-soft:#fffbeb; --warn-line:#fde68a;
-  --danger:#b42318;  --danger-soft:#fef3f2; --danger-line:#fecdca;
-  --radius:10px;
+  --bg:#fafafe;              /* platform --background      */
+  --surface:#ffffff;         /* platform --card            */
+  --surface-sunken:#f1f2f5;  /* platform --muted           */
+  --text:#111827;            /* platform --foreground      */
+  --text-soft:#374151;
+  --muted:#6b7280;           /* platform --muted-foreground */
+  --line:#e5e7ea;            /* platform --border          */
+  --line-strong:#d3d7de;
+  --accent:#4fdbd7;          /* platform --brand / --primary */
+  --on-accent:#19414b;       /* platform --primary-foreground: ink ON the teal */
+  --accent-ink:#0e7d79;      /* the same teal, darkened for text and links */
+  --accent-soft:#eafbfa;     /* platform --accent          */
+  --accent-press:#3ccfcb;
+  /* Status hues are the platform's exactly; the -ink steps are those same
+     hues darkened, because a badge here is small text on its own tint and
+     the saturated value cannot carry that. */
+  --ok:#22c554;      --ok-ink:#0f7a33;   --ok-soft:#e4f8ec;   --ok-line:#a9e6bf;
+  --warn:#f0a608;    --warn-ink:#8a6000; --warn-soft:#fdf1d6; --warn-line:#f5d182;
+  --danger:#f34444;  --danger-ink:#c02626; --danger-soft:#fde7e7; --danger-line:#f7b4b4;
+  --radius:14px;             /* cards: the platform's 10px control radius + 4 */
+  --radius-ctl:10px;         /* platform --radius                            */
   --shadow-sm:0 1px 2px rgba(16,24,40,.05);
   --shadow:0 1px 3px rgba(16,24,40,.08), 0 1px 2px rgba(16,24,40,.04);
 }
@@ -35,7 +51,7 @@ body{
   font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased;
 }
-a{color:var(--accent);text-decoration:none}
+a{color:var(--accent-ink);text-decoration:none}
 a:hover{text-decoration:underline}
 
 /* ── Top bar ───────────────────────────────────────────────── */
@@ -54,7 +70,7 @@ a:hover{text-decoration:underline}
   padding:6px 11px;border-radius:7px;white-space:nowrap;
 }
 .topbar nav a:hover{background:var(--surface-sunken);color:var(--text);text-decoration:none}
-.topbar nav a.on{background:var(--accent-soft);color:var(--accent)}
+.topbar nav a.on{background:var(--accent-soft);color:var(--accent-ink)}
 
 /* ── Layout ────────────────────────────────────────────────── */
 /* Wide enough that a 1440p screen is not mostly gutter; the table and panels
@@ -96,9 +112,9 @@ h2{font-size:.95rem;font-weight:620;margin:0 0 16px;letter-spacing:-.005em}
 .btn svg{width:14px;height:14px;flex:0 0 auto}
 
 .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.btn-p{background:var(--accent);color:#fff;border-color:var(--accent)}
-.btn-p:hover{background:var(--accent-press);border-color:var(--accent-press);color:#fff}
-.btn-d{color:var(--danger);border-color:var(--danger-line);background:var(--surface)}
+.btn-p{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn-p:hover{background:var(--accent-press);border-color:var(--accent-press);color:var(--on-accent)}
+.btn-d{color:var(--danger-ink);border-color:var(--danger-line);background:var(--surface)}
 .btn-d:hover{background:var(--danger-soft);border-color:var(--danger)}
 .btn-sm{padding:5px 10px;font-size:.8rem}
 .btn-ghost{border-color:transparent;background:transparent;color:var(--text-soft)}
@@ -141,7 +157,7 @@ fieldset:disabled .btn{display:none}
 .grab:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:6px}
 .rm{
   flex:0 0 auto;width:32px;height:32px;border-radius:8px;cursor:pointer;font-family:inherit;
-  border:1px solid var(--danger-line);background:var(--surface);color:var(--danger);
+  border:1px solid var(--danger-line);background:var(--surface);color:var(--danger-ink);
   font-size:1.05rem;line-height:1;
 }
 .rm:hover{background:var(--danger-soft)}
@@ -207,9 +223,9 @@ label.fld{display:block;font-weight:570;font-size:.83rem;margin-bottom:6px;color
   display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;
   font-size:.75rem;font-weight:580;white-space:nowrap;border:1px solid transparent;
 }
-.b-ok{background:var(--ok-soft);color:var(--ok);border-color:var(--ok-line)}
+.b-ok{background:var(--ok-soft);color:var(--ok-ink);border-color:var(--ok-line)}
 .b-off{background:var(--surface-sunken);color:var(--muted);border-color:var(--line-strong)}
-.b-info{background:var(--accent-soft);color:var(--accent);border-color:#c7d9fd}
+.b-info{background:var(--accent-soft);color:var(--accent-ink);border-color:#b8ecea}
 
 /* ── Table ─────────────────────────────────────────────────── */
 .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -20px;padding:0 20px}
@@ -244,8 +260,8 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font
 code{background:var(--surface-sunken);border:1px solid var(--line);padding:2px 7px;border-radius:5px;word-break:break-all;color:var(--text-soft)}
 .muted{color:var(--muted)}
 .small{font-size:.83rem}
-.flash{background:var(--ok-soft);border:1px solid var(--ok-line);color:var(--ok);padding:11px 14px;border-radius:8px;margin-bottom:18px;font-size:.88rem}
-.err{background:var(--danger-soft);border:1px solid var(--danger-line);color:var(--danger);padding:11px 14px;border-radius:8px;margin-bottom:18px;font-size:.88rem}
+.flash{background:var(--ok-soft);border:1px solid var(--ok-line);color:var(--ok-ink);padding:11px 14px;border-radius:8px;margin-bottom:18px;font-size:.88rem}
+.err{background:var(--danger-soft);border:1px solid var(--danger-line);color:var(--danger-ink);padding:11px 14px;border-radius:8px;margin-bottom:18px;font-size:.88rem}
 .err ul{margin:0;padding-left:18px}
 .note{background:var(--surface-sunken);border:1px solid var(--line);border-left:3px solid var(--line-strong);padding:10px 14px;border-radius:7px;font-size:.83rem;color:var(--text-soft);margin:12px 0 0}
 hr{border:0;border-top:1px solid var(--line);margin:18px 0}
@@ -253,7 +269,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
 
 /* Danger zone: visually separated from normal actions */
 .danger-zone{border-color:var(--danger-line);background:var(--danger-soft)}
-.danger-zone h2{color:var(--danger)}
+.danger-zone h2{color:var(--danger-ink)}
 
 .pager{margin-top:16px}
 .pager-nav{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
@@ -263,7 +279,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
 }
 .pager-nav a:hover{background:var(--surface-sunken);border-color:var(--line-strong);text-decoration:none}
 .pager-nav a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.pager-nav .pg-on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.pager-nav .pg-on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
 .pager-nav .pg-off{color:var(--muted);background:var(--surface-sunken)}
 .pager-nav .pg-count{margin-left:auto;border:0;background:transparent;color:var(--muted);min-width:0}
 </style>

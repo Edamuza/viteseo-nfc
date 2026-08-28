@@ -32,7 +32,7 @@
   }
   .remove-link:hover{background:var(--danger-soft);border-color:var(--danger)}
   .remove-link:focus-visible{outline:2px solid var(--danger);outline-offset:2px}
-  .status{background:#ecfdf3;border:1px solid #abefc6;color:#067647;padding:11px 13px;border-radius:9px;margin-bottom:18px}
+  .status{background:var(--ok-soft);border:1px solid var(--ok-line);color:var(--ok-ink);padding:11px 13px;border-radius:9px;margin-bottom:18px}
   @media(max-width:560px){.editor-grid{grid-template-columns:1fr}.wide-field{grid-column:auto}}
 </style>
 

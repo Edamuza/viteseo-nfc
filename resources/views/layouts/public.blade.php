@@ -12,16 +12,21 @@
 <style>
 /* Public setup pages: light, mobile-first, deliberately plain.
    No admin navigation or admin actions are ever rendered here. */
+/* The ViteSEO palette, same tokens as the platform and the admin. The teal is
+   a fill and never text: --on-accent is the ink that goes ON it, --accent-ink
+   is the same teal darkened for anything that has to BE teal and readable. */
 :root{
-  --bg:#f7f8fa; --surface:#fff; --text:#16191d; --text-soft:#4a5260;
-  --muted:#6b7280; --line:#e5e7eb; --line-strong:#d3d8df;
-  --accent:#2563eb; --accent-soft:#eff4ff; --accent-press:#1d4ed8;
-  --danger:#b42318; --danger-soft:#fef3f2; --danger-line:#fecdca;
-  --radius:12px;
+  --bg:#fafafe; --surface:#ffffff; --text:#111827; --text-soft:#374151;
+  --muted:#6b7280; --line:#e5e7ea; --line-strong:#d3d7de;
+  --accent:#4fdbd7; --on-accent:#19414b; --accent-ink:#0e7d79;
+  --accent-soft:#eafbfa; --accent-press:#3ccfcb;
+  --ok-ink:#0f7a33; --ok-soft:#e4f8ec; --ok-line:#a9e6bf;
+  --danger:#f34444; --danger-ink:#c02626; --danger-soft:#fde7e7; --danger-line:#f7b4b4;
+  --radius:14px; --radius-ctl:10px;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-a{color:var(--accent);text-decoration:none;font-weight:550}
+a{color:var(--accent-ink);text-decoration:none;font-weight:550}
 a:hover{text-decoration:underline}
 a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
 body{
@@ -54,7 +59,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 button.primary,a.primary{
   display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;
   width:100%;margin-top:22px;padding:13px;font-size:.98rem;font-weight:580;
-  border:0;border-radius:9px;background:var(--accent);color:#fff;cursor:pointer;
+  border:0;border-radius:9px;background:var(--accent);color:var(--on-accent);cursor:pointer;
   min-height:46px;font-family:inherit;text-decoration:none;
 }
 button.primary:hover,a.primary:hover{background:var(--accent-press)}
@@ -70,7 +75,7 @@ button.primary:focus-visible,a.primary:focus-visible{outline:2px solid var(--acc
   background:var(--surface);color:var(--text-soft);
   font:inherit;font-size:.9rem;font-weight:550;text-decoration:none;cursor:pointer;
 }
-.btn-2:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);text-decoration:none}
+.btn-2:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);text-decoration:none}
 .btn-2:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn-2 svg{width:16px;height:16px;flex:0 0 auto}
 /* Narrow phones: the arrow alone, so the real action keeps the width. */
@@ -89,7 +94,7 @@ button.primary:focus-visible,a.primary:focus-visible{outline:2px solid var(--acc
 
 .ghost{
   width:100%;margin-top:10px;padding:10px;font-size:.88rem;font-weight:550;
-  background:transparent;color:var(--accent);border:1px dashed var(--line-strong);
+  background:transparent;color:var(--accent-ink);border:1px dashed var(--line-strong);
   border-radius:9px;cursor:pointer;font-family:inherit;
 }
 .ghost:hover{border-color:var(--accent);background:var(--accent-soft)}
@@ -117,7 +122,7 @@ button.primary:focus-visible,a.primary:focus-visible{outline:2px solid var(--acc
      squeezed beside it. */
   .linkrow .t{flex-basis:100%}
 }
-.ok{font-size:2.2rem;text-align:center;margin:2px 0 10px;color:#047857}
+.ok{font-size:2.2rem;text-align:center;margin:2px 0 10px;color:var(--ok-ink)}
 code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radius:5px;
  font-size:.85em;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
@@ -130,7 +135,7 @@ code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radi
 .steps li{flex:1;display:flex;flex-direction:column;gap:6px;line-height:1.3}
 .steps .bar{height:4px;border-radius:999px;background:var(--line)}
 .steps .done .bar,.steps .now .bar{background:var(--accent)}
-.steps .now{color:var(--accent)}
+.steps .now{color:var(--accent-ink)}
 
 /* ---------- Card-type choices (chooser + manage page) ---------- */
 .choice{
@@ -148,7 +153,7 @@ code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radi
 .choice .cd{display:block;color:var(--muted);font-size:.83rem;line-height:1.4;font-weight:400}
 .choice .arrow{margin-left:auto;color:var(--muted);flex:0 0 auto}
 .now-badge{
-  margin-left:auto;flex:0 0 auto;font-size:.72rem;font-weight:600;color:var(--accent);
+  margin-left:auto;flex:0 0 auto;font-size:.72rem;font-weight:600;color:var(--accent-ink);
   background:var(--accent-soft);border:1px solid var(--accent);border-radius:999px;padding:3px 10px;
 }
 /* The eye sits BESIDE the link, never inside it: an <a> may not contain a
@@ -156,7 +161,7 @@ code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radi
 .eye{
   flex:0 0 auto;width:66px;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:3px;border:0;border-left:1px solid var(--line);
-  background:var(--surface);color:var(--accent);cursor:pointer;
+  background:var(--surface);color:var(--accent-ink);cursor:pointer;
   font:inherit;font-size:.63rem;font-weight:600;
 }
 .eye:hover{background:var(--accent-soft)}
@@ -176,19 +181,19 @@ code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radi
 .pv-close:hover{background:var(--accent-soft);border-color:var(--accent)}
 .pv-note{color:var(--muted);font-size:.76rem;text-align:center;margin:11px 0 0;line-height:1.45}
 .pv-phone{
-  width:250px;max-width:100%;margin:0 auto;overflow:hidden;background:#f6f7f9;
+  width:250px;max-width:100%;margin:0 auto;overflow:hidden;background:var(--bg);
   border:8px solid #1f2430;border-radius:28px;box-shadow:0 6px 18px rgba(16,24,40,.18);
 }
 .pv-bezel{height:17px;background:#1f2430;position:relative}
 .pv-bezel::after{content:"";position:absolute;left:50%;top:5px;transform:translateX(-50%);
  width:44px;height:5px;border-radius:999px;background:#39404e}
-.pv-screen{height:355px;overflow-y:auto;padding:14px 12px;background:#f6f7f9;color:#16191d;
+.pv-screen{height:355px;overflow-y:auto;padding:14px 12px;background:var(--bg);color:var(--text);
  font-size:12px;line-height:1.45}
 .pv-head{text-align:center;margin-bottom:12px}
 /* Both the avatar and the blurred cover behind it are painted by setting
    background-image from JS, so the shorthand fixes size and position here. */
-.pv-ava{width:52px;height:52px;border-radius:50%;background:#e5e7eb center/cover no-repeat;
- border:1px solid #e5e7eb;display:block;margin:0 auto 8px}
+.pv-ava{width:52px;height:52px;border-radius:50%;background:var(--line) center/cover no-repeat;
+ border:1px solid var(--line);display:block;margin:0 auto 8px}
 .pv-name{font-size:13px;font-weight:650;margin:0;overflow-wrap:anywhere}
 .pv-sub{color:#6b7280;font-size:11px;margin:3px 0 0;overflow-wrap:anywhere}
 .pv-eyebrow{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:#6b7280;
@@ -205,12 +210,12 @@ code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radi
    blanket fill above would turn the globe and the Instagram square into
    solid blobs, so it is handed back to the attribute. */
 .pv-link .pv-ic svg[fill="none"]{fill:none}
-.pv-primary{background:#2563eb;border-color:#2563eb;color:#fff}
-.pv-primary .pv-ic{color:#fff}
+.pv-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.pv-primary .pv-ic{color:var(--on-accent)}
 .pv-row{display:flex;gap:7px}
 .pv-row .pv-link{flex:1}
-.pv-panel{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:0 10px;margin-bottom:8px}
-.pv-f{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #eef0f3;font-size:11px}
+.pv-panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:0 10px;margin-bottom:8px}
+.pv-f{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:11px}
 .pv-panel .pv-f:last-child{border-bottom:0}
 .pv-f .pv-k{color:#6b7280;flex:0 0 auto}
 .pv-f .pv-v{text-align:right;overflow-wrap:anywhere}

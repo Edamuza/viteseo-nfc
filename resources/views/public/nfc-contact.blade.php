@@ -8,10 +8,13 @@
 <title>{{ $profile->displayName() ?: $profile->company }}</title>
 <style>
 /* Digital business card. Light, mobile-first, no JavaScript, no admin surface. */
+/* The ViteSEO palette. The teal is the fill of the primary action and
+   --on-accent the ink on it; --accent-ink is the teal that can be text. */
 :root{
-  --bg:#f6f7f9; --surface:#fff; --surface-hover:#f3f4f6;
-  --text:#16191d; --text-soft:#4a5260; --muted:#6b7280;
-  --line:#e5e7eb; --line-strong:#d7dbe0; --accent:#2563eb; --accent-press:#1d4ed8;
+  --bg:#fafafe; --surface:#ffffff; --surface-hover:#f1f2f5;
+  --text:#111827; --text-soft:#374151; --muted:#6b7280;
+  --line:#e5e7ea; --line-strong:#d3d7de;
+  --accent:#4fdbd7; --on-accent:#19414b; --accent-ink:#0e7d79; --accent-press:#3ccfcb;
   --radius:14px;
 }
 *{box-sizing:border-box}
@@ -39,7 +42,7 @@ h1{font-size:1.45rem;font-weight:650;margin:0;letter-spacing:-.02em;overflow-wra
 }
 .act:hover{background:var(--surface-hover)}
 .act:active{transform:scale(.99)}
-.act-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.act-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .act-primary:hover{background:var(--accent-press)}
 .act-row{display:flex;gap:9px}
 .act-row .act{flex:1}
@@ -51,7 +54,7 @@ h1{font-size:1.45rem;font-weight:650;margin:0;letter-spacing:-.02em;overflow-wra
 .panel .field:last-child{border-bottom:0}
 .field .k{color:var(--muted);font-size:.82rem;flex:0 0 auto;padding-top:1px}
 .field .v{text-align:right;overflow-wrap:anywhere;font-size:.94rem}
-.field .v a{color:var(--accent);text-decoration:none}
+.field .v a{color:var(--accent-ink);text-decoration:none}
 .field .v a:hover{text-decoration:underline}
 .sec{font-size:.75rem;font-weight:620;color:var(--muted);margin:20px 4px 8px}
 .note{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.92rem;color:var(--text-soft);padding:12px 0}
