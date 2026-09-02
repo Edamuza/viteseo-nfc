@@ -1,0 +1,58 @@
+# Keeps Juliusnowel/nfc in step with pushes that never touched the laptop.
+#
+# The laptop's own `git push origin main` already reaches BOTH repos - origin
+# carries two pushurls. What it cannot cover is a push made by somebody else
+# straight to this repo, because that config lives on one machine. So this runs
+# on GitHub instead, and copies the pushed ref onward.
+#
+# One direction only, on purpose. Mirroring both ways would need a second token
+# in the other repo and would bounce each push back once before settling.
+name: Mirror to Juliusnowel/nfc
+
+on:
+  push:
+    branches: ['**']
+    tags: ['**']
+
+permissions:
+  contents: read
+
+# Two pushes in quick succession would otherwise race, and the loser fails with
+# a confusing non-fast-forward. Queue them instead - never cancel, or the ref
+# that got dropped is the one that never mirrors.
+concurrency:
+  group: mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    # This file travels WITH the code, so it also lands in the repo it mirrors
+    # to. Without this guard that copy would run on every push over there, find
+    # no token, and paint a red X for no reason.
+    if: github.repository == 'ViteSEO-OPC/viteseo-nfc'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history: a shallow clone has no commits to offer the
+          # other remote, and the push is rejected as unrelated.
+          fetch-depth: 0
+          # The job pushes with its own token; leaving the checkout token in
+          # .git/config would be a second credential lying around for nothing.
+          persist-credentials: false
+
+      - name: Push this ref onward
+        env:
+          TOKEN: ${{ secrets.MIRROR_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::MIRROR_TOKEN is not set. Add a personal access token with write access to Juliusnowel/nfc under Settings - Secrets and variables - Actions."
+            exit 1
+          fi
+
+          # No --force, deliberately. A rejection here means the two repos hold
+          # different work, and the only thing a force would achieve is to
+          # destroy one side of it. Fail loudly and let a person merge.
+          git push "https://x-access-token:$TOKEN@github.com/Juliusnowel/nfc.git" "HEAD:${GITHUB_REF}"
