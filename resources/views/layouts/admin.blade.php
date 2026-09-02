@@ -8,6 +8,18 @@
 <meta name="color-scheme" content="light">
 <title>@yield('title','Admin') &middot; NFC Cards</title>
 @include('partials.exo2')
+<script>
+/* Runs BEFORE the first paint, the same trick as the platform's themeScript:
+   the rail's width is on <html> before anything is drawn, so a sidebar you
+   left collapsed does not flash open on every page load. `js` is also what
+   reveals the collapse control - without this script it would be a button
+   that does nothing, so it is never shown to a browser that skipped it. */
+(function(){try{
+  var d=document.documentElement;
+  d.classList.add('js');
+  if(localStorage.getItem('nfc-admin-nav')==='rail')d.setAttribute('data-nav','rail');
+}catch(e){}})();
+</script>
 <style>
 /* ── Light-first admin. Deliberately committed to light: no dark-mode swap. ── */
 /* ── The ViteSEO palette ────────────────────────────────────────────
@@ -56,6 +68,20 @@
   --t-table:1rem;        /* 16px - table cells, inputs    */
   --t-caption:.9375rem;  /* 15px - subtitles, metadata    */
   --t-label:.8125rem;    /* 13px - uppercase small labels */
+
+  /* ── The shell ───────────────────────────────────────────────────
+     The rail is near-black on a page that is otherwise all light, and that
+     is deliberate: it is the same surface every other ViteSEO system wears
+     (viteseo-platform2.0, globals.css --sidebar, which stays dark in BOTH
+     themes there). The frame is the house; the white page inside it is this
+     system's work. Its ink is the platform's warm off-white, not pure white. */
+  --sidebar:#141414;
+  --sidebar-ink:#fbfbef;
+  --sidebar-dim:rgba(251,251,239,.6);    /* an idle nav row       */
+  --sidebar-faint:rgba(251,251,239,.5);  /* the email under a name */
+  --sidebar-line:rgba(251,251,239,.1);   /* the footer hairline   */
+  --nav-w:260px;                         /* open                  */
+  --rail-w:72px;                         /* collapsed to icons    */
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -67,23 +93,157 @@ body{
 a{color:var(--accent-ink);text-decoration:none}
 a:hover{text-decoration:underline}
 
+/* ── Shell ─────────────────────────────────────────────────── */
+/* Only .pane scrolls. The rail and the bar above the content never move,
+   which is what turns a long card table into a panel inside an app rather
+   than a page that carries its own chrome away as you read. */
+html,body{height:100%}
+.shell{display:flex;height:100dvh;overflow:hidden}
+.pane{flex:1;min-width:0;overflow-y:auto}
+
+/* The phone drawer's open/closed state lives in a checkbox rather than in
+   JavaScript, so the menu still opens in a browser that ran no script.
+   Visually hidden but still focusable: the box IS the control, and a
+   keyboard reaches it even though a pointer uses the labels. */
+.navstate{position:absolute;top:0;left:0;width:1px;height:1px;opacity:0}
+
+/* ── Sidebar ───────────────────────────────────────────────── */
+.sidebar{
+  position:fixed;inset:0 auto 0 0;z-index:40;
+  display:flex;flex-direction:column;flex:0 0 auto;
+  width:var(--nav-w);background:var(--sidebar);color:var(--sidebar-ink);
+  transform:translateX(-100%);
+  transition:transform .3s ease,width .3s ease;
+}
+.navstate:checked ~ .shell .sidebar{transform:translateX(0)}
+.scrim{display:none}
+.navstate:checked ~ .shell .scrim{
+  display:block;position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.5);
+}
+
+.side-brand{display:flex;align-items:center;gap:12px;padding:22px 22px 30px}
+.brand{
+  display:flex;align-items:center;gap:12px;flex:1;min-width:0;
+  color:var(--sidebar-ink);font-weight:700;font-size:1.0625rem;letter-spacing:-.01em;
+}
+.brand:hover{text-decoration:none;color:var(--sidebar-ink)}
+.brand-mark{
+  flex:0 0 auto;width:40px;height:40px;border-radius:11px;
+  background:var(--accent);color:var(--on-accent);
+  display:grid;place-items:center;font-weight:800;font-size:1.25rem;line-height:1;
+}
+.brand-name{white-space:nowrap;overflow:hidden}
+.side-close{
+  flex:0 0 auto;display:grid;place-items:center;width:32px;height:32px;
+  cursor:pointer;color:var(--sidebar-dim);
+}
+.side-close:hover{color:var(--sidebar-ink)}
+.side-close svg{width:20px;height:20px}
+
+.side-nav{
+  flex:1;min-height:0;overflow-y:auto;padding:0 16px;
+  display:flex;flex-direction:column;gap:4px;
+  scrollbar-width:thin;scrollbar-color:transparent transparent;
+}
+.side-nav:hover{scrollbar-color:#262626 transparent}
+.nrow{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 12px;border-radius:12px;
+  font-size:.875rem;font-weight:600;color:var(--sidebar-dim);
+  transition:color .12s ease,background .12s ease;
+}
+.nrow:hover{color:var(--sidebar-ink);text-decoration:none}
+.nrow.on{color:var(--accent);background:rgba(79,219,215,.1)}
+.nrow:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+/* A rail is read by its icons, so every row's glyph holds ONE size rather
+   than sizing to a label - which is not even there once the rail collapses. */
+.nrow svg{flex:0 0 auto;width:24px;height:24px}
+.nrow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.side-foot{margin:0 22px;padding:18px 0;border-top:1px solid var(--sidebar-line)}
+.side-foot-row{display:flex;align-items:center;gap:12px}
+.ava{
+  flex:0 0 auto;width:36px;height:36px;border-radius:50%;
+  background:var(--accent);color:var(--on-accent);
+  display:grid;place-items:center;font-weight:700;font-size:.85rem;
+}
+.who{flex:1;min-width:0}
+.who-n,.who-r{margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who-n{font-size:.875rem;font-weight:600;color:var(--sidebar-ink)}
+.who-r{font-size:.78rem;color:var(--sidebar-faint)}
+.signout{
+  flex:0 0 auto;display:grid;place-items:center;padding:0;
+  border:0;background:none;cursor:pointer;color:var(--sidebar-faint);
+}
+.signout:hover{color:var(--danger)}
+.signout svg{width:20px;height:20px}
+
+/* The collapse control - hidden until the script that gives it meaning has
+   run, and only on screens wide enough to have a rail to collapse. */
+.nav-collapse{
+  position:absolute;top:58px;right:-14px;z-index:10;display:none;
+  width:28px;height:28px;border-radius:50%;border:0;cursor:pointer;
+  background:var(--accent);color:var(--on-accent);
+  place-items:center;box-shadow:var(--shadow);
+}
+.nav-collapse svg{width:16px;height:16px;transition:transform .3s ease}
+.nav-collapse:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+@media (min-width:1024px){
+  /* Back in flow: no drawer, no backdrop, and the collapse button now has a
+     positioned parent to hang off. */
+  .sidebar{position:relative;transform:none}
+  /* There is no drawer up here, so neither the backdrop nor the control that
+     closes it has anything to do. */
+  .scrim,.navstate:checked ~ .shell .scrim,.side-close{display:none}
+  html.js .nav-collapse{display:grid}
+
+  html[data-nav="rail"] .sidebar{width:var(--rail-w)}
+  html[data-nav="rail"] .rail-hide{display:none}
+  html[data-nav="rail"] .side-brand{justify-content:center;padding:22px 12px 30px}
+  html[data-nav="rail"] .brand{flex:0 0 auto;justify-content:center}
+  html[data-nav="rail"] .side-nav{padding:0 12px}
+  html[data-nav="rail"] .nrow{justify-content:center;padding-left:8px;padding-right:8px}
+  html[data-nav="rail"] .side-foot{margin:0 12px}
+  html[data-nav="rail"] .side-foot-row{flex-direction:column;gap:10px}
+  html[data-nav="rail"] .nav-collapse svg{transform:rotate(180deg)}
+}
+
 /* ── Top bar ───────────────────────────────────────────────── */
+/* Thin, sticky, translucent - the platform's bar exactly. It carries the
+   two things that are true on every page: where you are, and the way to any
+   card from anywhere. */
 .topbar{
-  background:var(--surface); border-bottom:1px solid var(--line);
-  padding:0 20px; display:flex; align-items:center; gap:22px;
-  height:56px; position:sticky; top:0; z-index:20;
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;gap:12px;
+  padding:13px 24px;border-bottom:1px solid var(--line);
+  background:color-mix(in srgb,var(--bg) 85%,transparent);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
 }
-.brand{font-weight:640;letter-spacing:-.01em;color:var(--text);font-size:.98rem;white-space:nowrap}
-.brand:hover{text-decoration:none}
-/* The nav scrolls sideways instead of overflowing the bar on narrow phones. */
-.topbar nav{display:flex;gap:4px;flex:1;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.topbar nav::-webkit-scrollbar{display:none}
-.topbar nav a{
-  color:var(--text-soft);font-weight:530;font-size:.9rem;
-  padding:6px 11px;border-radius:7px;white-space:nowrap;
+.burger{
+  display:grid;place-items:center;width:32px;height:32px;margin-left:-6px;
+  cursor:pointer;color:var(--text);
 }
-.topbar nav a:hover{background:var(--surface-sunken);color:var(--text);text-decoration:none}
-.topbar nav a.on{background:var(--accent-soft);color:var(--accent-ink)}
+.burger:hover{color:var(--text-soft)}
+/* The checkbox IS the control - a pointer uses the labels, a keyboard tabs
+   to the box itself. It is invisible, so its focus ring is drawn on the
+   hamburger that stands for it. */
+.navstate:focus-visible ~ .shell .burger{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.burger svg{width:24px;height:24px}
+/* Small, quiet, and NOT a second <h1>: the page's own title scrolls away,
+   this one stays put to say where you still are. */
+.topbar-here{
+  font-size:var(--t-caption);font-weight:600;color:var(--text-soft);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.gsearch{position:relative;display:flex;align-items:center;margin-left:auto}
+.gsearch svg{
+  position:absolute;left:11px;width:16px;height:16px;
+  color:var(--muted);pointer-events:none;
+}
+.gsearch input[type=search]{padding-left:34px;width:250px;max-width:100%}
+@media (min-width:1024px){.burger{display:none}}
+@media (max-width:620px){.gsearch input[type=search]{width:150px}}
 
 /* ── Layout ────────────────────────────────────────────────── */
 /* Wide enough that a 1440p screen is not mostly gutter; the table and panels
@@ -298,23 +458,73 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
 </style>
 </head>
 <body>
-<header class="topbar">
-  <a class="brand" href="{{ route('admin.dashboard') }}">NFC Cards</a>
-  <nav>
-    <a href="{{ route('admin.dashboard') }}" @class(['on' => request()->routeIs('admin.dashboard') || request()->routeIs('admin.cards.*')])>Cards</a>
-    <a href="{{ route('admin.nfc-tools') }}" @class(['on' => request()->routeIs('admin.nfc-tools')])>NFC Tools</a>
-    <a href="{{ route('admin.site-pages.index') }}" @class(['on' => request()->routeIs('admin.site-pages.*')])>Site Pages</a>
-    <a href="{{ route('admin.sticker-templates.index') }}" @class(['on' => request()->routeIs('admin.sticker-templates.*')])>Sticker templates</a>
-  </nav>
-  <form method="POST" action="{{ route('admin.logout') }}">@csrf
-    <button class="btn btn-sm" type="submit">Sign out</button>
-  </form>
-</header>
+{{-- The drawer's state. It sits outside .shell so the sidebar and the
+     backdrop can both be written as siblings of a :checked box. --}}
+<input class="navstate" type="checkbox" id="navstate" aria-label="Show navigation menu">
 
-<main class="container">
-  @if (session('status'))<div class="flash">{{ session('status') }}</div>@endif
-  @if ($errors->any())<div class="err"><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>@endif
-  @yield('body')
-</main>
+<div class="shell">
+  <label class="scrim" for="navstate" aria-hidden="true"></label>
+  @include('admin.partials.sidebar')
+
+  <div class="pane">
+    <header class="topbar">
+      <label class="burger" for="navstate" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </label>
+      <span class="topbar-here">@yield('title','Admin')</span>
+
+      {{-- One search box for the whole admin: from any page it lands on the
+           card list already filtered. The dashboard's own status and sort
+           ride along as hidden fields so searching from there narrows what
+           you are looking at instead of resetting it. --}}
+      <form class="gsearch" method="GET" action="{{ route('admin.dashboard') }}" role="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="search" name="search" value="{{ request()->query('search') }}"
+               placeholder="Search cards" aria-label="Search cards by number or public ID">
+        @if (request()->filled('status'))<input type="hidden" name="status" value="{{ request()->query('status') }}">@endif
+        @if (request()->filled('sort'))<input type="hidden" name="sort" value="{{ request()->query('sort') }}">@endif
+      </form>
+    </header>
+
+    <main class="container">
+      @if (session('status'))<div class="flash">{{ session('status') }}</div>@endif
+      @if ($errors->any())<div class="err"><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>@endif
+      @yield('body')
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  var html = document.documentElement;
+  var button = document.getElementById('nav-collapse');
+  var drawer = document.getElementById('navstate');
+
+  function label() {
+    if (! button) return;
+    var rail = html.getAttribute('data-nav') === 'rail';
+    button.setAttribute('aria-expanded', String(! rail));
+    button.setAttribute('aria-label', rail ? 'Expand sidebar' : 'Collapse sidebar');
+  }
+
+  // The state was restored before paint, so the button's own labelling is
+  // whatever the server rendered until this runs.
+  label();
+
+  if (button) {
+    button.addEventListener('click', function () {
+      var rail = html.getAttribute('data-nav') === 'rail';
+      if (rail) html.removeAttribute('data-nav'); else html.setAttribute('data-nav', 'rail');
+      label();
+      try { localStorage.setItem('nfc-admin-nav', rail ? 'open' : 'rail'); } catch (e) {}
+    });
+  }
+
+  // Escape closes the phone drawer, matching the platform's shell.
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && drawer && drawer.checked) drawer.checked = false;
+  });
+})();
+</script>
 </body>
 </html>

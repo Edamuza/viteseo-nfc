@@ -121,10 +121,11 @@
   <div class="row" style="justify-content:space-between;margin-bottom:14px">
     <h2 style="margin:0">Cards</h2>
     <form method="GET" action="{{ route('admin.dashboard') }}" class="row row-tight">
-      {{-- 250px, not less: the placeholder has to fit at the Style Guide's
-           16px table size, and it clipped at the old 200px. --}}
-      <input type="search" name="search" value="{{ $search }}" placeholder="Card number or public ID"
-             style="min-width:250px" aria-label="Search cards">
+      {{-- The search box itself lives in the top bar now, where it reaches a
+           card from any page. It rides along here as a hidden field so
+           changing the status or the sort narrows the search you already
+           ran instead of silently throwing it away. --}}
+      @if ($search !== '')<input type="hidden" name="search" value="{{ $search }}">@endif
       <select name="status" aria-label="Filter by status">
         @foreach ($D::STATUS_FILTERS as $value => $label)
           <option value="{{ $value }}" @selected($status === $value)>{{ $label }}</option>
