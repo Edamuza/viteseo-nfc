@@ -299,9 +299,9 @@ class VCardTest extends TestCase
             (string) $this->get('/n/'.$card->public_id.'/contact.vcf')->headers->get('Content-Disposition'));
     }
 
-    // ── XSS on the public contact page ──────────────────────────────────────
+    // ── XSS: a tap is a contact file, never a page ──────────────────────────
 
-    public function test_malicious_html_in_contact_fields_does_not_execute(): void
+    public function test_malicious_html_in_contact_fields_can_never_render_as_a_page(): void
     {
         $card = $this->contactCard([
             'first_name' => '<script>alert(1)</script>',
@@ -310,13 +310,19 @@ class VCardTest extends TestCase
             'job_title'  => "</title><script>alert(4)</script>",
         ]);
 
-        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        // A tap returns the vCard itself, so the markup arrives verbatim - as
+        // it must, it is someone's name. What stops it running is the type: a
+        // browser only executes markup in a document it treats as HTML, and
+        // nosniff forbids it from guessing otherwise.
+        $r = $this->get('/n/'.$card->public_id)->assertOk();
 
-        $this->assertStringNotContainsString('<script>alert(1)</script>', $body);
-        $this->assertStringNotContainsString('<img src=x onerror=alert(2)>', $body);
-        $this->assertStringNotContainsString('<iframe', $body);
-        $this->assertStringNotContainsString('<script>alert(4)</script>', $body);
-        $this->assertStringContainsString('&lt;script&gt;', $body);
+        $this->assertSame('text/vcard; charset=utf-8', $r->headers->get('Content-Type'));
+        $this->assertSame('nosniff', $r->headers->get('X-Content-Type-Options'));
+
+        // And no value escaped its property line to become one of its own.
+        foreach (array_filter(explode("\r\n", $r->getContent())) as $line) {
+            $this->assertMatchesRegularExpression('/^[A-Z-]+[;:]/', $line);
+        }
     }
 
     public function test_contact_page_exposes_no_card_internals(): void

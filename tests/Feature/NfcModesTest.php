@@ -71,21 +71,25 @@ class NfcModesTest extends TestCase
 
     // ── Contact card ────────────────────────────────────────────────────────
 
-    public function test_contact_page_renders_for_contact_mode(): void
+    public function test_a_tap_on_a_contact_card_hands_the_phone_the_contact_itself(): void
     {
         $card = $this->card();
         $this->profileFor($card, ['job_title' => 'Director', 'company' => 'Acme Ltd']);
         $card->forceFill(['nfc_mode' => 'contact'])->save();
 
-        $this->get('/n/'.$card->public_id)
+        $response = $this->get('/n/'.$card->public_id)
             ->assertOk()
-            ->assertSee('John Doe')
-            ->assertSee('Director')
-            ->assertSee('Acme Ltd')
-            ->assertSee('Save to Contacts');
+            ->assertHeader('Content-Type', 'text/vcard; charset=utf-8')
+            ->assertHeader('Content-Disposition', 'inline; filename="John-Doe.vcf"');
+
+        $body = $response->getContent();
+        $this->assertStringContainsString('FN:John Doe', $body);
+        $this->assertStringContainsString('TITLE:Director', $body);
+        $this->assertStringContainsString('ORG:Acme Ltd', $body);
+        $this->assertStringNotContainsString('<html', $body, 'a page came back instead of the contact');
     }
 
-    public function test_contact_page_shows_only_populated_fields(): void
+    public function test_a_tapped_contact_carries_only_populated_fields(): void
     {
         $card = $this->card();
         $this->profileFor($card, ['mobile_phone' => '+639171234567']);
@@ -93,11 +97,11 @@ class NfcModesTest extends TestCase
 
         $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
 
-        $this->assertStringContainsString('Mobile', $body);
-        $this->assertStringNotContainsString('Landline', $body);
-        $this->assertStringNotContainsString('Birthday', $body);
-        $this->assertStringNotContainsString('Social profiles', $body);
-        $this->assertStringNotContainsString('Notes', $body);
+        $this->assertStringContainsString('TEL;TYPE=CELL,VOICE:+639171234567', $body);
+        $this->assertStringNotContainsString('TYPE=HOME', $body, 'an empty landline was sent');
+        $this->assertStringNotContainsString('BDAY', $body);
+        $this->assertStringNotContainsString('X-SOCIALPROFILE', $body);
+        $this->assertStringNotContainsString('NOTE', $body);
     }
 
     public function test_contact_mode_without_a_name_shows_the_setup_chooser(): void
@@ -203,7 +207,7 @@ class NfcModesTest extends TestCase
         $fresh = $card->fresh();
         $this->assertSame(NfcMode::Contact, $fresh->nfcMode());
         $this->assertSame('Maria', $fresh->contactProfile->first_name);
-        $this->get('/n/'.$card->public_id)->assertOk()->assertSee('Maria Santos')->assertSee('Save to Contacts');
+        $this->assertStringContainsString('FN:Maria Santos', $this->get('/n/'.$card->public_id)->assertOk()->getContent());
     }
 
     public function test_the_contact_setup_requires_a_name_or_company(): void

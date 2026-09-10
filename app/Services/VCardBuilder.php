@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\NfcContactProfile;
 use App\Models\NfcProfile;
+use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 /**
  * Builds a vCard 3.0 document from a contact profile.
@@ -26,12 +28,31 @@ use App\Models\NfcProfile;
  * Per RFC 2426 every value escapes backslash, comma, semicolon and newline.
  * Structured values (N, ADR) escape each component before joining with ';'.
  * All CR/LF is removed from inputs first, so no field can inject a vCard line.
+ *
+ * PHOTO
+ * -----
+ * Embedded, never linked: iOS and Android both ignore a PHOTO that points at a
+ * URL, and a contact saved offline must still have a face. Re-encoded to a
+ * small JPEG on the way out, because the whole file rides inside one tap and
+ * a stored 800px original would triple it. A photo that cannot be read is
+ * left out rather than failing the card - a contact without a face is still
+ * a contact.
  */
 class VCardBuilder
 {
     private const EOL = "\r\n";   // RFC 2426 requires CRLF
 
-    public function build(NfcContactProfile $p): string
+    /** Longest edge of the embedded photo. Contacts show it at avatar size. */
+    public const PHOTO_EDGE = 400;
+
+    /** RFC 2425 §5.8.1: lines SHOULD be folded at 75 octets. */
+    private const FOLD_AT = 75;
+
+    /**
+     * @param  iterable<int, string>  $extraUrls  addresses the details do not
+     *                                            carry themselves; see ContactCard
+     */
+    public function build(NfcContactProfile $p, iterable $extraUrls = []): string
     {
         $lines = [];
         $lines[] = 'BEGIN:VCARD';
@@ -60,6 +81,10 @@ class VCardBuilder
 
         if ($p->website) { $lines[] = 'URL:'.$this->esc($p->website); }
 
+        foreach ($extraUrls as $url) {
+            $lines[] = 'URL:'.$this->esc($url);
+        }
+
         // ADR: PO;Ext;Street;City;Region;PostalCode;Country
         if ($p->hasAddress()) {
             $lines[] = 'ADR;TYPE=WORK:'.$this->structured([
@@ -84,6 +109,8 @@ class VCardBuilder
 
         $note = $this->composeNote($p);
         if ($note !== '') { $lines[] = 'NOTE:'.$this->esc($note); }
+
+        if ($photo = $this->photo($p->photo_path)) { $lines[] = $photo; }
 
         $lines[] = 'REV:'.gmdate('Y-m-d\TH:i:s\Z');
         $lines[] = 'END:VCARD';
@@ -136,10 +163,85 @@ class VCardBuilder
             $lines[] = 'NOTE:'.$this->esc($tagline);
         }
 
+        if ($photo = $this->photo($profile->avatar_path)) {
+            $lines[] = $photo;
+        }
+
         $lines[] = 'REV:'.gmdate('Y-m-d\TH:i:s\Z');
         $lines[] = 'END:VCARD';
 
         return implode(self::EOL, $lines).self::EOL;
+    }
+
+    /**
+     * The PHOTO property, folded, or null when there is no readable image.
+     *
+     * The path only ever comes from a column the server wrote (ImageIngest
+     * names every file itself), so nothing a visitor typed reaches the disk.
+     */
+    private function photo(?string $path): ?string
+    {
+        if ((string) $path === '') {
+            return null;
+        }
+
+        try {
+            $disk = Storage::disk('public');
+
+            if (! $disk->exists($path) || $disk->size($path) > 8 * 1024 * 1024) {
+                return null;
+            }
+
+            $image = @imagecreatefromstring((string) $disk->get($path));
+            if (! $image instanceof \GdImage) {
+                return null;
+            }
+
+            $width  = imagesx($image);
+            $height = imagesy($image);
+            if (max($width, $height) > self::PHOTO_EDGE) {
+                $scale  = self::PHOTO_EDGE / max($width, $height);
+                $scaled = imagescale($image, max(1, (int) round($width * $scale)), max(1, (int) round($height * $scale)));
+                if ($scaled instanceof \GdImage) {
+                    $image = $scaled;
+                }
+            }
+
+            ob_start();
+            try {
+                $ok = imagejpeg($image, null, 82);
+                $jpeg = (string) ob_get_contents();
+            } finally {
+                ob_end_clean();
+            }
+
+            if (! $ok || $jpeg === '') {
+                return null;
+            }
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $this->fold('PHOTO;ENCODING=b;TYPE=JPEG:'.base64_encode($jpeg));
+    }
+
+    /**
+     * Split a long line into 75-octet pieces, each continuation starting with
+     * one space (RFC 2425 §5.8.1). Only used for PHOTO: base64 is ASCII, so
+     * octets and characters are the same thing and no UTF-8 sequence can be
+     * cut in half.
+     */
+    private function fold(string $line): string
+    {
+        $pieces = [substr($line, 0, self::FOLD_AT)];
+
+        foreach (str_split(substr($line, self::FOLD_AT), self::FOLD_AT - 1) as $rest) {
+            if ($rest !== '') {
+                $pieces[] = ' '.$rest;
+            }
+        }
+
+        return implode(self::EOL, $pieces);
     }
 
     /**

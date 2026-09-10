@@ -9,18 +9,14 @@
     <div class="pv-head">
       <span class="pv-ava"></span>
       <p class="pv-name">John Doe</p>
-      <p class="pv-sub">Owner</p>
-      <p class="pv-sub">Acme Inc.</p>
-    </div>
-    <div class="pv-link pv-primary">Save to Contacts</div>
-    <div class="pv-row">
-      <div class="pv-link">Call</div>
-      <div class="pv-link">Email</div>
+      <p class="pv-sub">Owner &middot; Acme Inc.</p>
     </div>
     <div class="pv-panel">
       <div class="pv-f"><span class="pv-k">Mobile</span><span class="pv-v">+63 917 123 4567</span></div>
       <div class="pv-f"><span class="pv-k">Email</span><span class="pv-v">john@example.com</span></div>
     </div>
+    <div class="pv-link pv-primary">Create New Contact</div>
+    <div class="pv-link">Add to Existing Contact</div>
     @break
 
   @case('phone')

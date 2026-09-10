@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Public;
 
 use App\Enums\NfcMode;
+use App\Exceptions\UnreadableImageException;
 use App\Http\Controllers\Controller;
 use App\Models\Card;
 use App\Models\SitePage;
@@ -10,7 +11,10 @@ use App\Rules\SafeExternalUrl;
 use App\Rules\SafePhoneNumber;
 use App\Services\CardGenerationService;
 use App\Services\CardOwnerGate;
+use App\Services\ContactCard;
+use App\Services\ImageIngest;
 use App\Services\LinkPlatform;
+use App\Services\PublicImageStorage;
 use App\Services\QrCodeService;
 use App\Services\VCardBuilder;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +23,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 /**
  * Public NFC endpoint.
@@ -37,6 +42,9 @@ class NfcController extends Controller
         private readonly CardGenerationService $cards,
         private readonly QrCodeService $qr,
         private readonly CardOwnerGate $gate,
+        private readonly ImageIngest $images,
+        private readonly PublicImageStorage $photos,
+        private readonly VCardBuilder $vcards,
     ) {}
 
     /**
@@ -88,18 +96,23 @@ class NfcController extends Controller
         ]));
     }
 
+    /**
+     * Contact mode hands the tap straight to the phone's own contact screen.
+     *
+     * No page of ours in between. An iPhone opens a vCard served inline as
+     * "Create New Contact"; Android saves the file and offers to open it in
+     * Contacts. The visitor saves or edits on a screen their phone already
+     * knows how to use, and everything the card holds arrives with it.
+     */
     private function showContact(Card $card): Response
     {
-        $profile = $card->contactProfile;
+        $contact = ContactCard::for($card);
 
-        if (! $profile || ! $profile->isMeaningful()) {
+        if (! $contact) {
             return $this->notReady($card);
         }
 
-        return $this->noStore(response()->view('public.nfc-contact', [
-            'card'    => $card,
-            'profile' => $profile,
-        ]));
+        return $this->vcardResponse($contact, 'inline');
     }
 
     private function showPhone(Card $card): Response
@@ -244,6 +257,8 @@ class NfcController extends Controller
         }, [
             'card' => $card,
             'contactProfile' => $mode === 'contact' ? $card->contactProfile : null,
+            // What any blank on the contact form will be filled with.
+            'fromProfile' => $mode === 'contact' ? ContactCard::fromProfile($card->profile) : [],
             'existingLinks' => $mode === 'links'
                 ? $card->nfcLinks()->orderBy('sort_order')->get()
                 : collect(),
@@ -338,14 +353,20 @@ class NfcController extends Controller
             return $response;
         }
 
+        // A named profile page already gives the contact card its name (see
+        // ContactCard), so only a card without one must be told to add it.
+        $nameRequired = ! $card->profile?->isMeaningful();
+
         $data = $request->validate([
-            'first_name'     => ['nullable', 'required_without:company', 'string', 'max:80'],
+            'first_name'     => ['nullable', ...($nameRequired ? ['required_without:company'] : []), 'string', 'max:80'],
             'last_name'      => ['nullable', 'string', 'max:80'],
             'job_title'      => ['nullable', 'string', 'max:120'],
-            'company'        => ['nullable', 'required_without:first_name', 'string', 'max:150'],
+            'company'        => ['nullable', ...($nameRequired ? ['required_without:first_name'] : []), 'string', 'max:150'],
             'mobile_phone'   => ['nullable', 'string', new SafePhoneNumber()],
             'personal_email' => ['nullable', 'email:rfc', 'max:190'],
             'website'        => ['nullable', 'string', 'max:500', new SafeExternalUrl()],
+            'photo'          => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:5120', 'dimensions:max_width=8000,max_height=8000'],
+            'remove_photo'   => ['nullable', 'boolean'],
         ] + $this->pinRuleFor($request, $card) + $this->newPinRulesFor($card), [
             'first_name.required_without' => 'Add at least a name or a company.',
             'company.required_without'    => 'Add at least a name or a company.',
@@ -355,26 +376,62 @@ class NfcController extends Controller
             return $response;
         }
 
-        DB::transaction(function () use ($card, $data): void {
-            $profile = $card->contactProfile ?: $card->contactProfile()->make();
+        // Stored only once ownership is proven, so a stranger's upload never
+        // reaches the disk.
+        $newPath = null;
+        if ($file = $request->file('photo')) {
+            try {
+                $newPath = $this->images->store($file, 'contact-photos', 800);
+            } catch (UnreadableImageException $e) {
+                return back()->withErrors(['photo' => $e->getMessage()])->withInput($request->except('photo'));
+            }
+        }
 
-            // Same rule as the admin form: these values land in a vCard, where
-            // a stray CR/LF would terminate the property line.
-            $clean = [];
-            foreach (['first_name', 'last_name', 'job_title', 'company', 'mobile_phone', 'personal_email', 'website'] as $field) {
-                $value = $data[$field] ?? null;
-                $clean[$field] = is_string($value)
-                    ? (trim((string) preg_replace('/[\r\n]+/', ' ', $value)) ?: null)
-                    : $value;
+        $oldPath = $card->contactProfile?->photo_path;
+
+        try {
+            DB::transaction(function () use ($card, $data, $newPath): void {
+                $profile = $card->contactProfile ?: $card->contactProfile()->make();
+
+                // Same rule as the admin form: these values land in a vCard, where
+                // a stray CR/LF would terminate the property line.
+                $clean = [];
+                foreach (['first_name', 'last_name', 'job_title', 'company', 'mobile_phone', 'personal_email', 'website'] as $field) {
+                    $value = $data[$field] ?? null;
+                    $clean[$field] = is_string($value)
+                        ? (trim((string) preg_replace('/[\r\n]+/', ' ', $value)) ?: null)
+                        : $value;
+                }
+
+                $profile->fill($clean);
+
+                if ($newPath !== null) {
+                    $profile->photo_path = $newPath;
+                } elseif ((bool) ($data['remove_photo'] ?? false)) {
+                    $profile->photo_path = null;
+                }
+
+                $profile->save();
+
+                $card->forceFill([
+                    'nfc_mode'          => NfcMode::Contact,
+                    'nfc_configured_at' => now(),
+                ])->save();
+            });
+        } catch (Throwable $e) {
+            if ($newPath !== null) {
+                $this->photos->forget($newPath, $card);
             }
 
-            $profile->fill($clean)->save();
+            throw $e;
+        }
 
-            $card->forceFill([
-                'nfc_mode'          => NfcMode::Contact,
-                'nfc_configured_at' => now(),
-            ])->save();
-        });
+        // After the commit: a delete cannot be rolled back, and a file removed
+        // while its row survived would break the photo on a live card.
+        $card->unsetRelation('contactProfile');
+        if ((string) $oldPath !== '' && $oldPath !== $card->contactProfile?->photo_path) {
+            $this->photos->forget($oldPath, $card);
+        }
 
         $this->personalizeIfProvided($card, $data);
 
@@ -467,19 +524,31 @@ class NfcController extends Controller
      * Generated fresh from the database on every request, which is exactly why
      * the physical tag never needs rewriting when details change.
      */
-    public function vcard(Card $card, VCardBuilder $builder): Response
+    public function vcard(Card $card): Response
     {
-        $profile = $card->contactProfile;
+        $contact = $card->nfcMode() === NfcMode::Contact ? ContactCard::for($card) : null;
 
-        abort_if($card->nfcMode() !== NfcMode::Contact || ! $profile || ! $profile->isMeaningful(), 404);
+        abort_if(! $contact, 404);
 
+        return $this->vcardResponse($contact, 'attachment');
+    }
+
+    /**
+     * The contact file, served either inline (the tap itself) or as a download.
+     *
+     * Inline is what makes an iPhone open its contact sheet instead of asking
+     * whether to download a file; the filename still names the download on
+     * Android, which saves the file either way.
+     */
+    private function vcardResponse(ContactCard $contact, string $disposition): Response
+    {
         // Filename is derived from an alphanumeric-only slug, so nothing from the
         // database can inject a quote, CR or LF into the Content-Disposition header.
-        $filename = $profile->fileBaseName().'.vcf';
+        $filename = $contact->details->fileBaseName().'.vcf';
 
-        return response($builder->build($profile), 200, [
+        return response($this->vcards->build($contact->details, $contact->urls), 200, [
             'Content-Type'        => 'text/vcard; charset=utf-8',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Disposition' => $disposition.'; filename="'.$filename.'"',
             'Cache-Control'       => 'no-store, private, no-cache, must-revalidate, max-age=0',
             'X-Content-Type-Options' => 'nosniff',
             'X-Robots-Tag'        => 'noindex, nofollow',

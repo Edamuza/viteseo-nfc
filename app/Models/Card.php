@@ -97,7 +97,10 @@ class Card extends Model
     {
         return match ($this->nfcMode()) {
             NfcMode::Links   => $this->activeNfcLinkCount() > 0,
-            NfcMode::Contact => (bool) $this->contactProfile?->isMeaningful(),
+            // A blank contact card takes its name from the profile page (see
+            // ContactCard), so a named profile is enough on its own.
+            NfcMode::Contact => (bool) $this->contactProfile?->isMeaningful()
+                || (bool) $this->profile?->isMeaningful(),
             NfcMode::Phone   => (string) $this->nfc_phone_number !== '',
             NfcMode::Email   => (string) $this->nfc_email_address !== '',
             NfcMode::Profile => (bool) $this->profile?->isMeaningful(),
@@ -124,7 +127,9 @@ class Card extends Model
                     ->whereHas('nfcLinks', fn ($l) => $l->where('is_active', true)))
               ->orWhere(fn (Builder $w) => $w
                     ->where('nfc_mode', NfcMode::Contact->value)
-                    ->whereHas('contactProfile', fn ($p) => $p->meaningful()))
+                    ->where(fn (Builder $either) => $either
+                        ->whereHas('contactProfile', fn ($p) => $p->meaningful())
+                        ->orWhereHas('profile', fn ($p) => $p->meaningful())))
               ->orWhere(fn (Builder $w) => $w
                     ->where('nfc_mode', NfcMode::Phone->value)
                     ->whereRaw("coalesce(nfc_phone_number, '') != ''"))

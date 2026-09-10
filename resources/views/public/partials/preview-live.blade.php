@@ -2,8 +2,11 @@
   // 'links' | 'contact' | 'phone' | 'profile'
   $pvKind = $kind ?? 'links';
   $pvAvatar = $avatarUrl ?? '';
+  // Shown instead when the owner ticks "remove": a contact card whose own
+  // photo goes falls back to the profile photo rather than to no photo.
+  $pvAvatarFallback = $avatarFallback ?? '';
 @endphp
-<aside class="pv-side" id="pv" data-kind="{{ $pvKind }}" data-avatar="{{ $pvAvatar }}">
+<aside class="pv-side" id="pv" data-kind="{{ $pvKind }}" data-avatar="{{ $pvAvatar }}" data-avatar-fallback="{{ $pvAvatarFallback }}">
   <div class="pv-bar">
     <span class="pv-lbl">Preview &mdash; what people see</span>
     <button class="pv-hide" type="button" id="pv-toggle">Hide</button>
@@ -28,6 +31,7 @@
 
   var kind = side.dataset.kind;
   var avatarUrl = side.dataset.avatar || '';
+  var avatarFallback = side.dataset.avatarFallback || '';
 
   // The very table LinkPlatform matches on, handed over rather than
   // transcribed: "Auto" must guess the same icon the save will pick, and a
@@ -54,6 +58,12 @@
   function field(name) {
     var input = document.querySelector('[name="' + name + '"]');
     return input ? input.value.trim() : '';
+  }
+
+  /** What a blank field is filled with on save (data-fallback), if anything. */
+  function fallback(name) {
+    var input = document.querySelector('[name="' + name + '"]');
+    return input && input.dataset.fallback ? input.dataset.fallback.trim() : '';
   }
 
   /** Mirrors LinkPlatform::host() - lowercase, no leading www, http(s) only. */
@@ -147,39 +157,36 @@
     return html + buttons(list);
   }
 
+  // A tap on a contact card opens the phone's own contact screen - there is
+  // no page of ours in between - so this draws what the phone draws: the
+  // face, the name, the details, and the phone's own two save buttons.
+  // Blanks show what they will be filled with, mirroring ContactCard.
   function renderContact() {
-    var name = [field('first_name'), field('last_name')].filter(Boolean).join(' ');
-    var company = field('company');
-    var job = field('job_title');
-    var phone = field('mobile_phone');
-    var email = field('personal_email');
+    var name = [field('first_name'), field('last_name')].filter(Boolean).join(' ') || fallback('first_name');
+    var company = field('company') || fallback('company');
+    var job = field('job_title') || fallback('job_title');
+    var phone = field('mobile_phone') || fallback('mobile_phone');
+    var email = field('personal_email') || fallback('personal_email');
     var website = field('website');
 
     if (! name && ! company) return empty('Your contact card shows up here as you type.');
 
+    var sub = [job, name ? company : ''].filter(Boolean).join(' \u00b7 ');
     var html = '<div class="pv-head"><span class="pv-ava"></span>'
       + '<p class="pv-name">' + esc(name || company) + '</p>'
-      + (job ? '<p class="pv-sub">' + esc(job) + '</p>' : '')
-      + (company && name ? '<p class="pv-sub">' + esc(company) + '</p>' : '')
-      + '</div><div class="pv-link pv-primary">Save to Contacts</div>';
+      + (sub ? '<p class="pv-sub">' + esc(sub) + '</p>' : '')
+      + '</div>';
 
-    if (phone || email) {
-      html += '<div class="pv-row">'
-        + (phone ? '<div class="pv-link">Call</div>' : '')
-        + (email ? '<div class="pv-link">Email</div>' : '')
-        + '</div>';
-    }
-
-    if (website) html += '<div class="pv-link">Website</div>';
-
-    if (phone || email) {
+    if (phone || email || website) {
       html += '<div class="pv-panel">'
         + (phone ? '<div class="pv-f"><span class="pv-k">Mobile</span><span class="pv-v">' + esc(phone) + '</span></div>' : '')
         + (email ? '<div class="pv-f"><span class="pv-k">Email</span><span class="pv-v">' + esc(email) + '</span></div>' : '')
+        + (website ? '<div class="pv-f"><span class="pv-k">Website</span><span class="pv-v">' + esc(host(website) || website) + '</span></div>' : '')
         + '</div>';
     }
 
-    return html;
+    return html + '<div class="pv-link pv-primary">Create New Contact</div>'
+      + '<div class="pv-link">Add to Existing Contact</div>';
   }
 
   function renderPhone() {
@@ -227,20 +234,21 @@
   function render() {
     // Looked up per render, not once at load: this script runs before the
     // form exists, so anything cached here would be cached as null.
-    var removeAvatar = document.querySelector('[name="remove_avatar"]');
+    var removeAvatar = document.querySelector('[name="remove_avatar"], [name="remove_photo"]');
 
     screen.innerHTML = kind === 'contact' ? renderContact()
       : kind === 'phone' ? renderPhone()
       : kind === 'profile' ? renderProfile()
       : renderLinks();
 
-    if (! avatarUrl || (removeAvatar && removeAvatar.checked)) return;
+    var shown = removeAvatar && removeAvatar.checked ? avatarFallback : avatarUrl;
+    if (! shown) return;
 
     // Set as a property rather than interpolated into a style attribute: the
     // value can be a data: URL megabytes long, and never has to be parsed as
     // CSS this way.
     screen.querySelectorAll('.pv-ava, .pv-cover').forEach(function (node) {
-      node.style.backgroundImage = 'url("' + avatarUrl.replace(/["\\]/g, '') + '")';
+      node.style.backgroundImage = 'url("' + shown.replace(/["\\]/g, '') + '")';
     });
   }
 

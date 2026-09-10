@@ -309,12 +309,21 @@
   @if ($mode === $M::Contact)
     <div class="section-sep">
       <label class="fld">Status</label>
+      @php
+        $fromProfile = \App\Services\ContactCard::fromProfile($nfcProfile);
+      @endphp
       <p class="small" style="margin:0 0 14px">
-        @if ($profile && $profile->isMeaningful())
+        @if (\App\Services\ContactCard::for($card))
           <span class="badge b-ok">Contact card live</span>
           <a class="small" href="{{ route('nfc.vcard', $card->public_id) }}" style="margin-left:8px">Preview .vcf</a>
         @else
           <span class="badge b-off">Needs a name or company</span>
+        @endif
+      </p>
+      <p class="small muted" style="margin:-6px 0 14px">
+        A tap opens the phone's own save-contact screen.
+        @if ($fromProfile)
+          Anything left blank here is filled from this card's profile page.
         @endif
       </p>
 
@@ -365,11 +374,15 @@
           @endforeach
         </div>
 
-        <p class="fld">Photo <span class="muted" style="font-weight:400">— JPEG/PNG/WebP, max 2 MB</span></p>
+        <p class="fld">Photo <span class="muted" style="font-weight:400">— JPEG/PNG/WebP, max 5 MB</span></p>
         <div class="row row-tight" style="margin-bottom:14px">
           @if ($profile?->photo_path)
             <img src="{{ asset('storage/'.$profile->photo_path) }}" alt=""
                  style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:1px solid var(--line)">
+          @elseif (isset($fromProfile['photo_path']))
+            <img src="{{ asset('storage/'.$fromProfile['photo_path']) }}" alt=""
+                 style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:1px solid var(--line)">
+            <span class="small muted">Using the profile photo</span>
           @endif
           <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
           @if ($profile?->photo_path)
