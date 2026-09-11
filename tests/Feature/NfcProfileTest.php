@@ -15,6 +15,17 @@ class NfcProfileTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // The icon row is switched off on the live page (config/nfc.php) but
+        // kept, so the rules guarding it - no borrowed brands, no dead marks -
+        // stay tested here for the day it returns. The default is pinned by
+        // test_the_icon_row_is_switched_off_by_default.
+        config(['nfc.profile_icon_row' => true]);
+    }
+
     private function card(): Card
     {
         return app(CardGenerationService::class)->generate(1)->first();
@@ -1127,5 +1138,40 @@ class NfcProfileTest extends TestCase
         $this->assertStringContainsString($this->mark('google'), $panel);
         $this->assertStringContainsString('<div class="acct-name">Leave us a review</div>', $panel);
         $this->assertStringContainsString('<div class="acct-kind">Google</div>', $panel);
+    }
+
+    public function test_the_icon_row_is_switched_off_by_default(): void
+    {
+        config(['nfc.profile_icon_row' => (include base_path('config/nfc.php'))['profile_icon_row']]);
+        $this->assertFalse(config('nfc.profile_icon_row'), 'config/nfc.php ships with the row off');
+
+        $card = $this->profileCard();
+        $this->link($card, 'https://facebook.com/acme', 'Facebook');
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('class="iconrow"', $body);
+        $this->assertStringContainsString('href="https://facebook.com/acme"', $this->accountsPanel($body), 'the link itself must not go with the row');
+    }
+
+    public function test_a_rule_separates_who_they_are_from_what_they_say(): void
+    {
+        $card = $this->profileCard();
+        $card->profile->update(['username' => 'uriel', 'location' => 'Manila', 'tagline' => 'Always happy to connect']);
+
+        $body = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '#<p class="meta">[^<]*Manila</p>.*?<hr class="sep">\s*<p class="tagline">Always happy to connect</p>#s',
+            $body
+        );
+    }
+
+    public function test_no_rule_is_drawn_with_nothing_below_it(): void
+    {
+        $card = $this->profileCard();
+        $card->profile->update(['username' => 'uriel', 'tagline' => null]);
+
+        $this->assertStringNotContainsString('<hr class="sep">', $this->get('/n/'.$card->public_id)->assertOk()->getContent());
     }
 }

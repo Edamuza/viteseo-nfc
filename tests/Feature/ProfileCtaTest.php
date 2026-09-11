@@ -55,9 +55,9 @@ class ProfileCtaTest extends TestCase
 
         $this->assertStringContainsString('--brand:#5a4a10', $body, 'the page colour comes from the photo');
         $this->assertMatchesRegularExpression(
-            '#<div class="actions">\s*<a class="ctabtn" href="https://example\.com/book"[^>]*>Book a table</a>\s*<a class="sharebtn"#',
+            '#<div class="actions">\s*<a class="sharebtn"[^>]*>Share</a>\s*<a class="ctabtn" href="https://example\.com/book"[^>]*>Book a table</a>\s*</div>#',
             $body,
-            'the owner\'s button must come first, in the same row as Share'
+            'Share on the left, the owner\'s button on the right, in one row'
         );
         $this->assertStringContainsString('background:var(--brand);color:var(--on-brand)', $body);
     }

@@ -228,13 +228,13 @@
         + '</div>';
     }
 
-    // The page's action row: the owner's own button (once it has both text
-    // and a link, as the server insists) beside Share.
+    // The page's action row: Share on the left, the owner's own button (once
+    // it has both text and a link, as the server insists) on the right.
     var ctaLabel = field('cta_label');
     var ctaUrl = field('cta_url');
-    html += '<div class="pv-row">'
+    html += '<div class="pv-row"><div class="pv-link">Share</div>'
       + (ctaLabel && ctaUrl ? '<div class="pv-link pv-primary">' + esc(ctaLabel) + '</div>' : '')
-      + '<div class="pv-link">Share</div></div>';
+      + '</div>';
 
     return html + buttons(rows());
   }

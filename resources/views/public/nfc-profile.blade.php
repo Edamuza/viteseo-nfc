@@ -154,6 +154,8 @@ h1{font-size:2.3125rem;line-height:1.15;font-weight:700;margin:0;letter-spacing:
 .iconrow a{color:#20262e;display:grid;place-items:center}
 .iconrow svg{width:19px;height:19px;fill:currentColor;display:block}
 
+.sep{border:0;border-top:1px solid var(--line);margin:18px 0 0}
+.sep+.tagline{margin-top:16px}
 .tagline{margin:20px 0 0;font-size:1.1875rem;line-height:1.5;color:var(--soft);overflow-wrap:anywhere}
 .sharebtn{
   display:flex;align-items:center;justify-content:center;margin-top:22px;
@@ -161,8 +163,8 @@ h1{font-size:2.3125rem;line-height:1.15;font-weight:700;margin:0;letter-spacing:
   font-weight:600;font-size:1rem;color:var(--text);text-decoration:none;
 }
 .sharebtn:hover{background:#f7f8f9}
-/* Share and the owner's own button share one row, half each. The owner's
-   button is the primary, painted in the page's own colour: --brand is taken
+/* Share and the owner's own button share one row, half each: Share on the
+   left, the owner's button on the right, where a thumb ends. It is the primary, painted in the page's own colour: --brand is taken
    from their photo, so a yellow photo makes a yellow button. DominantColor
    always keeps --brand dark, which is what lets --on-brand text read on it
    whatever the photo was. It sits on the white card, so it never vanishes
@@ -397,7 +399,9 @@ footer a:hover{text-decoration:underline}
         // "no logo" choice has no mark that belongs up here.
         $branded = $links->filter(fn ($l) => ! in_array(\App\Services\LinkPlatform::iconFor($l->icon, $l->url), ['web', \App\Services\LinkPlatform::NONE], true));
       @endphp
-      @if ($branded->isNotEmpty())
+      {{-- Off for now (config/nfc.profile_icon_row): the Accounts panel below
+           already carries every link. Kept, not deleted, with its tests. --}}
+      @if (config('nfc.profile_icon_row') && $branded->isNotEmpty())
         <div class="iconrow">
           @foreach ($branded as $link)
             @php $platform = \App\Services\LinkPlatform::iconFor($link->icon, $link->url); @endphp
@@ -409,7 +413,12 @@ footer a:hover{text-decoration:underline}
         </div>
       @endif
 
-      @if ($profile->tagline)<p class="tagline">{{ $profile->tagline }}</p>@endif
+      {{-- A rule between who they are (name, username, place) and what they
+           say about themselves. Only when there is something below it. --}}
+      @if ($profile->tagline)
+        <hr class="sep">
+        <p class="tagline">{{ $profile->tagline }}</p>
+      @endif
 
       @php
         // tel: needs the number stripped to something dialable; the display
@@ -439,10 +448,10 @@ footer a:hover{text-decoration:underline}
 
       @php $cta = $profile->cta(); @endphp
       <div class="actions">
+        <a class="sharebtn" href="#share" aria-haspopup="dialog" aria-controls="share">Share</a>
         @if ($cta)
           <a class="ctabtn" href="{{ $cta['href'] }}" rel="noopener noreferrer nofollow ugc" target="_blank">{{ $cta['label'] }}</a>
         @endif
-        <a class="sharebtn" href="#share" aria-haspopup="dialog" aria-controls="share">Share</a>
       </div>
     </div>
   </section>
