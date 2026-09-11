@@ -23,6 +23,12 @@ class LinkPlatform
         'facebook'  => ['facebook.com', 'fb.com'],
         'instagram' => ['instagram.com'],
         'youtube'   => ['youtube.com', 'youtu.be'],
+        // One mark for everything Google a business links to: reviews, Maps,
+        // the Business Profile. Only hosts Google alone serves: g.page and g.co
+        // redirect to Google properties only, and maps.app.goo.gl to Maps. The
+        // bare goo.gl is deliberately absent - it was a public shortener, so
+        // any site at all can sit behind one, and it must not wear this mark.
+        'google'    => ['google.com', 'g.page', 'g.co', 'maps.app.goo.gl'],
     ];
 
     private const LABELS = [
@@ -33,6 +39,7 @@ class LinkPlatform
         'facebook'  => 'Facebook',
         'instagram' => 'Instagram',
         'youtube'   => 'YouTube',
+        'google'    => 'Google',
         'web'       => 'Website',
     ];
 

@@ -23,8 +23,24 @@ class PlatformIconTest extends TestCase
             'facebook'  => ['facebook'],
             'instagram' => ['instagram'],
             'youtube'   => ['youtube'],
+            'google'    => ['google'],
             'web'       => ['web'],
         ];
+    }
+
+    /**
+     * platforms() is written out by hand, so a logo added to the dropdown
+     * without being added here would skip both checks below - and could ship
+     * as a copy of the globe. Pinned to the dropdown itself.
+     */
+    public function test_the_fixtures_cover_every_logo_the_dropdown_offers(): void
+    {
+        $offered = array_values(array_diff(array_keys(\App\Services\LinkPlatform::iconChoices()), [\App\Services\LinkPlatform::NONE]));
+        $covered = array_map(fn (array $row) => $row[0], array_values(self::platforms()));
+        sort($offered);
+        sort($covered);
+
+        $this->assertSame($offered, $covered);
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('platforms')]

@@ -1110,4 +1110,22 @@ class NfcProfileTest extends TestCase
         $this->assertStringContainsString('href="https://x.com/its_uriel26"', $this->iconRow($body));
         $this->assertStringContainsString('href="https://x.com/its_uriel26"', $this->accountsPanel($body));
     }
+
+    /**
+     * A Google review link is the one a shop owner most wants tapped, so it
+     * wears the Google mark in both lists and says "Google" under its label.
+     */
+    public function test_a_google_review_link_wears_the_google_mark(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://g.page/r/CabcdEFGhij/review', 'Leave us a review');
+
+        $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $panel = $this->accountsPanel($body);
+
+        $this->assertStringContainsString($this->mark('google'), $this->iconRow($body));
+        $this->assertStringContainsString($this->mark('google'), $panel);
+        $this->assertStringContainsString('<div class="acct-name">Leave us a review</div>', $panel);
+        $this->assertStringContainsString('<div class="acct-kind">Google</div>', $panel);
+    }
 }

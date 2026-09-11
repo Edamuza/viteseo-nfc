@@ -23,6 +23,12 @@ class LinkPlatformTest extends TestCase
             'instagram'           => ['https://instagram.com/its_uriel26', 'instagram'],
             'youtube'             => ['https://www.youtube.com/@vitese0', 'youtube'],
             'youtu.be'            => ['https://youtu.be/dQw4w9WgXcQ', 'youtube'],
+            'google review link'  => ['https://g.page/r/CabcdEFGhij/review', 'google'],
+            'google write review' => ['https://search.google.com/local/writereview?placeid=ChIJ123', 'google'],
+            'google maps'         => ['https://www.google.com/maps/place/Kape+Cebu', 'google'],
+            'google maps app'     => ['https://maps.app.goo.gl/AbCdEf123', 'google'],
+            'google g.co'         => ['https://g.co/kgs/AbC123', 'google'],
+            'google business'     => ['https://business.google.com/reviews', 'google'],
             'anything else'       => ['https://viteseo.ph/services', 'web'],
         ];
     }
@@ -42,6 +48,11 @@ class LinkPlatformTest extends TestCase
             'brand in the path only'              => ['https://attacker.tld/linkedin.com/in/uriel'],
             'brand in the query only'             => ['https://attacker.tld/?ref=x.com'],
             'brand as userinfo'                   => ['https://x.com@attacker.tld/'],
+            // goo.gl was a public shortener: anything at all can sit behind
+            // one, so only the Maps-only maps.app.goo.gl earns the mark.
+            'the bare goo.gl shortener'           => ['https://goo.gl/AbCdEf'],
+            'google as a subdomain of an attacker' => ['https://google.com.attacker.tld/review'],
+            'google inside a longer host'         => ['https://notgoogle.com/review'],
         ];
     }
 
@@ -102,6 +113,7 @@ class LinkPlatformTest extends TestCase
             'facebook'  => ['facebook', 'Facebook'],
             'instagram' => ['instagram', 'Instagram'],
             'youtube'   => ['youtube', 'YouTube'],
+            'google'    => ['google', 'Google'],
             'web'       => ['web', 'Website'],
             'unknown'   => ['nonsense', 'Website'],
         ];
@@ -259,7 +271,7 @@ class LinkPlatformTest extends TestCase
         $this->assertSame('web', array_key_first($choices));
         $this->assertSame(LinkPlatform::NONE, array_key_last($choices));
 
-        foreach (['x', 'linkedin', 'tiktok', 'github', 'facebook', 'instagram', 'youtube'] as $key) {
+        foreach (['x', 'linkedin', 'tiktok', 'github', 'facebook', 'instagram', 'youtube', 'google'] as $key) {
             $this->assertArrayHasKey($key, $choices);
         }
     }
