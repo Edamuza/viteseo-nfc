@@ -24,6 +24,7 @@ class NfcProfile extends Model
     protected $fillable = [
         'display_name', 'headline', 'username', 'location', 'tagline',
         'phone', 'email',
+        'cta_label', 'cta_url',
         'welcome_eyebrow', 'welcome_heading', 'welcome_body',
         'welcome_cta_label', 'welcome_cta_url',
     ];
@@ -61,6 +62,25 @@ class NfcProfile extends Model
     public function scopeMeaningful(Builder $query): Builder
     {
         return $query->whereRaw("trim(coalesce(display_name, '')) != ''");
+    }
+
+    /**
+     * The owner's button beside Share, or null.
+     *
+     * Null unless both halves are there AND the link leads somewhere: a
+     * button with no text is a blank block, and one whose URL safeHref had to
+     * defuse would open a second copy of this page. Every write path already
+     * validates the URL; this is the read-side backstop the links have too.
+     *
+     * @return array{label: string, href: string}|null
+     */
+    public function cta(): ?array
+    {
+        $label = trim((string) $this->cta_label);
+        $url = trim((string) $this->cta_url);
+        $href = $url === '' ? '#' : \App\Services\LinkPlatform::safeHref($url);
+
+        return $label !== '' && $href !== '#' ? ['label' => $label, 'href' => $href] : null;
     }
 
     /** "UP" for the avatar placeholder — first and last word, at most two letters. */

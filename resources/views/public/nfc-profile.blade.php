@@ -15,14 +15,12 @@
 :root{
   --brand:{{ $profile->brandColor() }};
   --brand-soft:{{ $profile->brandColorSoftRgba() }};
-  /* Nothing on the page consumes --on-brand yet. Both of its users sit on the
-     brand-coloured background outside the white cards: the overflow menu
-     trigger (mockup:56, increment 3) and the footer nav (mockup:157,
-     increment 4). The share control is not one of them - it uses var(--text),
-     because it sits inside a white card, which is the same rule that puts these
-     two here. Kept rather than dropped so the pair stays together -
-     --on-brand-dim below is already in use by the byline, and re-deriving one
-     half of a contrast pair from the mockup later is how the two drift. */
+  /* Text that sits ON the brand colour: the footer nav and the byline on the
+     page behind the cards, and the owner's button beside Share, which is
+     painted in --brand itself. DominantColor keeps every derived --brand
+     dark, which is why a fixed light value reads on all of them. The Share
+     control is not one of them - it uses var(--text), because it sits inside
+     a white card unpainted. */
   --on-brand:#e8f1ec;
   --on-brand-dim:#a9c2b6;
   /* Neutrals from the ViteSEO palette; --brand above stays per-card,
@@ -163,6 +161,22 @@ h1{font-size:2.3125rem;line-height:1.15;font-weight:700;margin:0;letter-spacing:
   font-weight:600;font-size:1rem;color:var(--text);text-decoration:none;
 }
 .sharebtn:hover{background:#f7f8f9}
+/* Share and the owner's own button share one row, half each. The owner's
+   button is the primary, painted in the page's own colour: --brand is taken
+   from their photo, so a yellow photo makes a yellow button. DominantColor
+   always keeps --brand dark, which is what lets --on-brand text read on it
+   whatever the photo was. It sits on the white card, so it never vanishes
+   into the brand-coloured page behind. */
+.actions{display:flex;gap:10px;margin-top:22px}
+.actions .sharebtn{flex:1;margin-top:0}
+.ctabtn{
+  flex:1;display:flex;align-items:center;justify-content:center;text-align:center;
+  min-height:54px;padding:8px 14px;border:1px solid var(--brand);border-radius:14px;
+  background:var(--brand);color:var(--on-brand);text-decoration:none;
+  font-weight:600;font-size:1rem;line-height:1.25;overflow-wrap:anywhere;
+}
+.ctabtn:hover{filter:brightness(1.18)}
+.ctabtn:focus-visible,.sharebtn:focus-visible{outline:2px solid var(--text);outline-offset:2px}
 /* Contact details, shown rather than hidden behind a verb.
    A "Call" button alone answers only one of the two things a visitor wants:
    plenty of them are here to WRITE the number down, or to paste the address
@@ -186,13 +200,24 @@ h2{font-size:1.3125rem;line-height:1.25;font-weight:700;margin:0 0 6px;letter-sp
 .acct:last-child{border-bottom:0}
 .acct-ico{flex:0 0 auto;width:21px;padding-top:2px;color:#20262e}
 .acct-ico svg{width:21px;height:21px;fill:currentColor;display:block}
-.acct-name{font-size:1rem;font-weight:600}
-.acct-url{font-size:.9rem;color:var(--muted);overflow-wrap:anywhere;text-decoration:none;display:block;margin-top:2px}
-.acct-url:hover{text-decoration:underline}
-/* A destination that cannot be followed. Struck through and never underlined
-   on hover, so it does not read as a link that simply failed to respond. */
-.acct-dead{font-size:.9rem;color:var(--muted);overflow-wrap:anywhere;display:block;margin-top:2px;
- text-decoration:line-through}
+.acct-name{font-size:1rem;font-weight:600;overflow-wrap:anywhere}
+/* The whole row is the link: the owner's label, what kind of place it is,
+   and an open-arrow at the end - the part a thumb looks for. The address
+   itself is not printed; the kind line is what tells a visitor where they
+   are going, and it is earned from the real host, never from the label. */
+.acct-go{color:inherit;text-decoration:none;align-items:center}
+.acct-go .acct-ico{padding-top:0}
+.acct-text{flex:1;min-width:0}
+.acct-kind{font-size:.85rem;color:var(--muted);margin-top:1px}
+.acct-open{flex:0 0 auto;width:34px;height:34px;border-radius:999px;background:var(--pill);
+ display:grid;place-items:center;color:var(--text)}
+.acct-open svg{width:16px;height:16px;fill:currentColor;display:block}
+.acct-go:hover .acct-open{background:#e2e6ea}
+.acct-go:hover .acct-name{text-decoration:underline}
+.acct-go:focus-visible{outline:2px solid var(--text);outline-offset:4px;border-radius:8px}
+/* A destination that cannot be followed: the row stays, says so, and is not
+   an anchor at all. */
+.acct-dead{font-size:.85rem;color:var(--muted);display:block;margin-top:1px;font-style:italic}
 
 .adv-trigger-wrap{margin:6px 0 0;text-align:center}
 .adv-trigger{
@@ -412,7 +437,13 @@ footer a:hover{text-decoration:underline}
         </div>
       @endif
 
-      <a class="sharebtn" href="#share" aria-haspopup="dialog" aria-controls="share">Share</a>
+      @php $cta = $profile->cta(); @endphp
+      <div class="actions">
+        @if ($cta)
+          <a class="ctabtn" href="{{ $cta['href'] }}" rel="noopener noreferrer nofollow ugc" target="_blank">{{ $cta['label'] }}</a>
+        @endif
+        <a class="sharebtn" href="#share" aria-haspopup="dialog" aria-controls="share">Share</a>
+      </div>
     </div>
   </section>
 
@@ -427,28 +458,40 @@ footer a:hover{text-decoration:underline}
           $platform = \App\Services\LinkPlatform::iconFor($link->icon, $link->url);
           $noLogo   = $platform === \App\Services\LinkPlatform::NONE;
           $href     = \App\Services\LinkPlatform::safeHref($link->url);
-          $display  = \App\Services\LinkPlatform::displayUrl($link->url);
+          // What kind of place this is, earned from the real host - never from
+          // the label, which is the owner's own words. A row titled "Facebook"
+          // that leads elsewhere still says "Website" underneath.
+          $kind     = $noLogo ? null : \App\Services\LinkPlatform::label($platform);
+          $name     = trim((string) $link->title) ?: (string) $kind;
+          $showKind = $kind !== null && mb_strtolower($kind) !== mb_strtolower($name);
         @endphp
-        <div class="acct">
-          @unless ($noLogo)
-            <span class="acct-ico"><x-platform-icon :platform="$platform" /></span>
-          @endunless
-          <div>
-            {{-- A "no logo" row has no platform to name, so it shows the
-                 author's own label instead. --}}
-            <div class="acct-name">{{ $noLogo ? $link->title : \App\Services\LinkPlatform::label($platform) }}</div>
-            @if ($href === '#')
-              {{-- Defused, so not an anchor at all. href="#" resolves to this
-                   page, which with target="_blank" would open a second copy of
-                   the profile and read as a link that worked. The row is kept
-                   rather than dropped — silently discarding an administrator's
-                   row hides the problem instead of showing it. --}}
-              <span class="acct-dead">{{ $display }}</span>
-            @else
-              <a class="acct-url" href="{{ $href }}" rel="noopener noreferrer nofollow ugc" target="_blank">{{ $display }}</a>
-            @endif
+        @if ($href === '#')
+          {{-- Defused, so not an anchor at all. href="#" resolves to this
+               page, which with target="_blank" would open a second copy of
+               the profile and read as a link that worked. The row is kept
+               rather than dropped — silently discarding an administrator's
+               row hides the problem instead of showing it. --}}
+          <div class="acct">
+            @unless ($noLogo)
+              <span class="acct-ico"><x-platform-icon :platform="$platform" /></span>
+            @endunless
+            <div class="acct-text">
+              <div class="acct-name">{{ $name }}</div>
+              <span class="acct-dead">This link is unavailable</span>
+            </div>
           </div>
-        </div>
+        @else
+          <a class="acct acct-go" href="{{ $href }}" rel="noopener noreferrer nofollow ugc" target="_blank">
+            @unless ($noLogo)
+              <span class="acct-ico"><x-platform-icon :platform="$platform" /></span>
+            @endunless
+            <div class="acct-text">
+              <div class="acct-name">{{ $name }}</div>
+              @if ($showKind)<div class="acct-kind">{{ $kind }}</div>@endif
+            </div>
+            <span class="acct-open" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42L17.59 5H14V3zM5 5h6v2H5v12h12v-6h2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg></span>
+          </a>
+        @endif
       @endforeach
     </section>
   @endif

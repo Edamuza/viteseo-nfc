@@ -247,6 +247,12 @@
           <label><span>Email <span class="muted">(optional)</span></span>
             <input type="email" name="email" maxlength="190" placeholder="john@example.com"
                    value="{{ old('email', $nfcProfile?->email) }}"></label>
+          <label><span>Button beside Share <span class="muted">(optional)</span></span>
+            <input type="text" name="cta_label" maxlength="40" placeholder="e.g. Book a table"
+                   value="{{ old('cta_label', $nfcProfile?->cta_label) }}"></label>
+          <label><span>Where that button goes</span>
+            <input type="url" name="cta_url" maxlength="500" placeholder="https://example.com"
+                   value="{{ old('cta_url', $nfcProfile?->cta_url) }}"></label>
         </div>
 
         <p class="fld">Avatar</p>

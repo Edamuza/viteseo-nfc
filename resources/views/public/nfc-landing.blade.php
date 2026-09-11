@@ -45,6 +45,12 @@ a.link .ic svg{width:19px;height:19px;fill:currentColor;display:block}
    blanket fill above would turn the globe and the Instagram square into
    solid blobs, so it is handed back to the attribute. */
 a.link .ic svg[fill="none"]{fill:none}
+/* An open-arrow at the right edge: the label stays centred, and the arrow is
+   the part a thumb recognises as "this goes somewhere". */
+a.link{position:relative;padding-left:48px;padding-right:48px}
+a.link .go{position:absolute;right:16px;top:50%;transform:translateY(-50%);display:flex;color:var(--muted)}
+a.link .go svg{width:16px;height:16px;fill:currentColor;display:block}
+a.link:hover .go{color:var(--text)}
 a.link:hover{background:var(--surface-hover);border-color:var(--accent)}
 a.link:active{transform:scale(.99)}
 a.link:focus-visible{outline:2px solid var(--text);outline-offset:2px}
@@ -81,6 +87,7 @@ footer .own:hover{color:var(--text);text-decoration:underline}
           <span class="ic" aria-hidden="true"><x-platform-icon :platform="$icon" /></span>
         @endif
         <span class="lt">{{ $link->title }}</span>
+        <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42L17.59 5H14V3zM5 5h6v2H5v12h12v-6h2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg></span>
       </a>
     @endforeach
   </nav>

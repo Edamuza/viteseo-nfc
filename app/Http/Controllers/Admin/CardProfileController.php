@@ -49,13 +49,18 @@ class CardProfileController extends Controller
             'tagline' => ['nullable', 'string', 'max:200'],
             'phone' => ['nullable', 'string', new SafePhoneNumber()],
             'email' => ['nullable', 'email:rfc', 'max:190'],
+            'cta_label' => ['nullable', 'string', 'max:40', 'required_with:cta_url'],
+            'cta_url' => ['nullable', 'string', 'max:500', 'required_with:cta_label', new SafeExternalUrl()],
             'welcome_eyebrow' => ['nullable', 'string', 'max:60'],
             'welcome_heading' => ['nullable', 'string', 'max:200'],
             'welcome_body' => ['nullable', 'string', 'max:600'],
             'welcome_cta_label' => ['nullable', 'string', 'max:60'],
             'welcome_cta_url' => ['nullable', 'string', 'max:500', new SafeExternalUrl()],
             'avatar' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:5120', 'dimensions:max_width=8000,max_height=8000'],
-        ] + ($editsLinks ? $this->links->rules() : []), $this->links->messages());
+        ] + ($editsLinks ? $this->links->rules() : []), $this->links->messages() + [
+            'cta_label.required_with' => 'Give the button beside Share some text too.',
+            'cta_url.required_with' => 'Say where the button beside Share goes too.',
+        ]);
 
         $clean = [];
 
@@ -187,7 +192,7 @@ class CardProfileController extends Controller
             } else {
                 $profileData = Arr::only((array) $profileData, [
                     'display_name', 'headline', 'username', 'location', 'tagline',
-                    'phone', 'email',
+                    'phone', 'email', 'cta_label', 'cta_url',
                     'welcome_eyebrow', 'welcome_heading', 'welcome_body',
                     'welcome_cta_label', 'welcome_cta_url', 'avatar_path', 'brand_color',
                 ]);

@@ -127,6 +127,18 @@
               <input id="email" name="email" type="email" maxlength="190"
                      placeholder="john@example.com" value="{{ old('email', $profile?->email) }}">
             </div>
+            {{-- The page's one coloured button, beside Share. Both halves or
+                 neither: the server refuses one without the other. --}}
+            <div>
+              <label for="cta_label">Button beside Share <span class="opt">(optional)</span></label>
+              <input id="cta_label" name="cta_label" type="text" maxlength="40"
+                     placeholder="e.g. Book a table" value="{{ old('cta_label', $profile?->cta_label) }}">
+            </div>
+            <div>
+              <label for="cta_url">Where the button goes</label>
+              <input id="cta_url" name="cta_url" type="url" inputmode="url" maxlength="500"
+                     placeholder="https://…" value="{{ old('cta_url', $profile?->cta_url) }}">
+            </div>
             <div class="wide-field">
               <label for="avatar">Your photo <span class="opt">(JPG, PNG or WebP, up to 5 MB)</span></label>
               <input id="avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" data-crop>

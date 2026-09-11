@@ -773,7 +773,7 @@ class NfcProfileTest extends TestCase
         return $m[0];
     }
 
-    public function test_the_accounts_panel_lists_each_active_link_with_its_platform_and_display_url(): void
+    public function test_the_accounts_panel_lists_each_active_link_by_its_label_without_printing_the_address(): void
     {
         $card = $this->profileCard();
         $this->link($card, 'https://x.com/its_uriel26', 'X', true, 0);
@@ -784,11 +784,12 @@ class NfcProfileTest extends TestCase
         $this->assertStringContainsString('<div class="acct-name">X</div>', $panel);
         $this->assertStringContainsString('<div class="acct-name">LinkedIn</div>', $panel);
 
-        // Asserted as the anchor's inner text, not as a bare substring: the
-        // href holds the same characters, so a plain assertSee() would pass
-        // with the visible line rendered empty.
-        $this->assertStringContainsString('>x.com/its_uriel26</a>', $panel);
-        $this->assertStringContainsString('>linkedin.com/in/uriel-papa</a>', $panel);
+        // The address is where the row goes, not something it prints: the
+        // href carries it and no visible text does.
+        $this->assertStringContainsString('href="https://x.com/its_uriel26"', $panel);
+        $this->assertStringContainsString('href="https://www.linkedin.com/in/uriel-papa/"', $panel);
+        $this->assertStringNotContainsString('>x.com/its_uriel26<', $panel);
+        $this->assertStringNotContainsString('>linkedin.com/in/uriel-papa<', $panel);
     }
 
     /**
@@ -805,8 +806,12 @@ class NfcProfileTest extends TestCase
         $panel = $this->accountsPanel($this->get('/n/'.$card->public_id)->assertOk()->getContent());
 
         $this->assertSame(3, substr_count($panel, '<span class="acct-ico">'), 'one icon slot per row');
-        $this->assertSame(3, substr_count($panel, '<svg'), 'one mark per row');
-        $this->assertSame(3, substr_count($panel, 'class="acct-url"'), 'one visible URL per row');
+        // The open-arrow at the end of each row is an <svg> too; it is not a
+        // mark, so it is taken out before the marks are counted.
+        $marks = preg_replace('#<span class="acct-open".*?</span>#s', '', $panel);
+        $this->assertSame(3, substr_count($marks, '<svg'), 'one mark per row');
+        $this->assertSame(3, substr_count($panel, '<a class="acct acct-go"'), 'every row is itself the link');
+        $this->assertSame(3, substr_count($panel, 'class="acct-open"'), 'every row ends in the open-arrow a thumb looks for');
     }
 
     /**
@@ -842,7 +847,7 @@ class NfcProfileTest extends TestCase
         $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
         $panel = $this->accountsPanel($body);
 
-        $this->assertStringContainsString('>x.com/shown</a>', $panel);
+        $this->assertStringContainsString('href="https://x.com/shown"', $panel);
         $this->assertStringNotContainsString('x.com/hidden', $body);
     }
 
@@ -860,8 +865,9 @@ class NfcProfileTest extends TestCase
 
         $panel = $this->accountsPanel($this->get('/n/'.$card->public_id)->assertOk()->getContent());
 
-        $this->assertStringContainsString('<div class="acct-name">Website</div>', $panel);
-        $this->assertStringContainsString('>viteseo.ph/services</a>', $panel);
+        $this->assertStringContainsString('<div class="acct-name">Link</div>', $panel, 'the owner\'s label names the row');
+        $this->assertStringContainsString('<div class="acct-kind">Website</div>', $panel);
+        $this->assertStringContainsString('href="https://viteseo.ph/services"', $panel);
         $this->assertStringContainsString($this->mark('web'), $panel, 'the globe is the whole point of this row');
     }
 
@@ -879,26 +885,29 @@ class NfcProfileTest extends TestCase
         $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
         $panel = $this->accountsPanel($body);
 
-        $this->assertStringContainsString('<div class="acct-name">Website</div>', $panel);
+        $this->assertStringContainsString('<div class="acct-kind">Website</div>', $panel);
         $this->assertStringContainsString($this->mark('web'), $panel);
         $this->assertStringNotContainsString($this->mark('linkedin'), $body, 'a hostile host must not borrow the LinkedIn mark');
         $this->assertStringNotContainsString('LinkedIn', $body, 'a hostile host must not borrow the LinkedIn label');
     }
 
     /**
-     * The panel's most-read line names the host the visitor will actually
-     * reach. Userinfo before an @ is the classic way to make that line open
-     * with a brand the visitor trusts.
+     * With the address no longer printed, the kind line is what tells a
+     * visitor where a row leads, so it must name the host they will actually
+     * reach. Userinfo before an @ is the classic way to open with a brand the
+     * visitor trusts - even when the owner's own label claims that brand.
      */
     public function test_a_userinfo_url_does_not_read_as_the_brand_it_borrows(): void
     {
         $card = $this->profileCard();
-        $this->link($card, 'https://x.com@attacker.tld/pay');
+        $this->link($card, 'https://x.com@attacker.tld/pay', 'X');
 
-        $panel = $this->accountsPanel($this->get('/n/'.$card->public_id)->assertOk()->getContent());
+        $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
+        $panel = $this->accountsPanel($body);
 
-        $this->assertStringContainsString('>attacker.tld/pay</a>', $panel);
-        $this->assertStringNotContainsString('>x.com@attacker.tld/pay</a>', $panel);
+        $this->assertStringContainsString('<div class="acct-kind">Website</div>', $panel, 'the label says X; the kind line must not');
+        $this->assertStringNotContainsString('<div class="acct-kind">X</div>', $panel);
+        $this->assertStringNotContainsString($this->mark('x'), $body);
     }
 
     public function test_the_icon_row_carries_brand_links_only(): void
@@ -914,9 +923,9 @@ class NfcProfileTest extends TestCase
         // panel below. A row of identical globes is noise, not navigation.
         $this->assertSame(1, substr_count($this->iconRow($body), '<svg'), 'the icon row must carry brand marks only');
 
-        // Both links are still reachable from the panel, as visible text.
-        $this->assertStringContainsString('>x.com/its_uriel26</a>', $panel);
-        $this->assertStringContainsString('>viteseo.ph/services</a>', $panel);
+        // Both links are still reachable from the panel.
+        $this->assertStringContainsString('href="https://x.com/its_uriel26"', $panel);
+        $this->assertStringContainsString('href="https://viteseo.ph/services"', $panel);
     }
 
     public function test_the_icon_row_is_omitted_when_no_link_has_a_brand(): void
@@ -1027,7 +1036,7 @@ class NfcProfileTest extends TestCase
         $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
         $panel = $this->accountsPanel($body);
 
-        $this->assertStringContainsString('<div class="acct-name">Website</div>', $panel);
+        $this->assertStringContainsString('<div class="acct-name">Link</div>', $panel);
         $this->assertStringNotContainsString('<div class="acct-name">X</div>', $panel);
         $this->assertStringNotContainsString($this->mark('x'), $body, 'a hostile scheme must not wear the X mark');
         $this->assertStringContainsString($this->mark('web'), $panel);
@@ -1076,18 +1085,18 @@ class NfcProfileTest extends TestCase
 
     /**
      * parse_url mangles a non-ASCII host into invalid UTF-8, and Blade renders
-     * invalid UTF-8 as nothing at all — an icon and a label with no URL beside
-     * them. Unreachable while SafeExternalUrl restricts hosts to ASCII, but it
-     * is a trap laid for whichever increment adds IDN support.
+     * invalid UTF-8 as nothing at all. The row no longer prints the address,
+     * but it must still print its label. Unreachable while SafeExternalUrl
+     * restricts hosts to ASCII - a trap for whichever increment adds IDN.
      */
-    public function test_a_non_ascii_host_still_renders_a_visible_url(): void
+    public function test_a_non_ascii_host_still_renders_its_label(): void
     {
         $card = $this->profileCard();
-        $this->link($card, 'https://х.com/pay');
+        $this->link($card, 'https://х.com/pay', 'Pay here');
 
         $panel = $this->accountsPanel($this->get('/n/'.$card->public_id)->assertOk()->getContent());
 
-        $this->assertStringContainsString('>https://х.com/pay</a>', $panel, 'the row lost its visible URL');
+        $this->assertStringContainsString('<div class="acct-name">Pay here</div>', $panel, 'the row lost its label');
     }
 
     public function test_an_ordinary_link_still_reaches_its_href_untouched(): void

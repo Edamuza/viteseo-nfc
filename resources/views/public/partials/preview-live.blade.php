@@ -228,7 +228,15 @@
         + '</div>';
     }
 
-    return html + '<div class="pv-link pv-primary">Save contact</div>' + buttons(rows());
+    // The page's action row: the owner's own button (once it has both text
+    // and a link, as the server insists) beside Share.
+    var ctaLabel = field('cta_label');
+    var ctaUrl = field('cta_url');
+    html += '<div class="pv-row">'
+      + (ctaLabel && ctaUrl ? '<div class="pv-link pv-primary">' + esc(ctaLabel) + '</div>' : '')
+      + '<div class="pv-link">Share</div></div>';
+
+    return html + buttons(rows());
   }
 
   function render() {

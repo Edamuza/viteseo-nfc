@@ -135,6 +135,8 @@ class NfcProfileEditController extends Controller
             'tagline' => ['nullable', 'string', 'max:200'],
             'phone' => ['nullable', 'string', new SafePhoneNumber()],
             'email' => ['nullable', 'email:rfc', 'max:190'],
+            'cta_label' => ['nullable', 'string', 'max:40', 'required_with:cta_url'],
+            'cta_url' => ['nullable', 'string', 'max:500', 'required_with:cta_label', new SafeExternalUrl()],
             'avatar' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:5120', 'dimensions:max_width=8000,max_height=8000'],
             'remove_avatar' => ['nullable', 'boolean'],
             'links' => ['array', 'max:12'],
@@ -142,6 +144,9 @@ class NfcProfileEditController extends Controller
             'links.*.title' => ['required', 'string', 'max:120'],
             'links.*.url' => ['required', 'string', 'max:500', new SafeExternalUrl()],
             'links.*.icon' => ['nullable', 'string', \Illuminate\Validation\Rule::in(array_keys(LinkPlatform::iconChoices()))],
+        ], [
+            'cta_label.required_with' => 'Give the button some text too.',
+            'cta_url.required_with' => 'Say where the button goes too.',
         ]);
 
         $newPath = null;
@@ -190,6 +195,8 @@ class NfcProfileEditController extends Controller
                     'tagline' => $this->singleLineOrNull($data['tagline'] ?? null),
                     'phone' => $this->singleLineOrNull($data['phone'] ?? null),
                     'email' => $this->singleLineOrNull($data['email'] ?? null),
+                    'cta_label' => $this->singleLineOrNull($data['cta_label'] ?? null),
+                    'cta_url' => $this->singleLineOrNull($data['cta_url'] ?? null),
                 ]);
 
                 $lockedCard->profileEdits()->create([
@@ -279,6 +286,8 @@ class NfcProfileEditController extends Controller
                 'tagline' => $profile->tagline,
                 'phone' => $profile->phone,
                 'email' => $profile->email,
+                'cta_label' => $profile->cta_label,
+                'cta_url' => $profile->cta_url,
                 'welcome_eyebrow' => $profile->welcome_eyebrow,
                 'welcome_heading' => $profile->welcome_heading,
                 'welcome_body' => $profile->welcome_body,

@@ -406,7 +406,7 @@ class AdminProfilePanelTest extends TestCase
         foreach ([
             'display_name', 'headline', 'username', 'location', 'tagline', 'avatar',
             'welcome_eyebrow', 'welcome_heading', 'welcome_body',
-            'welcome_cta_label', 'welcome_cta_url',
+            'welcome_cta_label', 'welcome_cta_url', 'cta_label', 'cta_url',
         ] as $field) {
             $this->assertStringContainsString('name="'.$field.'"', $body, "missing {$field}");
         }
