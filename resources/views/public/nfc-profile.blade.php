@@ -200,15 +200,20 @@ h1{font-size:2.3125rem;line-height:1.15;font-weight:700;margin:0;letter-spacing:
 h2{font-size:1.3125rem;line-height:1.25;font-weight:700;margin:0 0 6px;letter-spacing:-.01em}
 .acct{display:flex;gap:15px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--line)}
 .acct:last-child{border-bottom:0}
-.acct-ico{flex:0 0 auto;width:21px;padding-top:2px;color:#20262e}
-.acct-ico svg{width:21px;height:21px;fill:currentColor;display:block}
+/* Each mark sits in a disc of the page's own colour, like the owner's button:
+   --brand from their photo, the mark in --on-brand. DominantColor keeps
+   --brand dark, so the light mark reads on every card. Google's G keeps its
+   own four colours - they are fixed on its paths - and still reads, because
+   the brand is always far darker than any of them. */
+.acct-ico{flex:0 0 auto;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+ background:var(--brand);color:var(--on-brand)}
+.acct-ico svg{width:19px;height:19px;fill:currentColor;display:block}
 .acct-name{font-size:1rem;font-weight:600;overflow-wrap:anywhere}
 /* The whole row is the link: the owner's label, what kind of place it is,
    and an open-arrow at the end - the part a thumb looks for. The address
    itself is not printed; the kind line is what tells a visitor where they
    are going, and it is earned from the real host, never from the label. */
 .acct-go{color:inherit;text-decoration:none;align-items:center}
-.acct-go .acct-ico{padding-top:0}
 .acct-text{flex:1;min-width:0}
 .acct-kind{font-size:.85rem;color:var(--muted);margin-top:1px}
 .acct-open{flex:0 0 auto;width:34px;height:34px;border-radius:999px;background:var(--pill);

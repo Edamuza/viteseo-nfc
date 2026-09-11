@@ -62,6 +62,20 @@ class ProfileCtaTest extends TestCase
         $this->assertStringContainsString('background:var(--brand);color:var(--on-brand)', $body);
     }
 
+    public function test_every_link_mark_sits_in_a_disc_of_the_pages_colour(): void
+    {
+        $card = $this->card([], '#5a4a10');
+        $card->nfcLinks()->create(['title' => 'FB', 'url' => 'https://facebook.com/acme', 'sort_order' => 0, 'is_active' => true]);
+        $card->nfcLinks()->create(['title' => 'Review us', 'url' => 'https://g.page/r/Cabc/review', 'sort_order' => 1, 'is_active' => true]);
+
+        $body = $this->page($card);
+
+        // The same colour pair as the owner's button: the page's own --brand,
+        // with the light --on-brand drawing the mark.
+        $this->assertMatchesRegularExpression('#\.acct-ico\{[^}]*border-radius:50%[^}]*background:var\(--brand\);color:var\(--on-brand\)\}#', $body);
+        $this->assertSame(2, substr_count($body, '<span class="acct-ico">'), 'one disc per link');
+    }
+
     public function test_without_a_button_share_keeps_the_row_to_itself(): void
     {
         $body = $this->page($this->card());
