@@ -209,13 +209,11 @@ h2{font-size:1.3125rem;line-height:1.25;font-weight:700;margin:0 0 6px;letter-sp
  background:var(--brand);color:var(--on-brand)}
 .acct-ico svg{width:19px;height:19px;fill:currentColor;display:block}
 .acct-name{font-size:1rem;font-weight:600;overflow-wrap:anywhere}
-/* The whole row is the link: the owner's label, what kind of place it is,
-   and an open-arrow at the end - the part a thumb looks for. The address
-   itself is not printed; the kind line is what tells a visitor where they
-   are going, and it is earned from the real host, never from the label. */
+/* The whole row is the link: the mark, the owner's label, and an
+   open-arrow at the end - the part a thumb looks for. Neither the address
+   nor the kind of place is printed; the label is the owner's own words. */
 .acct-go{color:inherit;text-decoration:none;align-items:center}
 .acct-text{flex:1;min-width:0}
-.acct-kind{font-size:.85rem;color:var(--muted);margin-top:1px}
 .acct-open{flex:0 0 auto;width:34px;height:34px;border-radius:999px;background:var(--pill);
  display:grid;place-items:center;color:var(--text)}
 .acct-open svg{width:16px;height:16px;fill:currentColor;display:block}
@@ -472,12 +470,10 @@ footer a:hover{text-decoration:underline}
           $platform = \App\Services\LinkPlatform::iconFor($link->icon, $link->url);
           $noLogo   = $platform === \App\Services\LinkPlatform::NONE;
           $href     = \App\Services\LinkPlatform::safeHref($link->url);
-          // What kind of place this is, earned from the real host - never from
-          // the label, which is the owner's own words. A row titled "Facebook"
-          // that leads elsewhere still says "Website" underneath.
+          // The label is always required, so the platform name only stands in
+          // for a row stored before that rule existed.
           $kind     = $noLogo ? null : \App\Services\LinkPlatform::label($platform);
           $name     = trim((string) $link->title) ?: (string) $kind;
-          $showKind = $kind !== null && mb_strtolower($kind) !== mb_strtolower($name);
         @endphp
         @if ($href === '#')
           {{-- Defused, so not an anchor at all. href="#" resolves to this
@@ -501,7 +497,6 @@ footer a:hover{text-decoration:underline}
             @endunless
             <div class="acct-text">
               <div class="acct-name">{{ $name }}</div>
-              @if ($showKind)<div class="acct-kind">{{ $kind }}</div>@endif
             </div>
             <span class="acct-open" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42L17.59 5H14V3zM5 5h6v2H5v12h12v-6h2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg></span>
           </a>

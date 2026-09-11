@@ -877,7 +877,6 @@ class NfcProfileTest extends TestCase
         $panel = $this->accountsPanel($this->get('/n/'.$card->public_id)->assertOk()->getContent());
 
         $this->assertStringContainsString('<div class="acct-name">Link</div>', $panel, 'the owner\'s label names the row');
-        $this->assertStringContainsString('<div class="acct-kind">Website</div>', $panel);
         $this->assertStringContainsString('href="https://viteseo.ph/services"', $panel);
         $this->assertStringContainsString($this->mark('web'), $panel, 'the globe is the whole point of this row');
     }
@@ -896,19 +895,17 @@ class NfcProfileTest extends TestCase
         $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
         $panel = $this->accountsPanel($body);
 
-        $this->assertStringContainsString('<div class="acct-kind">Website</div>', $panel);
         $this->assertStringContainsString($this->mark('web'), $panel);
         $this->assertStringNotContainsString($this->mark('linkedin'), $body, 'a hostile host must not borrow the LinkedIn mark');
         $this->assertStringNotContainsString('LinkedIn', $body, 'a hostile host must not borrow the LinkedIn label');
     }
 
     /**
-     * With the address no longer printed, the kind line is what tells a
-     * visitor where a row leads, so it must name the host they will actually
-     * reach. Userinfo before an @ is the classic way to open with a brand the
-     * visitor trusts - even when the owner's own label claims that brand.
+     * Userinfo before an @ is the classic way to open with a brand the
+     * visitor trusts. With nothing but the label and the mark on the row,
+     * the mark detected from the URL must be the host actually reached.
      */
-    public function test_a_userinfo_url_does_not_read_as_the_brand_it_borrows(): void
+    public function test_a_userinfo_url_does_not_wear_the_brand_it_borrows(): void
     {
         $card = $this->profileCard();
         $this->link($card, 'https://x.com@attacker.tld/pay', 'X');
@@ -916,8 +913,7 @@ class NfcProfileTest extends TestCase
         $body  = $this->get('/n/'.$card->public_id)->assertOk()->getContent();
         $panel = $this->accountsPanel($body);
 
-        $this->assertStringContainsString('<div class="acct-kind">Website</div>', $panel, 'the label says X; the kind line must not');
-        $this->assertStringNotContainsString('<div class="acct-kind">X</div>', $panel);
+        $this->assertStringContainsString($this->mark('web'), $panel, 'attacker.tld is a website, whatever the label says');
         $this->assertStringNotContainsString($this->mark('x'), $body);
     }
 
@@ -1137,7 +1133,22 @@ class NfcProfileTest extends TestCase
         $this->assertStringContainsString($this->mark('google'), $this->iconRow($body));
         $this->assertStringContainsString($this->mark('google'), $panel);
         $this->assertStringContainsString('<div class="acct-name">Leave us a review</div>', $panel);
-        $this->assertStringContainsString('<div class="acct-kind">Google</div>', $panel);
+    }
+
+    /** Only the owner's label under each mark - no "Facebook" or "Website" line. */
+    public function test_a_link_row_prints_its_label_and_nothing_under_it(): void
+    {
+        $card = $this->profileCard();
+        $this->link($card, 'https://facebook.com/acme', 'FB', true, 0);
+        $this->link($card, 'https://acme.example', 'Our shop', true, 1);
+
+        $panel = $this->accountsPanel($this->get('/n/'.$card->public_id)->assertOk()->getContent());
+
+        $this->assertStringNotContainsString('acct-kind', $panel);
+        $this->assertStringNotContainsString('>Facebook<', $panel);
+        $this->assertStringNotContainsString('>Website<', $panel);
+        $this->assertStringContainsString('<div class="acct-name">FB</div>', $panel);
+        $this->assertStringContainsString('<div class="acct-name">Our shop</div>', $panel);
     }
 
     public function test_the_icon_row_is_switched_off_by_default(): void
