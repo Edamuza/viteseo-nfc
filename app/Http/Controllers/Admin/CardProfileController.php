@@ -184,8 +184,10 @@ class CardProfileController extends Controller
 
             $snapshot = (array) $edit->snapshot;
             $currentAvatar = $lockedCard->profile()->value('avatar_path');
+            $currentCover = $lockedCard->profile()->value('cover_path');
             $profileData = $snapshot['profile'] ?? null;
             $restoredAvatar = null;
+            $restoredCover = null;
 
             if ($profileData === null) {
                 $lockedCard->profile()->delete();
@@ -194,11 +196,11 @@ class CardProfileController extends Controller
                     'display_name', 'headline', 'username', 'location', 'tagline',
                     'phone', 'email', 'cta_label', 'cta_url',
                     'welcome_eyebrow', 'welcome_heading', 'welcome_body',
-                    'welcome_cta_label', 'welcome_cta_url', 'avatar_path', 'brand_color',
+                    'welcome_cta_label', 'welcome_cta_url', 'avatar_path', 'cover_path', 'brand_color',
                 ]);
                 $profile = $lockedCard->profile()->first() ?: $lockedCard->profile()->make();
-                $profile->fill(Arr::except($profileData, ['avatar_path', 'brand_color']));
-                $profile->forceFill(Arr::only($profileData, ['avatar_path', 'brand_color']));
+                $profile->fill(Arr::except($profileData, ['avatar_path', 'cover_path', 'brand_color']));
+                $profile->forceFill(Arr::only($profileData, ['avatar_path', 'cover_path', 'brand_color']));
 
                 if ($profile->exists) {
                     $profile->save();
@@ -207,6 +209,7 @@ class CardProfileController extends Controller
                 }
 
                 $restoredAvatar = $profile->avatar_path;
+                $restoredCover = $profile->cover_path;
             }
 
             $lockedCard->nfcLinks()->delete();
@@ -227,6 +230,8 @@ class CardProfileController extends Controller
             return [
                 'current_avatar' => $currentAvatar,
                 'restored_avatar' => $restoredAvatar,
+                'current_cover' => $currentCover,
+                'restored_cover' => $restoredCover,
             ];
         });
 
@@ -238,21 +243,35 @@ class CardProfileController extends Controller
             $this->forgetAvatarUnlessRetained($result['current_avatar'], $card);
         }
 
+        if ($result['current_cover'] !== $result['restored_cover']) {
+            $this->forgetCoverUnlessRetained($result['current_cover'], $card);
+        }
+
         return back()->with('status', 'Latest client profile edit reverted.');
     }
 
     private function forgetAvatarUnlessRetained(?string $path, Card $card): void
     {
+        $this->forgetImageUnlessRetained($path, 'avatar_path', $card);
+    }
+
+    private function forgetCoverUnlessRetained(?string $path, Card $card): void
+    {
+        $this->forgetImageUnlessRetained($path, 'cover_path', $card);
+    }
+
+    private function forgetImageUnlessRetained(?string $path, string $column, Card $card): void
+    {
         if ((string) $path === '') {
             return;
         }
 
-        DB::transaction(function () use ($path, $card): void {
+        DB::transaction(function () use ($path, $column, $card): void {
             $lockedCard = Card::query()->whereKey($card->id)->lockForUpdate()->firstOrFail();
-            $isCurrent = $lockedCard->profile()->value('avatar_path') === $path;
+            $isCurrent = $lockedCard->profile()->value($column) === $path;
             $isSnapshotted = $lockedCard->profileEdits()
                 ->get()
-                ->contains(fn ($edit): bool => data_get($edit->snapshot, 'profile.avatar_path') === $path);
+                ->contains(fn ($edit): bool => data_get($edit->snapshot, 'profile.'.$column) === $path);
 
             if (! $isCurrent && ! $isSnapshotted) {
                 // The mutation that orphaned this path already committed. This

@@ -21,8 +21,8 @@ use Illuminate\Support\Facades\DB;
  *
      * Each public method delegates to a private helper that runs exactly one
      * database transaction, then deletes every publicly served image the reset
-     * orphaned - the contact photo, the profile avatar and the landing page logo
-     * - and unsets both in-memory relations. File deletion is deliberately
+     * orphaned - the contact photo, the profile avatar and cover and the
+     * landing page logo - and unsets both in-memory relations. File deletion is deliberately
      * post-commit for both entry points:
      * filesystem deletes do not roll back, and a file removed while the profile
      * row survives would show a broken image on a live contact page.
@@ -65,7 +65,8 @@ class CardResetService
     }
 
     /**
-     * Deletes only the Profile-mode payload: the profile row and its avatar.
+     * Deletes only the Profile-mode payload: the profile row, its avatar and
+     * its cover.
      *
      * The admin panel's "Delete profile details" button, the counterpart of the
      * Contact-mode delete. It lives here rather than in the controller so that
@@ -81,17 +82,17 @@ class CardResetService
      */
     public function deleteProfile(Card $card): void
     {
-        $avatarPaths = DB::transaction(function () use ($card): array {
+        $paths = DB::transaction(function () use ($card): array {
             $lockedCard = Card::query()->whereKey($card->id)->lockForUpdate()->firstOrFail();
 
             return array_merge(
-                [$this->takeProfile($lockedCard)],
+                $this->takeProfile($lockedCard),
                 $this->takeProfileHistory($lockedCard)
             );
         });
 
-        foreach (array_unique(array_filter($avatarPaths)) as $avatarPath) {
-            $this->photos->forget($avatarPath, $card);
+        foreach (array_unique(array_filter($paths)) as $path) {
+            $this->photos->forget($path, $card);
         }
 
         $card->unsetRelation('profile');
@@ -99,38 +100,50 @@ class CardResetService
     }
 
     /**
-     * Deletes the profile row and hands back the avatar that is now orphaned,
-     * for the caller to remove from disk once it is safe to do so.
+     * Deletes the profile row and hands back every public image that is now
+     * orphaned — the avatar and the cover — for the caller to remove from disk
+     * once it is safe to do so.
      *
      * The return value is what lets the reset path run this inside its
-     * transaction while still deleting the file only after the commit.
+     * transaction while still deleting the files only after the commit.
+     *
+     * @return array<int, string>
      */
-    private function takeProfile(Card $card): ?string
+    private function takeProfile(Card $card): array
     {
         if (! $profile = $card->profile) {
-            return null;
+            return [];
         }
 
-        $avatarPath = $profile->avatar_path;
+        $paths = array_values(array_filter([
+            $profile->avatar_path,
+            $profile->cover_path,
+        ]));
+
         $profile->delete();
 
-        return $avatarPath;
+        return $paths;
     }
 
     /**
-     * Deletes the client-edit audit history and returns every avatar retained
-     * solely because a snapshot can restore it.
+     * Deletes the client-edit audit history and returns every public image
+     * retained solely because a snapshot can restore it.
      *
      * @return array<int, string>
      */
     private function takeProfileHistory(Card $card): array
     {
-        $paths = $card->profileEdits()
-            ->get()
-            ->map(fn ($edit): ?string => data_get($edit->snapshot, 'profile.avatar_path'))
-            ->filter(fn ($path): bool => is_string($path) && $path !== '')
-            ->values()
-            ->all();
+        $paths = [];
+
+        foreach ($card->profileEdits()->get() as $edit) {
+            foreach (['avatar_path', 'cover_path'] as $column) {
+                $path = data_get($edit->snapshot, 'profile.'.$column);
+
+                if (is_string($path) && $path !== '') {
+                    $paths[] = $path;
+                }
+            }
+        }
 
         $card->profileEdits()->delete();
 
@@ -153,10 +166,9 @@ class CardResetService
     {
         $photoPath  = null;
         $logoPath   = null;
-        $avatarPath = null;
-        $historicAvatarPaths = [];
+        $profilePaths = [];
 
-        DB::transaction(function () use ($card, $extraColumns, &$photoPath, &$logoPath, &$avatarPath, &$historicAvatarPaths) {
+        DB::transaction(function () use ($card, $extraColumns, &$photoPath, &$logoPath, &$profilePaths) {
             $lockedCard = Card::query()->whereKey($card->id)->lockForUpdate()->firstOrFail();
             $photoPath = $lockedCard->contactProfile?->photo_path;
             $logoPath = $lockedCard->nfc_logo_path;
@@ -166,8 +178,10 @@ class CardResetService
                 $contact->delete();
             }
 
-            $avatarPath = $this->takeProfile($lockedCard);
-            $historicAvatarPaths = $this->takeProfileHistory($lockedCard);
+            $profilePaths = array_merge(
+                $this->takeProfile($lockedCard),
+                $this->takeProfileHistory($lockedCard)
+            );
 
             $lockedCard->forceFill(array_merge([
                 'nfc_mode'          => NfcMode::Links,
@@ -190,12 +204,9 @@ class CardResetService
         // that outlives the row is the worse-kept secret, so the storage helper
         // logs it rather than letting it pass unnoticed.
         $this->photos->forget($photoPath, $card);
-        $this->photos->forget($avatarPath, $card);
         $this->photos->forget($logoPath, $card);
-        foreach (array_unique($historicAvatarPaths) as $historicAvatarPath) {
-            if ($historicAvatarPath !== $avatarPath) {
-                $this->photos->forget($historicAvatarPath, $card);
-            }
+        foreach (array_unique(array_filter($profilePaths)) as $path) {
+            $this->photos->forget($path, $card);
         }
 
         // The in-memory model may still hold the profile we just deleted.

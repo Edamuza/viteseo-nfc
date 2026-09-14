@@ -235,7 +235,10 @@ code{background:#f9fafb;border:1px solid var(--line);padding:2px 7px;border-radi
 .pv-f .pv-v{text-align:right;overflow-wrap:anywhere}
 .pv-empty{color:#9aa1ac;text-align:center;font-size:11px;padding:26px 10px;line-height:1.6}
 .pv-cover{height:54px;margin:-14px -12px 10px;background:#cbd5e1 center/cover no-repeat;
- filter:blur(7px) saturate(1.15);opacity:.9}
+  filter:blur(7px) saturate(1.15);opacity:.9}
+/* A real cover photo is its own subject, so the preview shows it clean instead
+   of blurred, exactly as the live page will. */
+.pv-cover-photo{filter:none;opacity:1}
 
 /* ---------- Details screen: form beside its live preview ---------- */
 .setup{display:grid;gap:14px}

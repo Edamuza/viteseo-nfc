@@ -16,10 +16,10 @@ class NfcProfile extends Model
     public const DEFAULT_BRAND_COLOR = '#141414';
 
     /**
-     * Explicit allow-list. card_id, avatar_path and brand_color are deliberately
-     * absent: the first would let request data re-point a profile at another
-     * card, the second would let it name a file, and the third is derived from
-     * the avatar rather than chosen by anyone.
+     * Explicit allow-list. card_id, avatar_path, cover_path and brand_color are
+     * deliberately absent: the first would let request data re-point a profile
+     * at another card, the two file columns would let it name a file, and the
+     * colour is derived from the avatar rather than chosen by anyone.
      */
     protected $fillable = [
         'display_name', 'headline', 'username', 'location', 'tagline',

@@ -17,6 +17,7 @@
   }
   input[type=file]::file-selector-button:hover{background:var(--accent-soft);border-color:var(--accent)}
   .avatar-preview{width:72px;height:72px;border-radius:50%;object-fit:cover;border:1px solid var(--line);margin-top:8px}
+  .cover-preview{width:100%;max-width:420px;height:92px;object-fit:cover;border-radius:9px;border:1px solid var(--line);margin-top:8px;display:block}
   .check{display:flex;align-items:center;gap:8px;font-weight:500}
   .links{margin-top:22px;padding-top:4px;border-top:1px solid var(--line)}
   .links-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -48,6 +49,7 @@
     @include('public.partials.preview-live', [
       'kind' => 'profile',
       'avatarUrl' => $profile?->avatar_path ? asset('storage/'.$profile->avatar_path) : '',
+      'coverUrl' => $profile?->cover_path ? asset('storage/'.$profile->cover_path) : '',
     ])
   @endif
 
@@ -147,6 +149,14 @@
                 <label class="check"><input name="remove_avatar" type="checkbox" value="1"> Remove this photo</label>
               @endif
             </div>
+            <div class="wide-field">
+              <label for="cover">Cover photo <span class="opt">(JPG, PNG or WebP, up to 5 MB)</span></label>
+              <input id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp" data-cover-crop>
+              @if ($profile?->cover_path)
+                <img class="cover-preview" src="{{ asset('storage/'.$profile->cover_path) }}" alt="Your current cover">
+                <label class="check"><input name="remove_cover" type="checkbox" value="1"> Remove this cover</label>
+              @endif
+            </div>
           </div>
 
           <section class="links">
@@ -216,4 +226,5 @@
   </div>
 </div>
 @include('partials.photo-cropper')
+@include('partials.cover-cropper')
 @endsection

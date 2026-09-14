@@ -97,6 +97,11 @@ details.menu>summary::-webkit-details-marker{display:none}
   width:100%;height:100%;object-fit:cover;display:block;
   filter:blur(20px) saturate(1.15);transform:scale(1.2);opacity:.85;
 }
+/* The owner's own cover photo, uploaded and framed in the editor. It is shown
+   clean - no blur, no scale - and centre-cropped to the band. The crop already
+   happened when it was framed; object-fit:cover here only absorbs the small
+   width differences between a phone and the 680px desktop column. */
+.cover-photo{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
 .idblock{padding:0 28px 26px}
 .avatar-row{margin-top:-54px;margin-bottom:16px}
 .avatar-slot{position:relative;width:110px;height:110px}
@@ -346,7 +351,9 @@ footer a:hover{text-decoration:underline}
 
   <section class="card">
     <div class="cover">
-      @if ($profile->avatar_path)
+      @if ($profile->cover_path)
+        <img class="cover-photo" src="{{ asset('storage/'.$profile->cover_path) }}" alt="" aria-hidden="true">
+      @elseif ($profile->avatar_path)
         <img class="cover-img" src="{{ asset('storage/'.$profile->avatar_path) }}" alt="" aria-hidden="true">
       @endif
     </div>

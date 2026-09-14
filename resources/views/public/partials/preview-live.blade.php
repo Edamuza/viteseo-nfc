@@ -5,8 +5,9 @@
   // Shown instead when the owner ticks "remove": a contact card whose own
   // photo goes falls back to the profile photo rather than to no photo.
   $pvAvatarFallback = $avatarFallback ?? '';
+  $pvCover = $coverUrl ?? '';
 @endphp
-<aside class="pv-side" id="pv" data-kind="{{ $pvKind }}" data-avatar="{{ $pvAvatar }}" data-avatar-fallback="{{ $pvAvatarFallback }}">
+<aside class="pv-side" id="pv" data-kind="{{ $pvKind }}" data-avatar="{{ $pvAvatar }}" data-avatar-fallback="{{ $pvAvatarFallback }}" data-cover="{{ $pvCover }}">
   <div class="pv-bar">
     <span class="pv-lbl">Preview &mdash; what people see</span>
     <button class="pv-hide" type="button" id="pv-toggle">Hide</button>
@@ -32,6 +33,7 @@
   var kind = side.dataset.kind;
   var avatarUrl = side.dataset.avatar || '';
   var avatarFallback = side.dataset.avatarFallback || '';
+  var coverUrl = side.dataset.cover || '';
 
   // The very table LinkPlatform matches on, handed over rather than
   // transcribed: "Auto" must guess the same icon the save will pick, and a
@@ -250,13 +252,20 @@
       : renderLinks();
 
     var shown = removeAvatar && removeAvatar.checked ? avatarFallback : avatarUrl;
-    if (! shown) return;
 
-    // Set as a property rather than interpolated into a style attribute: the
-    // value can be a data: URL megabytes long, and never has to be parsed as
-    // CSS this way.
-    screen.querySelectorAll('.pv-ava, .pv-cover').forEach(function (node) {
-      node.style.backgroundImage = 'url("' + shown.replace(/["\\]/g, '') + '")';
+    // The avatar disc and the cover band are two different things now: the
+    // disc shows the owner's photo, the band shows the cover photo if there
+    // is one, and only falls back to the blurred photo otherwise.
+    screen.querySelectorAll('.pv-ava').forEach(function (node) {
+      if (shown) {
+        node.style.backgroundImage = 'url("' + shown.replace(/["\\]/g, '') + '")';
+      }
+    });
+
+    var cover = coverUrl || shown;
+    screen.querySelectorAll('.pv-cover').forEach(function (node) {
+      node.style.backgroundImage = cover ? 'url("' + cover.replace(/["\\]/g, '') + '")' : '';
+      node.classList.toggle('pv-cover-photo', !! coverUrl);
     });
   }
 
@@ -292,6 +301,19 @@
 
         var reader = new FileReader();
         reader.onload = function () { avatarUrl = String(reader.result); render(); };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    var cover = document.getElementById('cover');
+
+    if (cover) {
+      cover.addEventListener('change', function () {
+        var file = cover.files && cover.files[0];
+        if (! file) return;
+
+        var reader = new FileReader();
+        reader.onload = function () { coverUrl = String(reader.result); render(); };
         reader.readAsDataURL(file);
       });
     }

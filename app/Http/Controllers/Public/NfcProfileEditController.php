@@ -139,6 +139,8 @@ class NfcProfileEditController extends Controller
             'cta_url' => ['nullable', 'string', 'max:500', 'required_with:cta_label', new SafeExternalUrl()],
             'avatar' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:5120', 'dimensions:max_width=8000,max_height=8000'],
             'remove_avatar' => ['nullable', 'boolean'],
+            'cover' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:5120', 'dimensions:max_width=8000,max_height=8000'],
+            'remove_cover' => ['nullable', 'boolean'],
             'links' => ['array', 'max:12'],
             'links.*' => ['array'],
             'links.*.title' => ['required', 'string', 'max:120'],
@@ -169,8 +171,20 @@ class NfcProfileEditController extends Controller
             $newPath = $stored['path'];
         }
 
+        $newCoverPath = null;
+
+        if ($cover = $request->file('cover')) {
+            try {
+                $newCoverPath = $this->images->store($cover, 'profile-covers', 1600);
+            } catch (UnreadableImageException $exception) {
+                return $this->noStore(back()
+                    ->withErrors(['cover' => $exception->getMessage()])
+                    ->withInput($request->except('cover')));
+            }
+        }
+
         try {
-            DB::transaction(function () use ($request, $card, $data, $stored): void {
+            DB::transaction(function () use ($request, $card, $data, $stored, $newCoverPath): void {
                 $lockedCard = Card::query()->whereKey($card->id)->lockForUpdate()->firstOrFail();
                 $this->guardProfileMode($request, $lockedCard);
                 $lockedCard->load(['profile', 'nfcLinks']);
@@ -185,6 +199,12 @@ class NfcProfileEditController extends Controller
                     ]);
                 } elseif ((bool) ($data['remove_avatar'] ?? false)) {
                     $profile->forceFill(['avatar_path' => null, 'brand_color' => null]);
+                }
+
+                if ($newCoverPath !== null) {
+                    $profile->forceFill(['cover_path' => $newCoverPath]);
+                } elseif ((bool) ($data['remove_cover'] ?? false)) {
+                    $profile->forceFill(['cover_path' => null]);
                 }
 
                 $profile->fill([
@@ -235,6 +255,10 @@ class NfcProfileEditController extends Controller
         } catch (Throwable $exception) {
             if ($newPath !== null) {
                 $this->photos->forget($newPath, $card);
+            }
+
+            if ($newCoverPath !== null) {
+                $this->photos->forget($newCoverPath, $card);
             }
 
             throw $exception;
@@ -294,6 +318,7 @@ class NfcProfileEditController extends Controller
                 'welcome_cta_label' => $profile->welcome_cta_label,
                 'welcome_cta_url' => $profile->welcome_cta_url,
                 'avatar_path' => $profile->avatar_path,
+                'cover_path' => $profile->cover_path,
                 'brand_color' => $profile->brand_color,
             ],
             'links' => $card->nfcLinks
