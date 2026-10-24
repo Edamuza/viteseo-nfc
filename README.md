@@ -1,58 +1,65 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# viteseo-nfc
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+NFC card platform built with Laravel. It has a public side and an admin side, and manages NFC cards, the links and profiles behind them, and the sticker templates used for printing.
 
-## About Laravel
+## Tech stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP 8.3 and Laravel 13
+- Tailwind CSS 4 and Vite
+- `bacon/bacon-qr-code` for QR codes
+- PHPUnit 12 for tests, Laravel Pint for code style
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## What is in the data model
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+The migrations and models in `app/Models` cover:
 
-## Learning Laravel
+- Cards, including an NFC mode and an activation PIN (with a personalized-at timestamp)
+- NFC links, with an icon for each link
+- NFC profiles, with contact details, a call to action and a cover image
+- NFC contact profiles
+- A history of profile edits
+- Site pages managed from the admin
+- Sticker templates
+- Users
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Controllers are split into `app/Http/Controllers/Admin` and `app/Http/Controllers/Public`, and views follow the same split under `resources/views`.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Getting started
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+You need PHP 8.3 or newer, Composer, Node.js and a database.
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+cp .env.example .env
+php artisan key:generate
+# set your database in .env, then:
+php artisan migrate
+npm install
+npm run dev            # Vite dev server
+php artisan serve      # in a second terminal
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+For a production build, run `npm run build`.
 
-## Contributing
+## Testing and code style
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+php artisan test
+./vendor/bin/pint
+```
 
-## Code of Conduct
+## Project structure
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```
+app/         Models, controllers, services, enums and rules
+config/      Application configuration
+database/    Migrations, factories and seeders
+resources/   Blade views, CSS and JavaScript
+routes/      Route definitions
+public/      Web root and built assets
+tests/       PHPUnit tests
+```
 
-## Security Vulnerabilities
+## Changelog
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+See `CHANGELOG.md` for the history of changes.
